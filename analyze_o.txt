@@ -1,0 +1,70 @@
+﻿Analyzing order_to_challan_time_page.dart...
+
+  error - order_to_challan_time_page.dart:6:8 - Target of URI doesn't exist: '../providers/operational_report_provider.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - order_to_challan_time_page.dart:7:8 - Target of URI doesn't exist: '../models/operational_report_model.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - order_to_challan_time_page.dart:29:18 - The name 'OperationalReportProvider' isn't a type, so it can't be used as a type argument. Try correcting the name to an existing type, or defining a type named 'OperationalReportProvider'. - non_type_as_type_argument
+  error - order_to_challan_time_page.dart:40:22 - The name 'OperationalReportProvider' isn't a type, so it can't be used as a type argument. Try correcting the name to an existing type, or defining a type named 'OperationalReportProvider'. - non_type_as_type_argument
+  error - order_to_challan_time_page.dart:48:33 - The property 'isLoading' can't be unconditionally accessed because the receiver can be 'null'. Try making the access conditional (using '?.') or adding a null check to the target ('!'). - unchecked_use_of_nullable_value
+  error - order_to_challan_time_page.dart:66:23 - Undefined class 'OperationalReportProvider'. Try changing the name to the name of an existing class, or creating a class with the name 'OperationalReportProvider'. - undefined_class
+  error - order_to_challan_time_page.dart:86:81 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:86:92 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:116:33 - Undefined class 'OperationalReportProvider'. Try changing the name to the name of an existing class, or creating a class with the name 'OperationalReportProvider'. - undefined_class
+  error - order_to_challan_time_page.dart:145:24 - Undefined class 'OperationalReportProvider'. Try changing the name to the name of an existing class, or creating a class with the name 'OperationalReportProvider'. - undefined_class
+  error - order_to_challan_time_page.dart:175:84 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:175:95 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:198:73 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:198:84 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:232:29 - Undefined class 'OperationalReportProvider'. Try changing the name to the name of an existing class, or creating a class with the name 'OperationalReportProvider'. - undefined_class
+  error - order_to_challan_time_page.dart:242:106 - The getter 'emerald' isn't defined for the type 'Colors'. Try importing the library that defines 'emerald', correcting the name to the name of an existing getter, or defining a getter or field named 'emerald'. - undefined_getter
+  error - order_to_challan_time_page.dart:268:92 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:268:103 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:268:130 - The named parameter 'trackingSpacing' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'trackingSpacing'. - undefined_named_parameter
+  error - order_to_challan_time_page.dart:269:83 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:278:25 - Undefined class 'OperationalReportProvider'. Try changing the name to the name of an existing class, or creating a class with the name 'OperationalReportProvider'. - undefined_class
+  error - order_to_challan_time_page.dart:301:87 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:301:98 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:305:66 - The getter 'emerald' isn't defined for the type 'Colors'. Try importing the library that defines 'emerald', correcting the name to the name of an existing getter, or defining a getter or field named 'emerald'. - undefined_getter
+  error - order_to_challan_time_page.dart:324:46 - The getter 'emerald' isn't defined for the type 'Colors'. Try importing the library that defines 'emerald', correcting the name to the name of an existing getter, or defining a getter or field named 'emerald'. - undefined_getter
+  error - order_to_challan_time_page.dart:335:133 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:335:144 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:335:158 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:335:165 - The getter 'emerald' isn't defined for the type 'Colors'. Try importing the library that defines 'emerald', correcting the name to the name of an existing getter, or defining a getter or field named 'emerald'. - undefined_getter
+  error - order_to_challan_time_page.dart:356:80 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:356:91 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:358:118 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:363:30 - Undefined class 'OperationalReportProvider'. Try changing the name to the name of an existing class, or creating a class with the name 'OperationalReportProvider'. - undefined_class
+  error - order_to_challan_time_page.dart:368:58 - The named parameter 'bottom' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'bottom'. - undefined_named_parameter
+  error - order_to_challan_time_page.dart:391:91 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:391:102 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:392:93 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:392:104 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:393:89 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:393:100 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:394:101 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:394:112 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:395:97 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:395:108 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:401:20 - Undefined class 'OrderToChallanDetail'. Try changing the name to the name of an existing class, or creating a class with the name 'OrderToChallanDetail'. - undefined_class
+  error - order_to_challan_time_page.dart:414:68 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:414:79 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:424:77 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:424:88 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:428:88 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:428:99 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:435:70 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:435:81 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:443:93 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+  error - order_to_challan_time_page.dart:454:86 - The getter 'emerald' isn't defined for the type 'Colors'. Try importing the library that defines 'emerald', correcting the name to the name of an existing getter, or defining a getter or field named 'emerald'. - undefined_getter
+  error - order_to_challan_time_page.dart:459:88 - Invalid constant value. - invalid_constant
+  error - order_to_challan_time_page.dart:459:99 - The getter 'black' isn't defined for the type 'FontWeight'. Try importing the library that defines 'black', correcting the name to the name of an existing getter, or defining a getter or field named 'black'. - undefined_getter
+warning - order_to_challan_time_page.dart:20:10 - The value of the field '_partySearch' isn't used. Try removing the field, or using it. - unused_field
+   info - order_to_challan_time_page.dart:20:10 - The private field _partySearch could be 'final'. Try making the field 'final'. - prefer_final_fields
+   info - order_to_challan_time_page.dart:77:59 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - order_to_challan_time_page.dart:90:54 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - order_to_challan_time_page.dart:120:29 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - order_to_challan_time_page.dart:122:48 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - order_to_challan_time_page.dart:261:54 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - order_to_challan_time_page.dart:377:35 - Unnecessary use of multiple underscores. Try using '_'. - unnecessary_underscores
+   info - order_to_challan_time_page.dart:407:37 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+
+66 issues found.

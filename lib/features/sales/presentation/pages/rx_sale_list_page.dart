@@ -1,0 +1,290 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../data/models/rx_sale_order_model.dart';
+import '../../data/providers/rx_sale_order_provider.dart';
+
+class RxSaleListPage extends StatefulWidget {
+  const RxSaleListPage({super.key});
+
+  @override
+  State<RxSaleListPage> createState() => _RxSaleListPageState();
+}
+
+class _RxSaleListPageState extends State<RxSaleListPage> {
+  String _searchQuery = '';
+  DateTime? _fromDate;
+  DateTime? _toDate;
+  String _billSeriesFilter = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<RxSaleOrderProvider>().fetchAllOrders();
+    });
+  }
+
+  List<RxSaleOrderModel> get _filteredOrders {
+    final provider = context.watch<RxSaleOrderProvider>();
+    return provider.orders.where((order) {
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final party = order.partyData.partyAccount.toLowerCase();
+        final billNo = order.billData.billNo.toLowerCase();
+        final remark = (order.remark ?? '').toLowerCase();
+        if (!(party.contains(q) || billNo.contains(q) || remark.contains(q))) {
+          return false;
+        }
+      }
+      if (_billSeriesFilter != 'All' && order.billData.billSeries != _billSeriesFilter) {
+        return false;
+      }
+      if (_fromDate != null && order.billData.date != null) {
+        final d = DateTime.tryParse(order.billData.date!);
+        if (d != null && d.isBefore(_fromDate!)) return false;
+      }
+      if (_toDate != null && order.billData.date != null) {
+        final d = DateTime.tryParse(order.billData.date!);
+        if (d != null && d.isAfter(_toDate!.add(const Duration(days: 1)))) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  Future<void> _launchWhatsApp(RxSaleOrderModel order) async {
+    final message = Uri.encodeComponent(
+      'RxOrder ${order.billData.billSeries} No. ${order.billData.billNo} - ₹${order.netAmount.toStringAsFixed(2)}'
+    );
+    final url = 'https://wa.me/918850285043?text=$message';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F9),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(context),
+            const SizedBox(height: 24),
+            _buildFilters(),
+            const SizedBox(height: 24),
+            _buildOrderTable(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('Rx Orders', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+            SizedBox(height: 4),
+            Text('Manage prescription orders and delivery status', style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
+          ],
+        ),
+        ElevatedButton.icon(
+          onPressed: () => context.push('/sales/add-rx-sale-order'),
+          icon: const Icon(LucideIcons.plus, size: 18),
+          label: const Text('Add Rx Order'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF10B981),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilters() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE2E8F0))),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: DropdownButtonFormField<String>(
+                value: _billSeriesFilter,
+                decoration: InputDecoration(
+                  labelText: 'BILL SERIES',
+                  labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                items: ['All', 'Rx_Ord_25-26'].map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12)))).toList(),
+                onChanged: (val) => setState(() => _billSeriesFilter = val!),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+               child: _buildDatePicker('FROM DATE', _fromDate, (d) => setState(() => _fromDate = d)),
+            ),
+            const SizedBox(width: 12),
+             Expanded(
+               child: _buildDatePicker('TO DATE', _toDate, (d) => setState(() => _toDate = d)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search by Order No, Party, Remarks...',
+                  prefixIcon: const Icon(LucideIcons.search, size: 18, color: Color(0xFF94A3B8)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  isDense: true,
+                ),
+                onChanged: (val) => setState(() => _searchQuery = val),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              onPressed: () => setState(() {
+                _searchQuery = '';
+                _fromDate = null;
+                _toDate = null;
+                _billSeriesFilter = 'All';
+              }),
+              icon: const Icon(LucideIcons.rotateCcw, size: 20, color: Color(0xFF64748B)),
+              tooltip: 'Reset Filters',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDatePicker(String label, DateTime? value, Function(DateTime) onSelected) {
+    return InkWell(
+      onTap: () async {
+        final date = await showDatePicker(context: context, initialDate: value ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
+        if (date != null) onSelected(date);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(border: Border.all(color: const Color(0xFFE2E8F0)), borderRadius: BorderRadius.circular(6)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8))),
+            const SizedBox(height: 4),
+            Row(children: [const Icon(LucideIcons.calendar, size: 14, color: Color(0xFF64748B)), const SizedBox(width: 6), Text(value != null ? DateFormat('dd MMM yyyy').format(value) : 'Select...', style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderTable() {
+    return Expanded(
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE2E8F0))),
+        child: _filteredOrders.isEmpty 
+          ? const Center(child: Text('No Rx orders found.', style: TextStyle(color: Colors.grey)))
+          : Scrollbar(
+              child: ListView(
+                children: [
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                      columns: const [
+                        DataColumn(label: Text('DATE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('SERIES', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('ORDER NO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('PARTY NAME', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('NET AMT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B)))),
+                      ],
+                      rows: _filteredOrders.map((order) {
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(order.billData.date ?? '-', style: const TextStyle(fontSize: 13))),
+                            DataCell(Text(order.billData.billSeries, style: const TextStyle(fontSize: 13))),
+                            DataCell(Text(order.billData.billNo, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                            DataCell(SizedBox(width: 250, child: Text(order.partyData.partyAccount, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis))),
+                            DataCell(Text('₹ ${order.netAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B), fontWeight: FontWeight.bold))),
+                            DataCell(_buildStatusBadge(order.status)),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(icon: const Icon(LucideIcons.printer, size: 18, color: Color(0xFF64748B)), onPressed: () {}),
+                                  IconButton(
+                                    icon: const Icon(LucideIcons.edit, size: 18, color: Color(0xFF2563EB)),
+                                    onPressed: () => context.push('/sales/add-rx-sale-order?id=${order.id}'),
+                                  ),
+                                  IconButton(
+                                     icon: const Icon(LucideIcons.messageSquare, size: 18, color: Color(0xFF25D366)),
+                                     onPressed: () => _launchWhatsApp(order),
+                                     tooltip: 'Send WhatsApp Update',
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(LucideIcons.trash2, size: 18, color: Colors.red),
+                                    onPressed: () {
+                                      context.read<RxSaleOrderProvider>().deleteOrder(order.id!);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    Color bg = const Color(0xFFF1F5F9);
+    Color fg = const Color(0xFF64748B);
+    switch (status.toLowerCase()) {
+      case 'processing':
+      case 'done':
+        bg = const Color(0xFFDCFCE7);
+        fg = const Color(0xFF16A34A);
+        break;
+      case 'pending':
+        bg = const Color(0xFFFEF9C3);
+        fg = const Color(0xFFCA8A04);
+        break;
+      case 'cancelled':
+        bg = const Color(0xFFFEE2E2);
+        fg = const Color(0xFFEF4444);
+        break;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(16)),
+      child: Text(status.toUpperCase(), style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
+}

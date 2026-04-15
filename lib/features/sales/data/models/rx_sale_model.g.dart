@@ -1,0 +1,62 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'rx_sale_model.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+_$RxSaleModelImpl _$$RxSaleModelImplFromJson(
+  Map<String, dynamic> json,
+) => _$RxSaleModelImpl(
+  id: json['_id'] as String?,
+  billData: json['billData'] == null
+      ? const SaleOrderBillData()
+      : SaleOrderBillData.fromJson(json['billData'] as Map<String, dynamic>),
+  partyData: json['partyData'] == null
+      ? const SaleOrderPartyData()
+      : SaleOrderPartyData.fromJson(json['partyData'] as Map<String, dynamic>),
+  items:
+      (json['items'] as List<dynamic>?)
+          ?.map((e) => RxOrderItem.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
+  taxes:
+      (json['taxes'] as List<dynamic>?)
+          ?.map((e) => SaleOrderTax.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
+  subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
+  taxesAmount: (json['taxesAmount'] as num?)?.toDouble() ?? 0.0,
+  netAmount: (json['netAmount'] as num?)?.toDouble() ?? 0.0,
+  paidAmount: (json['paidAmount'] as num?)?.toDouble() ?? 0.0,
+  dueAmount: (json['dueAmount'] as num?)?.toDouble() ?? 0.0,
+  remark: json['remark'] as String?,
+  status: json['status'] as String? ?? 'Done',
+  saleType: json['saleType'] as String? ?? 'RX SALE',
+  orderId: json['orderId'] as String?,
+  orderNo: json['orderNo'] as String?,
+  createdAt: json['createdAt'] as String?,
+  updatedAt: json['updatedAt'] as String?,
+);
+
+Map<String, dynamic> _$$RxSaleModelImplToJson(_$RxSaleModelImpl instance) =>
+    <String, dynamic>{
+      '_id': instance.id,
+      'billData': instance.billData,
+      'partyData': instance.partyData,
+      'items': instance.items,
+      'taxes': instance.taxes,
+      'subtotal': instance.subtotal,
+      'taxesAmount': instance.taxesAmount,
+      'netAmount': instance.netAmount,
+      'paidAmount': instance.paidAmount,
+      'dueAmount': instance.dueAmount,
+      'remark': instance.remark,
+      'status': instance.status,
+      'saleType': instance.saleType,
+      'orderId': instance.orderId,
+      'orderNo': instance.orderNo,
+      'createdAt': instance.createdAt,
+      'updatedAt': instance.updatedAt,
+    };
