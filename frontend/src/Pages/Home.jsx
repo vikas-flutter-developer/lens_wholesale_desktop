@@ -245,6 +245,11 @@ function Home() {
           </div>
         </div>
 
+        {/* ==================== Quick Actions Section ==================== */}
+        <div className="mb-8 animate-in slide-in-from-bottom-4 duration-500 delay-150">
+          <QuickShortcuts />
+        </div>
+
         {/* Main Content Area: Horizontal Row for Customer and Barcode */}
         <div className="flex flex-col lg:flex-row gap-6 mb-8 items-stretch">
           
@@ -432,10 +437,6 @@ function Home() {
           </div>
         </div>
 
-        {/* ==================== Quick Actions Section ==================== */}
-        <div className="animate-in slide-in-from-bottom-4 duration-500 delay-150">
-          <QuickShortcuts />
-        </div>
       </div>
     </div>
   );

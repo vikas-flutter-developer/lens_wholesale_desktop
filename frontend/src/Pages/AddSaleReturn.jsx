@@ -36,6 +36,8 @@ import { useContext } from "react";
 import { AuthContext } from "../AuthContext";
 import { getFinancialYearSeries } from "../utils/billingUtils";
 import { roundAmount } from "../utils/amountUtils";
+import { getBarcodeDetails, getBarcodeErrorMessage, getLensPriceByPower } from "../controllers/barcode.controller";
+import { formatPowerValue } from "../utils/amountUtils";
 
 const Header = ({ isReadOnly, id, partyData }) => (
   <div className="bg-white border-b border-slate-200 px-3 py-1 flex items-center justify-between sticky top-0 z-[100] shadow-sm">
@@ -146,7 +148,7 @@ function AddSaleReturn() {
 
   useEffect(() => {
     const fetch = async () => {
-      try { const res = await getAllAccounts(); setAccounts(Array.isArray(res) ? res : []); }
+      try { const res = await getAllAccounts("sale"); setAccounts(Array.isArray(res) ? res : []); }
       catch (err) { console.error(err); setAccounts([]); }
     };
     const fetchTax = async () => {
@@ -180,7 +182,7 @@ function AddSaleReturn() {
   });
 
   const [items, setItems] = useState([{
-    id: 1, barcode: "", itemName: "", eye: "", sph: "", cyl: "", axis: "", add: "", remark: "", qty: "", salePrice: 0, discount: "", totalAmount: "", sellPrice: "", combinationId: ""
+    id: 1, itemId: "", barcode: "", itemName: "", eye: "", sph: "", cyl: "", axis: "", add: "", remark: "", qty: "", salePrice: 0, discount: "", totalAmount: "", sellPrice: "", combinationId: ""
   }]);
 
   const [taxes, setTaxes] = useState([{ id: 1, taxName: "", type: "Additive", percentage: "2.5", amount: "0.00" }]);
@@ -221,7 +223,11 @@ function AddSaleReturn() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const containerRef = useRef(null);
   const query = (partyData.partyAccount || "").trim();
-  const filteredAccounts = query.length > 0 ? accounts.filter(acc => String(acc.Name || "").toLowerCase().includes(query.toLowerCase())) : accounts.slice(0, 10);
+  const filteredAccounts = query.length > 0 ? accounts.filter(acc => {
+    const name = String(acc.Name || "").toLowerCase();
+    const accountId = String(acc.AccountId || "").toLowerCase();
+    return name.includes(query.toLowerCase()) || accountId.includes(query.toLowerCase());
+  }) : accounts.slice(0, 10);
 
   const genTaxId = (suffix = "") => `tax_${Date.now()}_${Math.random().toString(36).slice(2, 7)}${suffix}`;
 
@@ -357,7 +363,40 @@ function AddSaleReturn() {
         if (lens) { copy[index].salePrice = getSalePriceForCategory(lens, category); copy[index].eye = lens.eye || copy[index].eye || ""; }
       }
       const qty = parseFloat(copy[index].qty) || 0, price = parseFloat(copy[index].salePrice) || 0, disc = Number(copy[index].discount) || 0;
-      copy[index].totalAmount = roundAmount(qty * price - qty * price * (disc / 100)).toString(); return copy;
+      copy[index].totalAmount = roundAmount(qty * price - qty * price * (disc / 100)).toString();
+
+      // ── Price Sync Logic: Fetch prices for power-based items ──────────────
+      // When power fields change, fetch Lens Group pricing (with or without itemId)
+      if (["itemName", "sph", "cyl", "axis", "add"].includes(field)) {
+        const item = copy[index];
+        if (item.itemName && (item.sph !== "" || item.cyl !== "" || item.add !== "")) {
+          const foundLens = allLens.find(lx => lx.productName === item.itemName || lx.itemName === item.itemName);
+          const itemIdToUse = item.itemId || foundLens?.id || foundLens?._id || foundLens?.itemId;
+          
+          if (itemIdToUse) {
+            getLensPriceByPower(itemIdToUse, item.sph, item.cyl, item.axis, item.add)
+              .then(priceData => {
+                if (priceData && priceData.found) {
+                  setItems(current => {
+                    const updated = [...current];
+                    if (updated[index]) {
+                      updated[index].salePrice = priceData.salePrice || updated[index].salePrice;
+                      // Recalculate totalAmount with new price
+                      const q = parseFloat(updated[index].qty) || 0;
+                      const p = parseFloat(updated[index].salePrice) || 0;
+                      const d = Number(updated[index].discount) || 0;
+                      updated[index].totalAmount = roundAmount(q * p - q * p * (d / 100)).toString();
+                    }
+                    return updated;
+                  });
+                }
+              })
+              .catch(err => console.error("Price fetch error:", err));
+          }
+        }
+      }
+
+      return copy;
     });
   };
 
@@ -367,6 +406,36 @@ function AddSaleReturn() {
       const pct = parseFloat(field === "percentage" ? value : c[idx].percentage) || 0;
       c[idx].amount = roundAmount((computeSubtotal() * pct) / 100).toString(); return c;
     });
+  };
+
+  const handleBarcodeBlur = async (barcode, rowIndex) => {
+    if (!barcode || barcode.trim() === "") return;
+    try {
+      const barcodeData = await getBarcodeDetails(barcode);
+      if (barcodeData) {
+        setItems(prev => {
+          const c = [...prev];
+          const row = c[rowIndex];
+          row.itemName = barcodeData.itemName || row.itemName;
+          row.eye = barcodeData.eye || row.eye;
+          row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
+          row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
+          row.axis = barcodeData.axis || row.axis;
+          row.add = barcodeData.add || row.add;
+          row.salePrice = barcodeData.price || row.salePrice;
+          const q = parseFloat(row.qty) || 0;
+          const p = parseFloat(row.salePrice) || 0;
+          const d = parseFloat(row.discount) || 0;
+          row.totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+          return c;
+        });
+        toast.success(`Product loaded from barcode`);
+      } else {
+        toast.error("Product not found");
+      }
+    } catch (error) {
+      toast.error(getBarcodeErrorMessage(error));
+    }
   };
 
   const addTaxRow = () => setTaxes(p => [...p, { id: genTaxId("_manual"), taxName: "", type: "Additive", percentage: "", amount: "0.00" }]);
@@ -490,7 +559,7 @@ function AddSaleReturn() {
                   <div className="absolute left-0 right-0 z-[500] mt-1 max-h-40 overflow-auto bg-white border border-slate-200 shadow-2xl rounded-lg p-1 uppercase">
                     {filteredAccounts.map((a, i) => (
                       <div key={i} onMouseDown={() => selectAccount(a)} className="px-3 py-1.5 hover:bg-blue-50 cursor-pointer border-b border-slate-50 last:border-0">
-                         <div className="text-[10px] font-black text-slate-800 leading-none">{a.Name}</div>
+                         <div className="text-[10px] font-black text-slate-800 leading-none">{a.Name} (ID: {a.AccountId}) - Station: {a.Stations?.[0] || "-"}</div>
                          <div className="flex justify-between mt-1 text-[8px] font-bold text-slate-400">
                             <span>{a.MobileNumber || "N/A"}</span>
                             <span>{a.State || "N/A"}</span>
@@ -559,7 +628,7 @@ function AddSaleReturn() {
                     <tr className="hover:bg-blue-50/20 group h-8 transition-colors">
                       <td className="py-0 text-center text-slate-300 text-[10px] border-r border-slate-100 font-black uppercase">{idx + 1}</td>
                       <td className="p-0 border-r border-slate-100 uppercase">
-                        <input type="text" value={it.barcode} onChange={e => updateItem(idx, "barcode", e.target.value)} className="w-full px-2 py-0 text-[10px] font-black text-blue-600 h-8 bg-transparent outline-none focus:bg-white uppercase h-8" placeholder="SCAN..." />
+                        <input type="text" value={it.barcode} onChange={e => updateItem(idx, "barcode", e.target.value)} onBlur={e => !isReadOnly && handleBarcodeBlur(e.target.value, idx)} className="w-full px-2 py-0 text-[10px] font-black text-blue-600 h-8 bg-transparent outline-none focus:bg-white uppercase h-8" placeholder="SCAN..." />
                       </td>
                       <td className="p-0 relative px-2 uppercase">
                         <input type="text" value={itemQueries[idx] ?? it.itemName} onFocus={() => setShowItemSuggestions(p => ({ ...p, [idx]: true }))} onBlur={() => setTimeout(() => setShowItemSuggestions(p => ({ ...p, [idx]: false })), 200)} onChange={e => { setItemQueries(p => ({ ...p, [idx]: e.target.value })); setShowItemSuggestions(p => ({ ...p, [idx]: true })); updateItem(idx, "itemName", e.target.value); }} className="w-full py-0 text-[10px] outline-none h-8 font-black uppercase bg-transparent h-8" placeholder="Line item name" />
@@ -571,10 +640,10 @@ function AddSaleReturn() {
                       </td>
                       <td className="p-0"><input type="text" value={it.orderNo} onChange={e => updateItem(idx, "orderNo", e.target.value)} className="w-full text-center text-[9px] text-slate-400 h-8 bg-transparent outline-none uppercase font-black" /></td>
                       <td className="p-0 bg-blue-50/20"><input type="text" value={it.eye} onChange={e => updateItem(idx, "eye", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent text-blue-600 outline-none uppercase h-8" /></td>
-                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.sph} onChange={e => updateItem(idx, "sph", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none uppercase h-8" /></td>
-                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.cyl} onChange={e => updateItem(idx, "cyl", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none uppercase h-8" /></td>
+                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.sph} onChange={e => updateItem(idx, "sph", e.target.value)} onBlur={(e) => updateItem(idx, "sph", formatPowerValue(e.target.value))} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none uppercase h-8" placeholder="+0.00" /></td>
+                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.cyl} onChange={e => updateItem(idx, "cyl", e.target.value)} onBlur={(e) => updateItem(idx, "cyl", formatPowerValue(e.target.value))} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none uppercase h-8" placeholder="+0.00" /></td>
                       <td className="p-0 bg-blue-50/20"><input type="text" value={it.axis} onChange={e => updateItem(idx, "axis", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none uppercase h-8" /></td>
-                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.add} onChange={e => updateItem(idx, "add", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none uppercase h-8" /></td>
+                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.add} onChange={e => updateItem(idx, "add", e.target.value)} onBlur={(e) => updateItem(idx, "add", formatPowerValue(e.target.value))} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none uppercase h-8" placeholder="+0.00" /></td>
                       <td className="p-0 px-2"><input type="text" value={it.remark} onChange={e => updateItem(idx, "remark", e.target.value)} className="w-full text-[8px] text-center outline-none bg-transparent h-8 font-bold uppercase h-8" placeholder="NOTES" /></td>
                       <td className="p-0"><input type="number" value={it.qty} onChange={e => updateItem(idx, "qty", e.target.value)} className="w-full text-right px-2 py-0 text-[10px] font-black h-8 bg-emerald-50/30 text-emerald-700 outline-none h-8" /></td>
                       <td className="p-0"><input type="number" value={it.salePrice} onChange={e => updateItem(idx, "salePrice", Number(e.target.value))} className="w-full text-right px-2 py-0 text-[10px] font-black h-8 bg-blue-50/20 text-blue-800 outline-none h-8" /></td>

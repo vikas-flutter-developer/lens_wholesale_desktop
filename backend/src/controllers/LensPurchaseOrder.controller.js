@@ -1056,6 +1056,39 @@ const updateItemQty = async (req, res) => {
   }
 };
 
+// Get Next Bill Number for Lens Purchase Order (Party-wise)
+const getNextBillNumberForLensPurchaseOrder = async (req, res) => {
+  try {
+    const { partyName } = req.body;
+    if (!partyName) {
+      return res.status(400).json({
+        success: false,
+        message: "Party name is required",
+        nextBillNumber: 1
+      });
+    }
+
+    const allOrders = await LensPurchaseOrder.find({});
+    const matchingOrders = (allOrders || []).filter(order =>
+      order.partyData?.partyAccount?.toLowerCase() === partyName.toLowerCase()
+    );
+
+    const nextBillNumber = matchingOrders.length + 1;
+
+    return res.status(200).json({
+      success: true,
+      nextBillNumber: nextBillNumber
+    });
+  } catch (err) {
+    console.error("Error getting next bill number:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get next bill number",
+      nextBillNumber: 1
+    });
+  }
+};
+
 export {
   addLensPurchaseOrder,
   getLensPurchaseOrder,
@@ -1071,6 +1104,7 @@ export {
   updateItemQty,
   updatePurchaseOrderItemsQty,
   updateCancelReason,
+  getNextBillNumberForLensPurchaseOrder,
 };
 
 /**

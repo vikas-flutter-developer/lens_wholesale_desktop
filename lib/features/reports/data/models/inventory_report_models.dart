@@ -167,9 +167,9 @@ class PartyWiseItem with _$PartyWiseItem {
 @freezed
 class StockReorderItem with _$StockReorderItem {
   const factory StockReorderItem({
-    required String productName,
-    required String groupName,
-    required String unit,
+    String? productName,
+    String? groupName,
+    String? unit,
     @Default(0) double alertQty,
     @Default(0) double stock,
     double? minStock,
@@ -186,12 +186,64 @@ class StockReorderItem with _$StockReorderItem {
 @freezed
 class StockReorderLensInfo with _$StockReorderLensInfo {
   const factory StockReorderLensInfo({
-    String? sph,
-    String? cyl,
+    dynamic sph,
+    dynamic cyl,
     String? eye,
-    String? axis,
-    String? add,
+    dynamic axis,
+    dynamic add,
   }) = _StockReorderLensInfo;
 
   factory StockReorderLensInfo.fromJson(Map<String, dynamic> json) => _$StockReorderLensInfoFromJson(json);
+}
+
+// --- Sale Item Group Wise Report Model ---
+
+@freezed
+class SaleItemGroupWiseItem with _$SaleItemGroupWiseItem {
+  const factory SaleItemGroupWiseItem({
+    String? billNo,
+    String? date,
+    String? party,
+    String? productGroup,
+    String? productName,
+    @Default(0) double qty,
+    @Default(0) double prodPrice,
+    @Default(0) double prodDisPct,
+    @Default(0) double prodDisRs,
+    @Default(0) double otherDisPct,
+    @Default(0) double otherDisRs,
+    @Default(0) double prodValue,
+    @Default(0) double prodTxbleAmt,
+    @Default(0) double invoiceTotalAmt,
+    @Default(0) double cash,
+    @Default(0) double bank,
+  }) = _SaleItemGroupWiseItem;
+
+  factory SaleItemGroupWiseItem.fromJson(Map<String, dynamic> json) => _$SaleItemGroupWiseItemFromJson(json);
+}
+
+// --- Booked By Report Model ---
+
+@freezed
+class BookedByReportItem with _$BookedByReportItem {
+  const factory BookedByReportItem({
+    String? id,
+    String? orderDate,
+    String? orderTime,
+    String? billNo,
+    String? bookedBy,
+    String? itemName,
+    String? eye,
+    dynamic sph,
+    dynamic cyl,
+    dynamic axis,
+    dynamic add,
+    @Default(0) int qty,
+    @Default(0.0) double netAmount,
+    String? partyName,
+    String? remark,
+    String? orderType,
+  }) = _BookedByReportItem;
+
+  factory BookedByReportItem.fromJson(Map<String, dynamic> json) => _$BookedByReportItemFromJson(json);
 }

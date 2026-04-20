@@ -78,6 +78,7 @@ class LensAddGroup with _$LensAddGroup {
     String? id,
     String? name,
     String? label,
+    @JsonKey(name: 'addValue', fromJson: _parseString) String? addValue,
     @JsonKey(fromJson: _parseCombinations) @Default([]) List<LensCombination> combinations,
   }) = _LensAddGroup;
 

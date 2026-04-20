@@ -414,7 +414,7 @@ const getLensPower = async (req, res) => {
       lens = await LensGroup.findOne({
         _id: id,
         $or: [{ companyId }, { companyId: null }]
-      });
+      }).lean();
     } else {
       // -------------------------------------
       // 2) IF NO ID → FIND BY PRODUCT NAME OR GROUP NAME
@@ -432,7 +432,7 @@ const getLensPower = async (req, res) => {
         return res.status(400).json({ message: "Product name or Group name is required" });
       }
 
-      lens = await LensGroup.findOne(query);
+      lens = await LensGroup.findOne(query).lean();
 
       // Fallback: If both provided and not found, try productName alone
       if (!lens && productName && groupName) {
@@ -440,14 +440,18 @@ const getLensPower = async (req, res) => {
         lens = await LensGroup.findOne({
           productName: { $regex: `^${escapeRegex(productName.trim())}$`, $options: "i" },
           $or: [{ companyId }, { companyId: null }]
-        });
+        }).lean();
       }
     }
 
     if (!lens) {
       console.log(`[getLensPower] Initial lookup failed for ${productName}. Searching in Item collection...`);
       // check if it's at least an item
-      const itm = await Item.findOne({ itemName: { $regex: `^${escapeRegex(productName || "")}$`, $options: "i" } });
+      const itm = await Item.findOne({ 
+        itemName: { $regex: `^${escapeRegex(productName || "")}$`, $options: "i" },
+        $or: [{ companyId }, { companyId: null }]
+      }).lean();
+      
       if (!itm) {
          return res.status(404).json({ success: false, message: "Lens not found in items" });
       }
@@ -457,7 +461,13 @@ const getLensPower = async (req, res) => {
         _id: itm._id,
         productName: itm.itemName,
         groupName: itm.groupName,
-        powerGroups: []
+        billItemName: itm.billItemName || "",
+        vendorItemName: itm.vendorItemName || "",
+        purchasePrice: itm.purchasePrice || 0,
+        salePrice: { default: itm.salePrice || 0 },
+        powerGroups: [],
+        addGroups: [],
+        barcode: itm.barcode || ""
       };
     }
 
@@ -523,6 +533,52 @@ const getLensPower = async (req, res) => {
       });
     }
 
+    // SPLIT LEGACY COMBINATIONS THAT HAVE "RL" INTO SEPARATE "R" and "L"
+    const generateBarcodeFallback = () => {
+      const prefix = (resultObj.productName || "LNS").substring(0, 3).toUpperCase();
+      const timestamp = Date.now().toString().slice(-8);
+      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      return `${prefix}${timestamp}${random}`;
+    };
+
+    if (resultObj.addGroups && Array.isArray(resultObj.addGroups)) {
+      resultObj.addGroups.forEach(group => {
+        if (!group.combinations) return;
+        
+        const newCombs = [];
+        const toRemove = new Set();
+        const groupedBySphCylAxis = new Map();
+        
+        group.combinations.forEach(c => {
+           const key = `${c.sph}_${c.cyl}_${c.axis || 0}`;
+           if(!groupedBySphCylAxis.has(key)) groupedBySphCylAxis.set(key, []);
+           groupedBySphCylAxis.get(key).push(c);
+        });
+
+        for (const [key, combs] of groupedBySphCylAxis.entries()) {
+           const dualComb = combs.find(c => c.eye === "RL" || c.eye === "R/L" || c.eye === "BOTH");
+           const rComb = combs.find(c => c.eye === "R");
+           const lComb = combs.find(c => c.eye === "L");
+
+           if (dualComb && (!rComb || !lComb)) {
+              toRemove.add(dualComb);
+              if (!rComb) {
+                  const bc = dualComb.barcode ? (lComb ? generateBarcodeFallback() : dualComb.barcode) : "";
+                  newCombs.push({...dualComb, eye: "R", barcode: bc});
+              }
+              if (!lComb) {
+                  const bc = dualComb.barcode ? (rComb ? generateBarcodeFallback() : generateBarcodeFallback()) : "";
+                  newCombs.push({...dualComb, eye: "L", barcode: bc});
+              }
+           } else if (dualComb && rComb && lComb) {
+              toRemove.add(dualComb);
+           }
+        }
+        
+        group.combinations = group.combinations.filter(c => !toRemove.has(c)).concat(newCombs);
+      });
+    }
+
     resultObj.vendorMap = vendorMap;
 
     // -------------------------------------
@@ -577,28 +633,59 @@ const getPowerGroupsForProduct = async (req, res) => {
 const getAllLensPower = async (req, res) => {
   try {
     const companyId = req.user?.companyId || null;
+    
+    // 1) Fetch all LensGroups
     const lensPowers = await LensGroup.find({
       $or: [{ companyId }, { companyId: null }]
-    });
+    }).lean();
 
-    if (!lensPowers || lensPowers.length === 0) {
-      return res.status(404).json({
-        success: false,
+    // 2) Fetch all regular Items
+    const items = await Item.find({
+      $or: [{ companyId }, { companyId: null }]
+    }).lean();
+
+    // 3) Map Item collection items to LensGroup structure to avoid frontend breakages
+    const lensPowerProductNames = new Set(lensPowers.map(lp => (lp.productName || "").toLowerCase()));
+    
+    const mappedItems = items
+      .filter(itm => itm.itemName && !lensPowerProductNames.has(itm.itemName.toLowerCase()))
+      .map(itm => ({
+        _id: itm._id,
+        productName: itm.itemName,
+        groupName: itm.groupName,
+        visionType: itm.forLensProduct ? "single" : "item",
+        purchasePrice: itm.purchasePrice || 0,
+        salePrice: { 
+          default: itm.salePrice || 0 
+        },
+        billItemName: itm.billItemName || "",
+        vendorItemName: itm.vendorItemName || "",
+        powerGroups: [],
+        addGroups: [],
+        barcode: itm.barcode || "",
+        isItemOnly: true
+      }));
+
+    const allData = [...lensPowers, ...mappedItems];
+
+    if (allData.length === 0) {
+      return res.status(200).json({
+        success: true,
         data: [],
-        message: "No lens powers found",
+        message: "No items found",
       });
     }
 
     return res.status(200).json({
       success: true,
-      data: lensPowers,
-      message: "Lens powers fetched successfully",
+      data: allData,
+      message: "Items fetched successfully",
     });
   } catch (err) {
     console.error("Error fetching lens powers:", err);
     return res.status(500).json({
       success: false,
-      error: { message: "Server error while fetching lens powers" },
+      error: { message: "Server error while fetching items" },
     });
   }
 };
@@ -1281,6 +1368,105 @@ const getCombinationStock = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/lensGroup/get-price-by-power
+ * Fetch Lens Group pricing by power specifications (for manual selection)
+ * Query params: { itemId, sph, cyl, axis, add }
+ */
+const getLensPriceByPower = async (req, res) => {
+  try {
+    const { itemId, sph, cyl, axis, add } = req.query;
+    const companyId = req.user?.companyId || null;
+
+    if (!itemId) {
+      return res.status(400).json({ success: false, message: "Item ID is required" });
+    }
+
+    // Parse power values
+    const targetAdd = Number(add) || 0;
+    const targetSph = Number(sph) || 0;
+    const targetCyl = Number(cyl) || 0;
+    const targetAxis = Number(axis) || 0;
+
+    // Find LensGroup by itemId (product ID)
+    const lensGroup = await LensGroup.findOne({
+      _id: itemId,
+      $or: [{ companyId }, { companyId: null }]
+    }).lean();
+
+    if (!lensGroup) {
+      // Fallback: Check if it's a standalone Item
+      const item = await Item.findOne({
+        _id: itemId,
+        $or: [{ companyId }, { companyId: null }]
+      }).lean();
+
+      if (item) {
+        return res.status(200).json({
+          success: true,
+          source: "item_master",
+          hasPowerRange: false,
+          purchasePrice: item.purchasePrice || 0,
+          salePrice: item.salePrice || 0,
+          stock: item.openingStockQty || 0,
+          productName: item.itemName
+        });
+      }
+
+      return res.status(404).json({ success: false, message: "Item not found" });
+    }
+
+    // Search for matching combination in LensGroup
+    let matchingComb = null;
+    let matchingAdd = null;
+
+    for (const ag of lensGroup.addGroups) {
+      if (Math.abs(ag.addValue - targetAdd) < 0.001) {
+        matchingAdd = ag;
+        const comb = ag.combinations.find(c =>
+          Math.abs(c.sph - targetSph) < 0.001 &&
+          Math.abs(c.cyl - targetCyl) < 0.001 &&
+          Math.abs((c.axis || 0) - targetAxis) < 0.01
+        );
+        if (comb) {
+          matchingComb = comb;
+          break;
+        }
+      }
+    }
+
+    if (matchingComb) {
+      // Return combination-specific prices with fallback to group prices
+      return res.status(200).json({
+        success: true,
+        source: "lens_group_combination",
+        hasPowerRange: true,
+        purchasePrice: matchingComb.pPrice || lensGroup.purchasePrice || 0,
+        salePrice: matchingComb.sPrice || lensGroup.salePrice?.default || 0,
+        stock: matchingComb.initStock || 0,
+        productName: lensGroup.productName,
+        found: true
+      });
+    } else {
+      // Combination not found, return group-level prices
+      return res.status(200).json({
+        success: true,
+        source: "lens_group_default",
+        hasPowerRange: true,
+        purchasePrice: lensGroup.purchasePrice || 0,
+        salePrice: lensGroup.salePrice?.default || 0,
+        stock: 0,
+        productName: lensGroup.productName,
+        found: false,
+        message: "Using group-level pricing (combination not found)"
+      });
+    }
+  } catch (err) {
+    console.error("[getLensPriceByPower] Error:", err);
+    return res.status(500).json({ success: false, message: "Server Error", error: err.message });
+  }
+};
+
 export {
   addLensPower,
   getLensPower,
@@ -1296,5 +1482,6 @@ export {
   resetAllLensPriceHighlights,
   updateLensGroupLocations,
   getCombinationStock,
+  getLensPriceByPower,
 };
 

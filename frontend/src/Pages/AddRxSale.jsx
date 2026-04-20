@@ -34,6 +34,8 @@ import { useContext } from "react";
 import { AuthContext } from "../AuthContext";
 import { getFinancialYearSeries } from "../utils/billingUtils";
 import { getNextBillNumberForRxSale } from "../controllers/RxSale.contoller";
+import { getBarcodeDetails, getBarcodeErrorMessage, getLensPriceByPower } from "../controllers/barcode.controller";
+import { formatPowerValue } from "../utils/amountUtils";
 function AddRxSale() {
   const { user } = useContext(AuthContext);
   const [accounts, setAccounts] = useState([]);
@@ -94,7 +96,7 @@ function AddRxSale() {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await getAllAccounts();
+        const res = await getAllAccounts("sale"); // Filter for Sale and Both account types
         setAccounts(Array.isArray(res) ? res : []);
       } catch (err) {
         console.error("getAllAccounts failed:", err);
@@ -203,6 +205,7 @@ function AddRxSale() {
   const [items, setItems] = useState([
     {
       id: 1,
+      itemId: "",
       barcode: "",
       itemName: "",
       unit: "",
@@ -379,11 +382,11 @@ function AddRxSale() {
   const query = (partyData.partyAccount || "").trim();
   const filteredAccounts =
     query.length > 0
-      ? accounts.filter((acc) =>
-        String(acc.Name || "")
-          .toLowerCase()
-          .includes(query.toLowerCase())
-      )
+      ? accounts.filter((acc) => {
+        const name = String(acc.Name || "").toLowerCase();
+        const accountId = String(acc.AccountId || "").toLowerCase();
+        return name.includes(query.toLowerCase()) || accountId.includes(query.toLowerCase());
+      })
       : accounts.slice(0, 10);
 
   useEffect(() => {
@@ -790,6 +793,7 @@ function AddRxSale() {
       if (field === "itemName") {
         const selectedItem = allLens.find((lens) => lens.productName === value);
         if (selectedItem) {
+          copy[index].itemId = selectedItem._id;
           const computedPrice = getSalePriceForItem(selectedItem);
           copy[index].salePrice = computedPrice;
           copy[index].billItemName = selectedItem.billItemName || "";
@@ -811,11 +815,77 @@ function AddRxSale() {
       const discountAmount = qty * price * (disc / 100);
       copy[index].totalAmount = roundAmount(qty * price - discountAmount).toString();
 
+      // ── Price Sync Logic: Fetch prices for power-based items ──────────────
+      // When power fields change, fetch Lens Group pricing (with or without itemId)
+      if (["itemName", "sph", "cyl", "axis", "add"].includes(field)) {
+        const item = copy[index];
+        if (item.itemName && (item.sph !== "" || item.cyl !== "" || item.add !== "")) {
+          // If itemId exists, use it; otherwise try to find it from itemName
+          let itemIdToUse = item.itemId;
+          if (!itemIdToUse && item.itemName) {
+            // Find the item in allLens to get its ID
+            const foundLens = allLens.find(lx => lx.productName === item.itemName || lx.itemName === item.itemName);
+            itemIdToUse = foundLens?.id || foundLens?._id || foundLens?.itemId;
+          }
+          
+          if (itemIdToUse) {
+            getLensPriceByPower(itemIdToUse, item.sph, item.cyl, item.axis, item.add)
+              .then(priceData => {
+                if (priceData && priceData.found) {
+                  setItems(current => {
+                    const updated = [...current];
+                    if (updated[index]) {
+                      updated[index].salePrice = priceData.salePrice || updated[index].salePrice;
+                      updated[index].purchasePrice = priceData.purchasePrice || updated[index].purchasePrice;
+                      // Recalculate totalAmount with new price
+                      const qty = parseFloat(updated[index].qty) || 0;
+                      const newPrice = parseFloat(updated[index].purchasePrice ?? updated[index].salePrice) || 0;
+                      const disc = Number(updated[index].discount) || 0;
+                      updated[index].totalAmount = roundAmount(qty * newPrice - qty * newPrice * (disc / 100)).toString();
+                    }
+                    return updated;
+                  });
+                }
+              })
+              .catch(err => console.error("Price fetch error:", err));
+          }
+        }
+      }
+      // ───────────────────────────────────────────────────────────────────
+
       return copy;
     });
   };
 
-
+  const handleBarcodeBlur = async (barcode, rowIndex) => {
+    if (!barcode || barcode.trim() === "") return;
+    try {
+      const barcodeData = await getBarcodeDetails(barcode);
+      if (barcodeData) {
+        setItems(prev => {
+          const c = [...prev];
+          const row = c[rowIndex];
+          row.itemName = barcodeData.itemName || row.itemName;
+          row.eye = barcodeData.eye || row.eye;
+          row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
+          row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
+          row.axis = barcodeData.axis || row.axis;
+          row.add = barcodeData.add || row.add;
+          row.salePrice = barcodeData.price || row.salePrice;
+          const q = parseFloat(row.qty) || 0;
+          const p = parseFloat(row.salePrice) || 0;
+          const d = parseFloat(row.discount) || 0;
+          row.totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+          return c;
+        });
+        toast.success(`Product loaded from barcode`);
+      } else {
+        toast.error("Product not found");
+      }
+    } catch (error) {
+      toast.error(getBarcodeErrorMessage(error));
+    }
+  };
 
   const addTaxRow = () => {
     setTaxes((prev) => [
@@ -1325,7 +1395,7 @@ function AddRxSale() {
                           }`}
                       >
                         <div className="flex justify-between items-center gap-2">
-                          <div className="font-medium">{acc.Name || "-"}</div>
+                          <div className="font-medium">{acc.Name || "-"} (ID: {acc.AccountId}) - Station: {acc.Stations?.[0] || "-"}</div>
                           <div className="text-xs text-slate-400">
                             {acc.MobileNumber || ""}
                           </div>
@@ -1496,6 +1566,9 @@ function AddRxSale() {
                             onChange={(e) =>
                               updateItem(index, "barcode", e.target.value)
                             }
+                            onBlur={(e) =>
+                              !isReadOnly && handleBarcodeBlur(e.target.value, index)
+                            }
                             className="w-full px-2 py-1.5 text-xs bg-transparent border border-transparent focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 rounded transition-all outline-none font-medium text-slate-700"
                             placeholder="Scan..."
                           />
@@ -1619,18 +1692,18 @@ function AddRxSale() {
                             value={item.sph}
                             onChange={(e) =>
                               updateItem(index, "sph", e.target.value)
-                            }
+                            } onBlur={(e) => updateItem(index, "sph", formatPowerValue(e.target.value))}
                             className="w-full px-2 py-2 text-sm text-center font-bold bg-transparent border-b border-dashed border-slate-300 focus:border-blue-500 focus:bg-white rounded-none outline-none"
                           />
                         </td>
                         <td className="p-1 bg-blue-50/20">
                           <input
                             type="text"
-                            placeholder="-0.00"
+                            placeholder="+0.00"
                             value={item.cyl}
                             onChange={(e) =>
                               updateItem(index, "cyl", e.target.value)
-                            }
+                            } onBlur={(e) => updateItem(index, "cyl", formatPowerValue(e.target.value))}
                             className="w-full px-2 py-2 text-sm text-center font-bold bg-transparent border-b border-dashed border-slate-300 focus:border-blue-500 focus:bg-white rounded-none outline-none"
                           />
                         </td>
@@ -1652,7 +1725,7 @@ function AddRxSale() {
                             value={item.add}
                             onChange={(e) =>
                               updateItem(index, "add", e.target.value)
-                            }
+                            } onBlur={(e) => updateItem(index, "add", formatPowerValue(e.target.value))}
                             className="w-full px-2 py-2 text-sm text-center font-bold bg-transparent border-b border-dashed border-slate-300 focus:border-blue-500 focus:bg-white rounded-none outline-none"
                           />
                         </td>

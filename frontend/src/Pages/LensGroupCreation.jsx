@@ -90,8 +90,6 @@ function LensGroupCreation({ hideHeader = false }) {
       const updated = JSON.parse(JSON.stringify(newData));
       const prefix = formData.productName?.substring(0, 3).toUpperCase() || "LNS";
       const usedBarcodes = new Set();
-      const sharedBarcodeMap = new Map();
-      const isDualEye = formData.eye === "RL" || formData.eye === "R/L" || formData.eye === "BOTH" || !formData.eye;
 
       // Generate barcodes for all combinations
       for (const addGroup of updated.addGroups) {
@@ -101,12 +99,6 @@ function LensGroupCreation({ hideHeader = false }) {
           // Skip if already has a barcode
           if (comb.barcode && comb.barcode.trim() !== "") {
             usedBarcodes.add(comb.barcode);
-            continue;
-          }
-
-          const sharedKey = isDualEye ? `${addGroup.addValue}_${parseFloat(comb.sph).toFixed(2)}_${parseFloat(comb.cyl).toFixed(2)}_${comb.axis || 0}` : null;
-          if (sharedKey && sharedBarcodeMap.has(sharedKey)) {
-            comb.barcode = sharedBarcodeMap.get(sharedKey);
             continue;
           }
 
@@ -142,9 +134,6 @@ function LensGroupCreation({ hideHeader = false }) {
 
           comb.barcode = barcode;
           usedBarcodes.add(barcode);
-          if (sharedKey) {
-            sharedBarcodeMap.set(sharedKey, barcode);
-          }
         }
       }
 
@@ -2004,6 +1993,7 @@ function LensGroupCreation({ hideHeader = false }) {
             const aMax = (pg.addMax === "" || pg.addMax === undefined || isNaN(pg.addMax)) ? Infinity : parseFloat(pg.addMax);
             const eyeVal = pg.eye || formData.eye;
             const isDual = eyeVal === "RL" || eyeVal === "R/L" || !eyeVal;
+            // After backend splitting, show R and L rows explicitly; keep RL/R/L as fallback
             const eyeFilter = isDual ? ["R", "L", "RL", "R/L"] : [eyeVal];
 
             const filteredAddGroups = (newData?.addGroups || []).filter(g => {
@@ -2013,16 +2003,45 @@ function LensGroupCreation({ hideHeader = false }) {
 
             if (filteredAddGroups.length === 0) return null;
 
+            // ── SUMMARY COUNTS ──
+            let totalCombinations = 0;
+            let totalStock = 0;
+            filteredAddGroups.forEach(g => {
+              (g.combinations || []).forEach(c => {
+                const cEye = String(c.eye || "").trim().toUpperCase();
+                if (eyeFilter.includes(cEye)) {
+                  const s = parseFloat(c.sph);
+                  const cv = parseFloat(c.cyl);
+                  if (s >= sMin - 0.01 && s <= sMax + 0.01 && cv >= cMin - 0.01 && cv <= cMax + 0.01) {
+                    totalCombinations++;
+                    totalStock += Number(c.initStock || 0);
+                  }
+                }
+              });
+            });
+
             return (
               <div key={pgIdx} className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-8 w-1 bg-blue-600 rounded-full"></div>
-                  <h3 className="text-lg font-bold text-slate-800">
-                    {pg.label || `Power Group ${pgIdx + 1}`}
-                    <span className="ml-3 text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-                      SPH: {sMin} to {sMax} | CYL: {cMin} to {cMax} | ADD: {aMin} to {aMax}
-                    </span>
-                  </h3>
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-1 bg-blue-600 rounded-full"></div>
+                    <h3 className="text-lg font-bold text-slate-800">
+                      {pg.label || `Power Group ${pgIdx + 1}`}
+                      <span className="ml-3 text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                        SPH: {sMin} to {sMax} | CYL: {cMin} to {cMax} | ADD: {aMin} to {aMax}
+                      </span>
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-3 mr-2">
+                    <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1 rounded-lg text-xs font-semibold">
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                      Total Combinations: <span className="font-black text-blue-900">{totalCombinations}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1 rounded-lg text-xs font-semibold">
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/></svg>
+                      Range Total Stock: <span className="font-black text-emerald-900">{totalStock}</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
@@ -2181,8 +2200,6 @@ function LensGroupCreation({ hideHeader = false }) {
                             });
 
                             let displayRows = Array.from(uniqueRowsMap.values());
-                            // Sort for a clean matrix view
-                            displayRows.sort((a, b) => parseFloat(a.sph) - parseFloat(b.sph) || parseFloat(a.cyl) - parseFloat(b.cyl));
 
                             if (displayRows.length === 0) {
                               return (
@@ -2194,26 +2211,6 @@ function LensGroupCreation({ hideHeader = false }) {
                               );
                             }
 
-                            if (formData.eye === "R/L" || formData.eye === "RL" || formData.eye === "BOTH") {
-                              const grouped = new Map();
-                              displayRows.forEach(item => {
-                                const key = `${parseFloat(item.sph).toFixed(2)}_${parseFloat(item.cyl).toFixed(2)}_${(item.axis || 0)}`;
-                                if (!grouped.has(key)) {
-                                  grouped.set(key, { ...item, isMerged: false, hasR: false, hasL: false });
-                                }
-                                const entry = grouped.get(key);
-                                const e = String(item.eye || "").trim().toUpperCase();
-                                if (e === "R") entry.hasR = true;
-                                if (e === "L") entry.hasL = true;
-                                if (e === "R/L" || e === "RL" || e === "BOTH") {
-                                  entry.hasR = true;
-                                  entry.hasL = true;
-                                }
-                                if (entry.hasR && entry.hasL) entry.isMerged = true;
-                              });
-                              displayRows = Array.from(grouped.values());
-                            }
-
                             // Final Sort for consistency
                             displayRows.sort((a, b) => {
                               const sA = parseFloat(a.sph);
@@ -2222,6 +2219,15 @@ function LensGroupCreation({ hideHeader = false }) {
                               const cA = parseFloat(a.cyl);
                               const cB = parseFloat(b.cyl);
                               if (cA !== cB) return cA - cB;
+                              
+                              // Sort by Eye (L before R) or fallback to Axis
+                              const eA = String(a.eye || "").trim().toUpperCase();
+                              const eB = String(b.eye || "").trim().toUpperCase();
+                              if (eA !== eB) {
+                                if (eA === "R" && eB === "L") return -1;
+                                if (eA === "L" && eB === "R") return 1;
+                                return eA.localeCompare(eB);
+                              }
                               return (a.axis || 0) - (b.axis || 0);
                             });
 
@@ -2240,49 +2246,12 @@ function LensGroupCreation({ hideHeader = false }) {
                                     <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-md font-semibold">{cylVal}</span>
                                   </td>
                                   {filteredAddGroups.map((g, gIdx) => {
-                                    let comb = null;
-                                    let combR = null;
-                                    let combL = null;
-                                    let isCellMerged = false;
                                     const isEditing = editingGroupId === g._id;
+                                    const comb = findComb(g, sphVal, cylVal, base.eye);
 
-                                    // IMPROVED LOOKUP: Support single RL/Both objects OR Split R+L objects
-                                    const DUAL_VARIANTS = ["RL", "R/L", "BOTH"];
-                                    
-                                    // 1. Try exact match from base
-                                    comb = findComb(g, sphVal, cylVal, base.eye);
-
-                                    // 2. If merged view but no exact match yet, look for single RL variants
-                                    if (!comb && base.isMerged) {
-                                      for (const variant of DUAL_VARIANTS) {
-                                        const found = findComb(g, sphVal, cylVal, variant);
-                                        if (found) {
-                                          comb = found;
-                                          break;
-                                        }
-                                      }
-                                    }
-
-                                    // 3. Fallback to splitting R and L if it's a merged view and no single object found
-                                    if (!comb && base.isMerged) {
-                                      combR = findComb(g, sphVal, cylVal, "R");
-                                      combL = findComb(g, sphVal, cylVal, "L");
-                                      if (combR && combL && combR.axis === combL.axis) {
-                                        isCellMerged = true;
-                                      } else {
-                                        comb = combR || combL;
-                                      }
-                                    }
-
-                                    const renderDual = (field, type = "text", prefix = "") => {
-                                      const currentComb = comb || combR || combL;
-                                      const cellEye = isCellMerged ? "R" : (currentComb?.eye || base.eye);
-                                      const key = `${currentComb?.sph ?? sphVal}_${currentComb?.cyl ?? cylVal}_${cellEye}`;
-                                      
-                                      const val = isCellMerged 
-                                        ? (combR?.[field] ?? combL?.[field] ?? "")
-                                        : (currentComb?.[field] ?? "");
-
+                                    const renderCell = (field, type = "text", prefix = "") => {
+                                      const key = `${comb?.sph ?? sphVal}_${comb?.cyl ?? cylVal}_${comb?.eye ?? base.eye}`;
+                                      const val = comb?.[field] ?? "";
                                       const displayVal = editValues[g._id]?.[key]?.[field] ?? val;
 
                                       if (isEditing) {
@@ -2290,14 +2259,7 @@ function LensGroupCreation({ hideHeader = false }) {
                                           <input
                                             type={type}
                                             value={displayVal}
-                                            onChange={(e) => {
-                                              handleEditInputChange(g._id, key, field, e.target.value);
-                                              // Synchronize the other eye if merged
-                                              if (isCellMerged) {
-                                                const otherKey = `${currentComb?.sph ?? sphVal}_${currentComb?.cyl ?? cylVal}_L`;
-                                                handleEditInputChange(g._id, otherKey, field, e.target.value);
-                                              }
-                                            }}
+                                            onChange={(e) => handleEditInputChange(g._id, key, field, e.target.value)}
                                             className="w-full px-2 py-1 text-xs rounded border border-slate-200 outline-none bg-white text-center"
                                           />
                                         );
@@ -2308,13 +2270,13 @@ function LensGroupCreation({ hideHeader = false }) {
 
                                     return (
                                       <React.Fragment key={`cells-${rowIndex}-${gIdx}`}>
-                                        <td className="text-center py-3 px-3" style={{ minWidth: 90 }}>{renderDual("barcode")}</td>
-                                        <td className="text-center py-3 px-3 font-bold text-slate-700" style={{ minWidth: 70 }}>{isCellMerged ? "RL" : (comb?.eye || base?.eye || "RL")}</td>
-                                        <td className="text-center py-3 px-3" style={{ minWidth: 70 }}>{isCellMerged ? (combR?.axis ?? "") : (comb?.axis ?? base?.axis ?? "")}</td>
-                                        <td className="text-center py-3 px-3" style={{ minWidth: 80 }}>{renderDual("alertQty", "number")}</td>
-                                        <td className="text-center py-3 px-3 font-medium text-slate-900" style={{ minWidth: 85 }}>{renderDual("pPrice", "number", "₹")}</td>
-                                        <td className="text-center py-3 px-3 font-medium text-slate-900" style={{ minWidth: 85 }}>{renderDual("sPrice", "number", "₹")}</td>
-                                        <td className="text-center py-3 px-3 border-gray-300 border-r" style={{ minWidth: 80 }}>{renderDual("initStock", "number")}</td>
+                                        <td className="text-center py-3 px-3 w-40" style={{ minWidth: 150 }}>{renderCell("barcode")}</td>
+                                        <td className="text-center py-3 px-3 font-bold text-slate-700" style={{ minWidth: 70 }}>{comb?.eye || base?.eye || "RL"}</td>
+                                        <td className="text-center py-3 px-3" style={{ minWidth: 70 }}>{comb?.axis ?? base?.axis ?? ""}</td>
+                                        <td className="text-center py-3 px-3" style={{ minWidth: 80 }}>{renderCell("alertQty", "number")}</td>
+                                        <td className="text-center py-3 px-3 font-medium text-slate-900" style={{ minWidth: 85 }}>{renderCell("pPrice", "number", "₹")}</td>
+                                        <td className="text-center py-3 px-3 font-medium text-slate-900" style={{ minWidth: 85 }}>{renderCell("sPrice", "number", "₹")}</td>
+                                        <td className="text-center py-3 px-3 border-gray-300 border-r" style={{ minWidth: 80 }}>{renderCell("initStock", "number")}</td>
                                       </React.Fragment>
                                     );
                                   })}
@@ -2324,6 +2286,53 @@ function LensGroupCreation({ hideHeader = false }) {
                           })()
                         )}
                       </tbody>
+                      <tfoot className="bg-gradient-to-r from-slate-100 to-blue-50 border-t-2 border-slate-300">
+                        <tr>
+                          <td className="text-center py-2 px-3 text-xs font-black text-slate-600 uppercase tracking-wide" style={{ minWidth: 80 }}>
+                            Total
+                          </td>
+                          <td className="text-center py-2 px-3 border-gray-300 border-r" style={{ minWidth: 80 }}></td>
+                          {filteredAddGroups.map((g, gIdx) => {
+                            // Sum initStock for this ADD group within the current sph/cyl/eye range
+                            let colTotal = 0;
+                            (g.combinations || []).forEach(c => {
+                              const s = parseFloat(c.sph);
+                              const cv = parseFloat(c.cyl);
+                              const cEye = String(c.eye || "").trim().toUpperCase();
+                              if (
+                                s >= sMin - 0.01 && s <= sMax + 0.01 &&
+                                cv >= cMin - 0.01 && cv <= cMax + 0.01 &&
+                                eyeFilter.includes(cEye)
+                              ) {
+                                // Check if there's a pending edit value first
+                                const editKey = `${c.sph}_${c.cyl}_${cEye}`;
+                                const editedStock = editValues[g._id]?.[editKey]?.initStock;
+                                const stock = (editedStock !== undefined && editedStock !== "") 
+                                  ? Number(editedStock) 
+                                  : Number(c.initStock || 0);
+                                colTotal += isNaN(stock) ? 0 : stock;
+                              }
+                            });
+                            return (
+                              <React.Fragment key={`foot-${gIdx}`}>
+                                <td className="text-center py-2 px-3 text-xs text-slate-400" style={{ minWidth: 150 }}></td>
+                                <td className="text-center py-2 px-3 text-xs text-slate-400" style={{ minWidth: 70 }}></td>
+                                <td className="text-center py-2 px-3 text-xs text-slate-400" style={{ minWidth: 70 }}></td>
+                                <td className="text-center py-2 px-3 text-xs text-slate-400" style={{ minWidth: 80 }}></td>
+                                <td className="text-center py-2 px-3 text-xs text-slate-400" style={{ minWidth: 85 }}></td>
+                                <td className="text-center py-2 px-3 text-xs text-slate-400" style={{ minWidth: 85 }}></td>
+                                <td className="text-center py-2 px-3 border-gray-300 border-r" style={{ minWidth: 80 }}>
+                                  <span className={`px-2 py-1 rounded-md text-xs font-black ${
+                                    colTotal > 0 ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                                  }`}>
+                                    {colTotal}
+                                  </span>
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 </div>

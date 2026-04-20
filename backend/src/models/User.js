@@ -16,6 +16,8 @@ const UserSchema = new Schema({
     enum: ["admin", "manager", "employee", "super_admin", "delivery_person"],
     default: "employee",
   },
+  mobileNumber: { type: String, sparse: true },
+  accountId: { type: mongoose.Schema.Types.ObjectId, ref: 'Account', required: false },
   roleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Role' },
   companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   isActive: { type: Boolean, default: true },

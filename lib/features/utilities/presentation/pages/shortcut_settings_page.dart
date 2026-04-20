@@ -21,7 +21,7 @@ class ShortcutSettingsPage extends StatefulWidget {
 class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
   String _searchQuery = "";
   String _selectedModule = "All";
-  final List<String> _modules = ["All", "Masters", "Sale", "Purchase", "Transaction", "Utilities", "Reports", "Global"];
+  final List<String> _modules = ["All", "Masters", "Transaction", "Sale", "Purchase", "Utilities", "Reports"];
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +30,8 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
       body: Consumer<UtilityProvider>(
         builder: (context, provider, _) {
           final filteredShortcuts = provider.keyBindings.where((s) {
-            final matchesSearch = s.action.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-                                 s.keyCombination.toLowerCase().contains(_searchQuery.toLowerCase());
+            final matchesSearch = s.pageName.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+                                 s.shortcutKey.toLowerCase().contains(_searchQuery.toLowerCase());
             final matchesModule = _selectedModule == "All" || s.module == _selectedModule;
             return matchesSearch && matchesModule;
           }).toList();
@@ -64,29 +64,36 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(16)),
-                  child: const Icon(LucideIcons.keyboard, color: Color(0xFF2563EB), size: 28),
-                ),
-                const SizedBox(width: 20),
-                const Column(
+        Expanded(
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(16)),
+                child: const Icon(LucideIcons.keyboard, color: Color(0xFF2563EB), size: 28),
+              ),
+              const SizedBox(width: 20),
+              const Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Shortcut Keys", style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFF111827), letterSpacing: -1)),
-                    Text("Manage and customize global keyboard shortcuts", style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), fontWeight: FontWeight.w500)),
+                    Text(
+                      "Shortcut Keys",
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFF111827), letterSpacing: -1),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      "Manage and customize global keyboard shortcuts",
+                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-        const Spacer(),
+        const SizedBox(width: 24),
         _buildHeaderAction(
           label: "Add New Shortcut",
           icon: LucideIcons.plus,
@@ -119,7 +126,7 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
         backgroundColor: color,
         foregroundColor: textColor ?? Colors.white,
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: borderColor != null ? BorderSide(color: borderColor) : BorderSide.none,
@@ -154,7 +161,7 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
       ];
       for (int i = 0; i < shortcuts.length; i++) {
         final s = shortcuts[i];
-        rows.add([i + 1, s.action, s.module, s.keyCombination, s.description ?? "", s.status]);
+        rows.add([i + 1, s.pageName, s.module, s.shortcutKey, s.description ?? "", s.status]);
       }
       String csv = const ListToCsvConverter().convert(rows);
       
@@ -187,9 +194,9 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
                 headers: ["SN", "PAGE", "MODULE", "KEY", "STATUS"],
                 data: shortcuts.map((s) => [
                   shortcuts.indexOf(s) + 1,
-                  s.action,
+                  s.pageName,
                   s.module ?? "",
-                  s.keyCombination,
+                  s.shortcutKey,
                   s.status
                 ]).toList(),
               ),
@@ -273,8 +280,7 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
               separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
               itemBuilder: (context, index) {
                 final s = shortcuts[index];
-                final realIndex = provider.keyBindings.indexOf(s);
-                return _buildShortcutRow(context, provider, s, realIndex, index + 1);
+                return _buildShortcutRow(context, provider, s, index + 1);
               },
             ),
         ],
@@ -303,13 +309,13 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
     );
   }
 
-  Widget _buildShortcutRow(BuildContext context, UtilityProvider provider, KeyBinding s, int providerIndex, int displayIndex) {
+  Widget _buildShortcutRow(BuildContext context, UtilityProvider provider, KeyBinding s, int displayIndex) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Row(
         children: [
           SizedBox(width: 60, child: Text(displayIndex.toString().padLeft(2, '0'), style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
-          Expanded(flex: 3, child: Text(s.action, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)))),
+          Expanded(flex: 3, child: Text(s.pageName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)))),
           Expanded(
             flex: 2,
             child: Container(
@@ -329,7 +335,7 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
                     borderRadius: BorderRadius.circular(6),
                     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
                   ),
-                  child: Text(s.keyCombination, style: const TextStyle(fontFamily: 'monospace', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+                  child: Text(s.shortcutKey, style: const TextStyle(fontFamily: 'monospace', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ],
             ),
@@ -338,10 +344,15 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
           SizedBox(
             width: 80,
             child: Center(
-              child: Switch(
-                value: s.status == 'Enabled',
-                onChanged: (v) => provider.toggleKeyBindingStatus(providerIndex),
-                activeColor: const Color(0xFF10B981),
+              child: IconButton(
+                icon: Icon(
+                  s.status == 'Enabled' ? LucideIcons.toggleRight : LucideIcons.toggleLeft,
+                  size: 32,
+                  color: s.status == 'Enabled' ? const Color(0xFF10B981) : const Color(0xFFCBD5E1),
+                ),
+                onPressed: () => provider.toggleKeyBindingStatus(s.id!, s),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
             ),
           ),
@@ -352,7 +363,7 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
               children: [
                 IconButton(
                   icon: const Icon(LucideIcons.pencil, size: 18, color: Color(0xFF3B82F6)),
-                  onPressed: () => _showAddEditShortcutDialog(context, provider, s, providerIndex),
+                  onPressed: () => _showAddEditShortcutDialog(context, provider, s),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   tooltip: "Edit",
@@ -360,7 +371,7 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
                 const SizedBox(width: 12),
                 IconButton(
                   icon: const Icon(LucideIcons.trash2, size: 18, color: Color(0xFFEF4444)),
-                  onPressed: () => _confirmDelete(context, provider, providerIndex),
+                  onPressed: () => _confirmDelete(context, provider, s.id!),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   tooltip: "Delete",
@@ -387,16 +398,16 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
     );
   }
 
-  void _showAddEditShortcutDialog(BuildContext context, UtilityProvider provider, [KeyBinding? existing, int? index]) {
-    String action = existing?.action ?? '';
-    String keyCombination = existing?.keyCombination ?? '';
-    String module = existing?.module ?? 'Global';
+  void _showAddEditShortcutDialog(BuildContext context, UtilityProvider provider, [KeyBinding? existing]) {
+    String pageName = existing?.pageName ?? '';
+    String shortcutKey = existing?.shortcutKey ?? '';
+    String module = existing?.module ?? 'Masters';
     String description = existing?.description ?? '';
     String url = existing?.url ?? '';
-    String routeSearch = action;
+    String routeSearch = pageName;
     bool showResults = false;
 
-    final actionController = TextEditingController(text: action);
+    final nameController = TextEditingController(text: pageName);
     final LayerLink layerLink = LayerLink();
 
     showDialog(
@@ -437,11 +448,11 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
                         child: TextField(
                           onChanged: (v) => setDialogState(() {
                             routeSearch = v;
-                            action = v;
+                            pageName = v;
                             showResults = true;
                           }),
                           onTap: () => setDialogState(() => showResults = true),
-                          controller: actionController,
+                          controller: nameController,
                           decoration: InputDecoration(
                             hintText: "Search for a page...",
                             prefixIcon: const Icon(LucideIcons.search, size: 18),
@@ -461,12 +472,12 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
                               children: [
                                 const Text("Module", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                 const SizedBox(height: 8),
-                                Container(
+                                  Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12),
                                   decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(12)),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _modules.contains(module) ? module : "Global",
+                                      value: _modules.contains(module) ? module : "Masters",
                                       isExpanded: true,
                                       hint: const Text("Select"),
                                       items: _modules.where((m) => m != "All").map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
@@ -482,18 +493,18 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text("Key Binding", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                                const SizedBox(height: 8),
-                                TextField(
-                                  onChanged: (v) => setDialogState(() => keyCombination = v),
-                                  controller: TextEditingController(text: keyCombination),
-                                  decoration: InputDecoration(
-                                    hintText: "e.g. F2 or Alt+S",
-                                    filled: true,
-                                    fillColor: const Color(0xFFF9FAFB),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                  const Text("Shortcut Key", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    onChanged: (v) => setDialogState(() => shortcutKey = v),
+                                    controller: TextEditingController(text: shortcutKey),
+                                    decoration: InputDecoration(
+                                      hintText: "e.g. F2 or Alt+S",
+                                      filled: true,
+                                      fillColor: const Color(0xFFF9FAFB),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                    ),
                                   ),
-                                ),
                               ],
                             ),
                           ),
@@ -534,11 +545,11 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
                             flex: 2,
                             child: ElevatedButton(
                               onPressed: () {
-                                if (action.isEmpty || keyCombination.isEmpty) return;
+                                if (pageName.isEmpty || shortcutKey.isEmpty) return;
                                 final newBinding = KeyBinding(
-                                  id: existing?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-                                  action: action,
-                                  keyCombination: keyCombination,
+                                  id: existing?.id,
+                                  pageName: pageName,
+                                  shortcutKey: shortcutKey,
                                   module: module,
                                   description: description,
                                   url: url,
@@ -547,7 +558,7 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
                                 if (existing == null) {
                                   provider.addKeyBinding(newBinding);
                                 } else {
-                                  provider.updateKeyBinding(index!, newBinding);
+                                  provider.updateKeyBinding(existing.id!, newBinding);
                                 }
                                 Navigator.pop(context);
                               },
@@ -582,10 +593,10 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: filtered.map((r) => InkWell(
                                 onTap: () => setDialogState(() {
-                                  action = r['label']!;
+                                  pageName = r['label']!;
                                   url = r['value']!;
                                   routeSearch = r['label']!;
-                                  actionController.text = r['label']!;
+                                  nameController.text = r['label']!;
                                   showResults = false;
                                 }),
                                 child: Container(
@@ -615,7 +626,7 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
     );
   }
 
-  void _confirmDelete(BuildContext context, UtilityProvider provider, int index) {
+  void _confirmDelete(BuildContext context, UtilityProvider provider, String id) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -625,7 +636,7 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           TextButton(
             onPressed: () {
-              provider.deleteKeyBinding(index);
+              provider.deleteKeyBinding(id);
               Navigator.pop(context);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -646,7 +657,7 @@ class _ShortcutSettingsPageState extends State<ShortcutSettingsPage> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () {
-              provider.resetToDefaults();
+              provider.resetShortcutToDefaults();
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),

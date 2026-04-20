@@ -19,3 +19,32 @@ export const roundAmount = (value) => {
     return Math.ceil(num);
   }
 };
+
+/**
+ * Format power values (SPH, CYL, ADD) for display
+ * 
+ * Rules:
+ * - Always show 2 decimal places (1 → 1.00)
+ * - Always show sign for positive values (1.00 → +1.00)
+ * - Negative values remain as-is (-1.00)
+ * - Empty/null/NaN values return empty string
+ * 
+ * @param {number|string} value - The power value to format
+ * @returns {string} Formatted power value (e.g., "+1.00", "-1.00", "0.00")
+ * 
+ * @example
+ * formatPowerValue(1) // Returns "+1.00"
+ * formatPowerValue(2.5) // Returns "+2.50"
+ * formatPowerValue(-1) // Returns "-1.00"
+ * formatPowerValue(0) // Returns "+0.00"
+ * formatPowerValue('') // Returns ""
+ */
+export const formatPowerValue = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+
+  const num = parseFloat(value);
+  if (isNaN(num)) return '';
+
+  const formatted = num.toFixed(2);
+  return num >= 0 ? `+${formatted}` : formatted;
+};

@@ -88,6 +88,63 @@ export default function VerifyLensStock() {
         return isNaN(parsed) ? null : parsed.toFixed(2);
     };
 
+    // Helper for sorting lens powers: 0 -> Negatives (desc) -> Positives (asc)
+    const sortLensValues = (values) => {
+        const unique = [...new Set(values.map(v => parseFloat(v) || 0))];
+        const zero = unique.filter(v => v === 0);
+        const negatives = unique.filter(v => v < 0).sort((a, b) => b - a);
+        const positives = unique.filter(v => v > 0).sort((a, b) => a - b);
+        // Normalize each to 2 decimal places for consistent mapping
+        return [...zero, ...negatives, ...positives].map(v => v.toFixed(2));
+    };
+
+    // Matrix Dimension Memos
+    const hasAdd = useMemo(() => {
+        return reportData.some(r => parseFloat(r.addValue) && parseFloat(r.addValue) !== 0);
+    }, [reportData]);
+
+    const sortedSph = useMemo(() => sortLensValues(reportData.map(r => r.sph)), [reportData]);
+    const sortedCyl = useMemo(() => sortLensValues(reportData.map(r => r.cyl)), [reportData]);
+    const sortedAdd = useMemo(() => sortLensValues(reportData.map(r => r.addValue)), [reportData]);
+    
+    // Consistent sorting for the list view (0 -> Neg desc -> Pos asc)
+    const sortedReportData = useMemo(() => {
+        if (!reportData.length) return [];
+        
+        const getSortWeight = (val) => {
+            const v = parseFloat(val) || 0;
+            if (Math.abs(v) < 0.001) return -1000; // Zero first
+            if (v < 0) return Math.abs(v); // Negatives (e.g. -0.25 -> 0.25, -0.50 -> 0.50)
+            return 1000 + v; // Positives last
+        };
+
+        return [...reportData].sort((a, b) => {
+            const sA = getSortWeight(a.sph);
+            const sB = getSortWeight(b.sph);
+            if (sA !== sB) return sA - sB;
+            const cA = getSortWeight(a.cyl);
+            const cB = getSortWeight(b.cyl);
+            if (cA !== cB) return cA - cB;
+            const aA = getSortWeight(a.addValue);
+            const aB = getSortWeight(b.addValue);
+            return aA - aB;
+        });
+    }, [reportData]);
+
+    // Unique (SPH, CYL) pairs for Case A rows
+    const rowPairs = useMemo(() => {
+        if (!hasAdd) return [];
+        const pairs = [];
+        sortedSph.forEach(s => {
+            sortedCyl.forEach(c => {
+                if (reportData.some(r => parseFloat(r.sph).toFixed(2) === s && parseFloat(r.cyl).toFixed(2) === c)) {
+                    pairs.push({ sph: s, cyl: c });
+                }
+            });
+        });
+        return pairs;
+    }, [hasAdd, sortedSph, sortedCyl, reportData]);
+
     const handleFileUpload = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -287,7 +344,9 @@ export default function VerifyLensStock() {
                 if (sphMatch && cylMatch && addMatch && axisMatch && prodMatch) {
                     updatedQty[item.barcode] = rQty;
 
-                    const mxKey = `${parseFloat(item.sph).toFixed(2)}_${parseFloat(item.cyl).toFixed(2)}`;
+                    const mxKey = hasAdd 
+                        ? `${parseFloat(item.sph).toFixed(2)}_${parseFloat(item.cyl).toFixed(2)}_${parseFloat(item.addValue).toFixed(2)}`
+                        : `${parseFloat(item.sph).toFixed(2)}_${parseFloat(item.cyl).toFixed(2)}`;
                     matrixUpdates[mxKey] = rQty;
 
                     matchedKeys.add(item.barcode);
@@ -366,6 +425,8 @@ export default function VerifyLensStock() {
                 productName: filters.productName,
                 barcode: filters.barcode,
                 eye: filters.eye,
+                // Increase limit to ensure full range is loaded for matrix/verification
+                limit: 10000,
                 // Only send powerGroups if some are selected
                 ...(selectedPowerGroups.length > 0 && { powerGroups: selectedPowerGroups }),
             };
@@ -413,8 +474,10 @@ export default function VerifyLensStock() {
         }
     };
 
-    const handleMatrixInput = (sph, cyl, value) => {
-        const key = `${parseFloat(sph).toFixed(2)}_${parseFloat(cyl).toFixed(2)}`;
+    const handleMatrixInput = (sph, cyl, add, value) => {
+        const key = hasAdd 
+            ? `${parseFloat(sph).toFixed(2)}_${parseFloat(cyl).toFixed(2)}_${parseFloat(add).toFixed(2)}`
+            : `${parseFloat(sph).toFixed(2)}_${parseFloat(cyl).toFixed(2)}`;
         setMatrixInputs(prev => ({
             ...prev,
             [key]: value
@@ -423,41 +486,54 @@ export default function VerifyLensStock() {
 
     const handleCompareMatrix = () => {
         const results = {};
-        const sphValues = [...new Set(reportData.map(r => r.sph))];
-        const cylValues = [...new Set(reportData.map(r => r.cyl))];
-
         let hasDiscrepancy = false;
 
-        sphValues.forEach(sph => {
-            cylValues.forEach(cyl => {
-                const key = `${parseFloat(sph).toFixed(2)}_${parseFloat(cyl).toFixed(2)}`;
+        if (hasAdd) {
+            rowPairs.forEach(pair => {
+                sortedAdd.forEach(add => {
+                    const key = `${pair.sph}_${pair.cyl}_${add}`;
+                    const cellItems = reportData.filter(r => 
+                        parseFloat(r.sph).toFixed(2) === pair.sph && 
+                        parseFloat(r.cyl).toFixed(2) === pair.cyl && 
+                        parseFloat(r.addValue).toFixed(2) === add
+                    );
 
-                // Calculate System Stock for this cell
-                const cellItems = reportData.filter(r => r.sph === sph && r.cyl === cyl);
-                const expected = cellItems.reduce((acc, r) => acc + (parseInt(r.currentStock) || 0), 0);
+                    const expected = cellItems.reduce((acc, r) => acc + (parseInt(r.currentStock) || 0), 0);
+                    const valStr = matrixInputs[key];
+                    const received = valStr === '' || valStr === undefined ? 0 : parseInt(valStr);
 
-                // Get User Input (default to 0 if empty/undefined, or maybe we want to force entry?)
-                // Assuming empty means 0 for now, or we can check if it exists
-                const valStr = matrixInputs[key];
-                const received = valStr === '' || valStr === undefined ? 0 : parseInt(valStr);
+                    if (expected === 0 && received === 0) return;
 
-                if (expected === 0 && received === 0) return; // Skip empty cells
+                    const diff = received - expected;
+                    const status = diff === 0 ? 'match' : (diff < 0 ? 'missing' : 'extra');
+                    if (status !== 'match') hasDiscrepancy = true;
 
-                const diff = received - expected;
-                let status = 'match';
-                if (diff < 0) status = 'missing';
-                if (diff > 0) status = 'extra';
-
-                if (status !== 'match') hasDiscrepancy = true;
-
-                results[key] = {
-                    expected,
-                    received,
-                    diff,
-                    status
-                };
+                    results[key] = { expected, received, diff, status };
+                });
             });
-        });
+        } else {
+            sortedSph.forEach(sph => {
+                sortedCyl.forEach(cyl => {
+                    const key = `${sph}_${cyl}`;
+                    const cellItems = reportData.filter(r => 
+                        parseFloat(r.sph).toFixed(2) === sph && 
+                        parseFloat(r.cyl).toFixed(2) === cyl
+                    );
+
+                    const expected = cellItems.reduce((acc, r) => acc + (parseInt(r.currentStock) || 0), 0);
+                    const valStr = matrixInputs[key];
+                    const received = valStr === '' || valStr === undefined ? 0 : parseInt(valStr);
+
+                    if (expected === 0 && received === 0) return;
+
+                    const diff = received - expected;
+                    const status = diff === 0 ? 'match' : (diff < 0 ? 'missing' : 'extra');
+                    if (status !== 'match') hasDiscrepancy = true;
+
+                    results[key] = { expected, received, diff, status };
+                });
+            });
+        }
 
         setComparisonResult(results);
         if (hasDiscrepancy) {
@@ -491,16 +567,15 @@ export default function VerifyLensStock() {
             Object.entries(comparisonResult).forEach(([key, res]) => {
                 if (res.status === 'match') return;
 
-                const [sphStr, cylStr] = key.split('_');
-                const sph = parseFloat(sphStr);
-                const cyl = parseFloat(cylStr);
-
                 // Find a representative item for metadata
-                // We compare loose equality for safety with string/number variations
-                const cellItems = reportData.filter(r =>
-                    parseFloat(r.sph).toFixed(2) === sphStr &&
-                    parseFloat(r.cyl).toFixed(2) === cylStr
-                );
+                const [sphStr, cylStr, addStr] = key.split('_');
+                const cellItems = reportData.filter(r => {
+                    const sMatch = parseFloat(r.sph).toFixed(2) === sphStr;
+                    const cMatch = parseFloat(r.cyl).toFixed(2) === cylStr;
+                    if (!hasAdd) return sMatch && cMatch;
+                    const aMatch = parseFloat(r.addValue).toFixed(2) === addStr;
+                    return sMatch && cMatch && aMatch;
+                });
 
                 const baseItem = cellItems.length > 0 ? cellItems[0] : {
                     productName: filters.productName || 'Unknown Product',
@@ -609,12 +684,15 @@ export default function VerifyLensStock() {
 
             Object.entries(comparisonResult).forEach(([key, res]) => {
                 if (res.status === 'missing') {
-                    const [sphStr, cylStr] = key.split('_');
+                    const [sphStr, cylStr, addStr] = key.split('_');
                     // Find a representative barcode for this cell
-                    const cellItems = reportData.filter(r =>
-                        parseFloat(r.sph).toFixed(2) === sphStr &&
-                        parseFloat(r.cyl).toFixed(2) === cylStr
-                    );
+                    const cellItems = reportData.filter(r => {
+                        const sMatch = parseFloat(r.sph).toFixed(2) === sphStr;
+                        const cMatch = parseFloat(r.cyl).toFixed(2) === cylStr;
+                        if (!hasAdd) return sMatch && cMatch;
+                        const aMatch = parseFloat(r.addValue).toFixed(2) === addStr;
+                        return sMatch && cMatch && aMatch;
+                    });
 
                     if (cellItems.length > 0) {
                         itemsToFetch.push({
@@ -953,7 +1031,7 @@ export default function VerifyLensStock() {
                                     {viewMode === 'list' ? 'Items to Verify' : 'Verification Matrix'}
                                 </h3>
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-slate-100">
-                                    Showing {reportData.length} Variants
+                                    Showing {sortedReportData.length} Variants
                                 </span>
                             </div>
 
@@ -985,7 +1063,7 @@ export default function VerifyLensStock() {
 
                                                 </tr>
                                             ) : (
-                                                reportData.map((row, index) => {
+                                                sortedReportData.map((row, index) => {
                                                     const received = receivedQuantities[row.barcode] ?? row.currentStock;
                                                     const isMatch = received === row.currentStock;
 
@@ -1067,32 +1145,43 @@ export default function VerifyLensStock() {
                                                     <table className="w-full text-center border-collapse">
                                                         <thead className="bg-blue-600 text-white">
                                                             <tr>
-                                                                <th className="px-4 py-3 font-bold bg-blue-800 border-r border-blue-500 min-w-[100px]">SPH / CYL</th>
-                                                                {[...new Set(reportData.map(r => r.sph))].sort((a, b) => parseFloat(a) - parseFloat(b)).map(sph => (
-                                                                    <th key={`h1-${sph}`} className="px-4 py-3 font-bold border-r border-blue-500 min-w-[80px]">
-                                                                        {parseFloat(sph).toFixed(2)}
+                                                                <th className="px-4 py-3 font-bold bg-blue-800 border-r border-blue-500 min-w-[120px]">
+                                                                    {hasAdd ? 'SPH / CYL' : 'SPH / CYL'}
+                                                                </th>
+                                                                {(hasAdd ? sortedAdd : sortedCyl).map(val => (
+                                                                    <th key={`h1-${val}`} className="px-4 py-3 font-bold border-r border-blue-500 min-w-[80px]">
+                                                                        {parseFloat(val).toFixed(2)}
                                                                     </th>
                                                                 ))}
                                                             </tr>
                                                         </thead>
                                                         <tbody className="bg-white">
-                                                            {[...new Set(reportData.map(r => r.cyl))].sort((a, b) => parseFloat(a) - parseFloat(b)).map(cyl => (
-                                                                <tr key={`r1-${cyl}`} className="border-b border-blue-100 last:border-none">
-                                                                    <td className="px-4 py-3 font-bold bg-blue-50 text-blue-800 border-r border-blue-200">
-                                                                        {parseFloat(cyl).toFixed(2)}
-                                                                    </td>
-                                                                    {[...new Set(reportData.map(r => r.sph))].sort((a, b) => parseFloat(a) - parseFloat(b)).map(sph => {
-                                                                        const count = reportData
-                                                                            .filter(r => r.sph === sph && r.cyl === cyl)
-                                                                            .reduce((acc, r) => acc + (parseInt(r.currentStock) || 0), 0);
-                                                                        return (
-                                                                            <td key={`c1-${sph}-${cyl}`} className="px-4 py-3 border-r border-blue-100 text-slate-600 font-medium">
-                                                                                {count || 0}
-                                                                            </td>
-                                                                        );
-                                                                    })}
-                                                                </tr>
-                                                            ))}
+                                                            {(hasAdd ? rowPairs : sortedSph).map((row, idx) => {
+                                                                const rowKey = hasAdd ? `${row.sph}/${row.cyl}` : row;
+                                                                return (
+                                                                    <tr key={`r1-${idx}`} className="border-b border-blue-100 last:border-none hover:bg-slate-50 transition-colors">
+                                                                        <td className="px-4 py-3 font-bold bg-blue-50 text-blue-800 border-r border-blue-200">
+                                                                            {rowKey}
+                                                                        </td>
+                                                                        {(hasAdd ? sortedAdd : sortedCyl).map(col => {
+                                                                            const count = reportData
+                                                                                .filter(r => {
+                                                                                    const sMatch = parseFloat(r.sph).toFixed(2) === (hasAdd ? row.sph : row);
+                                                                                    const cMatch = parseFloat(r.cyl).toFixed(2) === (hasAdd ? row.cyl : col);
+                                                                                    if (!hasAdd) return sMatch && cMatch;
+                                                                                    const aMatch = parseFloat(r.addValue).toFixed(2) === col;
+                                                                                    return sMatch && cMatch && aMatch;
+                                                                                })
+                                                                                .reduce((acc, r) => acc + (parseInt(r.currentStock) || 0), 0);
+                                                                            return (
+                                                                                <td key={`c1-${idx}-${col}`} className="px-4 py-3 border-r border-blue-100 text-slate-600 font-medium">
+                                                                                    {count || 0}
+                                                                                </td>
+                                                                            );
+                                                                        })}
+                                                                    </tr>
+                                                                );
+                                                            })}
                                                         </tbody>
                                                     </table>
                                                 </div>
@@ -1129,52 +1218,60 @@ export default function VerifyLensStock() {
                                                     <table className="w-full text-center border-collapse">
                                                         <thead className="bg-emerald-600 text-white">
                                                             <tr>
-                                                                <th className="px-4 py-3 font-bold bg-emerald-800 border-r border-emerald-500 min-w-[100px]">SPH / CYL</th>
-                                                                {[...new Set(reportData.map(r => r.sph))].sort((a, b) => parseFloat(a) - parseFloat(b)).map(sph => (
-                                                                    <th key={`h2-${sph}`} className="px-4 py-3 font-bold border-r border-emerald-500 min-w-[80px]">
-                                                                        {parseFloat(sph).toFixed(2)}
+                                                                <th className="px-4 py-3 font-bold bg-emerald-800 border-r border-emerald-500 min-w-[120px]">
+                                                                    {hasAdd ? 'SPH / CYL' : 'SPH / CYL'}
+                                                                </th>
+                                                                {(hasAdd ? sortedAdd : sortedCyl).map(val => (
+                                                                    <th key={`h2-${val}`} className="px-4 py-3 font-bold border-r border-emerald-500 min-w-[80px]">
+                                                                        {parseFloat(val).toFixed(2)}
                                                                     </th>
                                                                 ))}
                                                             </tr>
                                                         </thead>
                                                         <tbody className="bg-white">
-                                                            {[...new Set(reportData.map(r => r.cyl))].sort((a, b) => parseFloat(a) - parseFloat(b)).map(cyl => (
-                                                                <tr key={`r2-${cyl}`} className="border-b border-emerald-100 last:border-none">
-                                                                    <td className="px-4 py-3 font-bold bg-emerald-50 text-emerald-800 border-r border-emerald-200">
-                                                                        {parseFloat(cyl).toFixed(2)}
-                                                                    </td>
-                                                                    {[...new Set(reportData.map(r => r.sph))].sort((a, b) => parseFloat(a) - parseFloat(b)).map(sph => {
-                                                                        const key = `${parseFloat(sph).toFixed(2)}_${parseFloat(cyl).toFixed(2)}`;
-                                                                        const result = comparisonResult ? comparisonResult[key] : null;
+                                                            {(hasAdd ? rowPairs : sortedSph).map((row, idx) => {
+                                                                const rowKey = hasAdd ? `${row.sph}/${row.cyl}` : row;
+                                                                return (
+                                                                    <tr key={`r2-${idx}`} className="border-b border-emerald-100 last:border-none hover:bg-slate-50 transition-colors">
+                                                                        <td className="px-4 py-3 font-bold bg-emerald-50 text-emerald-800 border-r border-emerald-200">
+                                                                            {rowKey}
+                                                                        </td>
+                                                                        {(hasAdd ? sortedAdd : sortedCyl).map(col => {
+                                                                            const sph = hasAdd ? row.sph : row;
+                                                                            const cyl = hasAdd ? row.cyl : col;
+                                                                            const add = hasAdd ? col : '0.00';
+                                                                            const key = hasAdd ? `${sph}_${cyl}_${add}` : `${sph}_${cyl}`;
+                                                                            const result = comparisonResult ? comparisonResult[key] : null;
 
-                                                                        let cellClass = "bg-white";
-                                                                        if (result) {
-                                                                            if (result.status === 'missing') cellClass = "bg-red-50 ring-2 ring-inset ring-red-200";
-                                                                            else if (result.status === 'extra') cellClass = "bg-blue-50 ring-2 ring-inset ring-blue-200";
-                                                                            else if (result.status === 'match' && result.expected > 0) cellClass = "bg-emerald-50 ring-2 ring-inset ring-emerald-200";
-                                                                        }
+                                                                            let cellClass = "bg-white";
+                                                                            if (result) {
+                                                                                if (result.status === 'missing') cellClass = "bg-red-50 ring-2 ring-inset ring-red-200";
+                                                                                else if (result.status === 'extra') cellClass = "bg-blue-50 ring-2 ring-inset ring-blue-200";
+                                                                                else if (result.status === 'match' && result.expected > 0) cellClass = "bg-emerald-50 ring-2 ring-inset ring-emerald-200";
+                                                                            }
 
-                                                                        return (
-                                                                            <td key={`c2-${sph}-${cyl}`} className={`p-2 border-r border-emerald-100 ${cellClass}`}>
-                                                                                <div className="relative">
-                                                                                    <input
-                                                                                        type="number"
-                                                                                        value={matrixInputs[key] ?? ''}
-                                                                                        onChange={(e) => handleMatrixInput(sph, cyl, e.target.value)}
-                                                                                        className={`w-full text-center font-bold bg-transparent outline-none py-1 rounded ${result && result.status !== 'match' ? 'text-red-600' : 'text-slate-700'}`}
-                                                                                        placeholder="-"
-                                                                                    />
-                                                                                    {result && result.status !== 'match' && (
-                                                                                        <div className="absolute -top-3 -right-2 bg-red-500 text-white text-[9px] px-1 rounded-full shadow-sm">
-                                                                                            {result.diff > 0 ? `+${result.diff}` : result.diff}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            </td>
-                                                                        );
-                                                                    })}
-                                                                </tr>
-                                                            ))}
+                                                                            return (
+                                                                                <td key={`c2-${idx}-${col}`} className={`p-2 border-r border-emerald-100 ${cellClass}`}>
+                                                                                    <div className="relative">
+                                                                                        <input
+                                                                                            type="number"
+                                                                                            value={matrixInputs[key] ?? ''}
+                                                                                            onChange={(e) => handleMatrixInput(sph, cyl, add, e.target.value)}
+                                                                                            className={`w-full text-center font-bold bg-transparent outline-none py-1 rounded transition-all focus:bg-slate-50 ${result && result.status !== 'match' ? 'text-red-600' : 'text-slate-700'}`}
+                                                                                            placeholder="-"
+                                                                                        />
+                                                                                        {result && result.status !== 'match' && (
+                                                                                            <div className="absolute -top-3 -right-2 bg-red-500 text-white text-[9px] px-1 rounded-full shadow-sm">
+                                                                                                {result.diff > 0 ? `+${result.diff}` : result.diff}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </td>
+                                                                            );
+                                                                        })}
+                                                                    </tr>
+                                                                );
+                                                            })}
                                                         </tbody>
                                                     </table>
                                                 </div>

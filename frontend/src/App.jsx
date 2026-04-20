@@ -7,6 +7,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import Navbar from "./Components/Navbar";
 import GlobalLoader from "./Components/GlobalLoader";
 import HomePlaceholder from "./Pages/Home";
+import AuthObserver from "./Components/AuthObserver";
 import AccountGroupMaster from './Pages/AccountGroupMaster'
 import CloseComapny from './Pages/CloseCompany'
 import ModifyCompany from './Pages/ModifyCompany'
@@ -341,9 +342,12 @@ function AppLayout() {
 export default function App() {
   return (
     <Router>
+      <AuthProvider>
         <GlobalLoader />
+        <AuthObserver />
         <AppLayout />
         <Toaster position="top-center" />
+      </AuthProvider>
     </Router>
   );
 }

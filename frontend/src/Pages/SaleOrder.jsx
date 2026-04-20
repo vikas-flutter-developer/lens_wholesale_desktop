@@ -430,7 +430,7 @@ function SaleOrder() {
   }, []);
 
   // Status Filter State
-  const [selectedStatuses, setSelectedStatuses] = useState(["Pending", "In Progress", "Done", "Cancelled", "On Approval"]);
+  const [selectedStatuses, setSelectedStatuses] = useState(["Pending", "In Progress", "Done", "On Approval"]);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const statusFilterRef = useRef(null);
 
@@ -601,36 +601,44 @@ function SaleOrder() {
     }
   };
 
-  // Lens Master Price Map
-  const [lensMasterMap, setLensMasterMap] = useState({});
+  // Purchase Price Map (Lens combinations + Item Master items)
+  const [purchasePriceMap, setPurchasePriceMap] = useState({});
 
   useEffect(() => {
-    const fetchMasters = async () => {
-      try {
-        const res = await getAllLensPower();
-        if (res?.success && Array.isArray(res.data)) {
-          const map = {};
-          res.data.forEach((group) => {
-            if (group.addGroups) {
-              group.addGroups.forEach((ag) => {
-                if (ag.combinations) {
-                  ag.combinations.forEach((comb) => {
-                    if (comb._id) {
-                      map[String(comb._id)] = Number(comb.pPrice) || 0;
-                    }
-                  });
-                }
-              });
-            }
-          });
-          setLensMasterMap(map);
-        }
-      } catch (err) {
-        console.error("Error fetching lens masters:", err);
+    const buildPriceMap = () => {
+      const map = {};
+      
+      // Add Lens Group combinations (by combinationId)
+      if (allLenses && Array.isArray(allLenses)) {
+        allLenses.forEach((group) => {
+          if (group.addGroups) {
+            group.addGroups.forEach((ag) => {
+              if (ag.combinations) {
+                ag.combinations.forEach((comb) => {
+                  if (comb._id) {
+                    map[`comb_${String(comb._id)}`] = Number(comb.pPrice) || 0;
+                  }
+                });
+              }
+            });
+          }
+        });
       }
+      
+      // Add Item Master items (by itemName) - for non-power-range items
+      if (allItems && Array.isArray(allItems)) {
+        allItems.forEach((item) => {
+          if (item.itemName) {
+            map[`item_${String(item.itemName).toLowerCase()}`] = Number(item.purchasePrice) || 0;
+          }
+        });
+      }
+      
+      setPurchasePriceMap(map);
     };
-    fetchMasters();
-  }, []);
+    
+    buildPriceMap();
+  }, [allLenses, allItems]);
 
   // Column Filter State
   const [showColumnFilter, setShowColumnFilter] = useState(false);
@@ -913,7 +921,7 @@ function SaleOrder() {
       delivTo: "",
       searchText: "",
     });
-    setSelectedStatuses(["Pending", "In Progress", "Done", "Cancelled", "On Approval"]);
+    setSelectedStatuses(["Pending", "In Progress", "Done", "On Approval"]);
   };
 
   const filteredOrders = useMemo(() => {
@@ -1039,9 +1047,16 @@ function SaleOrder() {
     order.items.forEach((item) => {
       let cost = Number(item.purchasePrice || 0);
 
-      // If cost is 0, try to find it in master map using combinationId
-      if (cost === 0 && item.combinationId && lensMasterMap[String(item.combinationId)] !== undefined) {
-        cost = lensMasterMap[String(item.combinationId)];
+      // Try to find purchase price from the map
+      if (cost === 0) {
+        // First try by combinationId (for power range items)
+        if (item.combinationId && purchasePriceMap[`comb_${String(item.combinationId)}`] !== undefined) {
+          cost = purchasePriceMap[`comb_${String(item.combinationId)}`];
+        }
+        // Then try by itemName (for non-power-range items from Item Master)
+        else if (item.itemName && purchasePriceMap[`item_${String(item.itemName).toLowerCase()}`] !== undefined) {
+          cost = purchasePriceMap[`item_${String(item.itemName).toLowerCase()}`];
+        }
       }
 
       const qty = Number(item.qty || 0);
@@ -1083,7 +1098,7 @@ function SaleOrder() {
       },
       { netAmt: 0, ordQty: 0, usedQty: 0, balQty: 0, marginBeforeGst: 0, marginAfterGst: 0, margin: 0 }
     );
-  }, [filteredOrders, calculateMargins]);
+  }, [filteredOrders, purchasePriceMap]);
 
   const handleInfo = (id) => {
     const idStr = getId(id);
@@ -1226,18 +1241,6 @@ function SaleOrder() {
       return;
     }
 
-    // Workflow restriction for Rx Sale Orders
-    const isDone = (o.status || "").toLowerCase() === "done";
-    if (viewType === 'rx' && !isDone) {
-      const selectedItems = (o.items || []).filter(it => selectedIds.includes(it._id));
-      const unpurchased = selectedItems.filter(it => !it.isPurchased && (it.itemStatus || "Pending").toLowerCase() === "pending");
-      if (unpurchased.length > 0) {
-        toast.error("Please complete purchase before creating challan.");
-        console.warn("Attempted to create challan for unpurchased Rx items:", unpurchased.map(i => i.itemName));
-        return;
-      }
-    }
-
 
     const payload = {
       sourceSaleId: o._id,
@@ -1366,7 +1369,7 @@ function SaleOrder() {
       purchasePrice: it.purchasePrice || 0,
       salePrice: it.salePrice || 0,
       barcode: it.barcode || "",
-      orderNo: o.billData?.billNo || o.billNo || "",
+      orderNo: it.orderNo || o.billData?.billNo || o.billNo || "",
       combinationId: it.combinationId || "",
       saleOrderItemId: it._id
     }));
@@ -2032,7 +2035,7 @@ function SaleOrder() {
             <div class="header">
               <img src="/sadguru_logo.svg" alt="Logo" style="width:120px; height:auto;" />
               <div class="header-info">
-                <h1>SALE ORDER</h1>
+                <h1>${typeLabel}</h1>
               </div>
               <div style="width:120px;"></div>
             </div>
@@ -2920,8 +2923,8 @@ function SaleOrder() {
                                           const itemsToVal = selectedIds.length > 0 
                                             ? (o.items || []).filter(it => selectedIds.includes(it._id))
                                             : (o.items || []).filter(it => it.qty > 0);
-                                          const isPurchasedRestricted = viewType === 'rx' && !isDone && itemsToVal.some(it => !it.isPurchased && (it.itemStatus || "Pending").toLowerCase() === "pending");
-                                          const isDisabled = isDone || (viewType === 'rx' && !isDone && isPurchasedRestricted);
+                                          const isDone = (o.status || "").toLowerCase() === "done";
+                                          const isDisabled = isDone;
 
                                           return (
                                             <button
@@ -2930,16 +2933,12 @@ function SaleOrder() {
                                               className={`text-xs px-3 py-1.5 rounded transition ${
                                                 isDone 
                                                   ? "bg-slate-400 cursor-not-allowed text-white" 
-                                                  : isPurchasedRestricted 
-                                                    ? "bg-slate-300 cursor-not-allowed text-slate-500 border border-slate-400" 
-                                                    : "bg-orange-600 text-white hover:bg-orange-700"
+                                                  : "bg-orange-600 text-white hover:bg-orange-700"
                                               }`}
                                               title={
                                                 isDone 
                                                   ? "Order completed" 
-                                                  : isPurchasedRestricted 
-                                                    ? "Purchase required before creating challan" 
-                                                    : "Make Challan"
+                                                  : "Make Challan"
                                               }
                                             >
                                               Make Challan
@@ -3415,11 +3414,11 @@ function SaleOrder() {
         }
       `}</style>
 
-      {/* Items Matrix View Modal */}
       <ItemsMatrixViewModal
         isOpen={matrixModal.isOpen}
         onClose={() => setMatrixModal(prev => ({ ...prev, isOpen: false }))}
         title={`Items Matrix - Order #${saleOrders.find(o => o._id === matrixModal.orderId)?.billData?.billNo || ''}`}
+        pdfTitle={matrixModal.viewType === 'lens' ? 'Sale Order' : matrixModal.viewType === 'rx' ? 'Rx Sale Order' : 'Contact Lens Sale Order'}
         data={matrixModal.items}
         columns={getMatrixColumns()}
         onSave={handleMatrixSave}

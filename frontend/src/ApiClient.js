@@ -1,5 +1,5 @@
 import axios from "axios";
-import { API } from "./config/config";
+import { API } from "../src/config/config";
 import { store } from "./Store/store";
 import { startLoading, stopLoading } from "./Store/Slices/loadingSlice";
 
@@ -47,12 +47,21 @@ ApiClient.interceptors.response.use(
     const status = error.response?.status;
     const message = error.response?.data?.message || '';
 
-    if (status === 401 || (status === 403 && message.toLowerCase().includes('session'))) {
+    if (status === 401 || (status === 403 && (message.toLowerCase().includes('session') || message === 'SUBSCRIPTION_EXPIRED' || message === 'ACCOUNT_BLOCKED'))) {
+      const isBlocked = message === 'ACCOUNT_BLOCKED';
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       localStorage.removeItem("original_token");
       localStorage.removeItem("original_user");
       delete axios.defaults.headers.common['Authorization'];
+      
+      // Notify other tabs
+      localStorage.setItem('logout-event', (isBlocked ? 'blocked-' : 'expired-') + Date.now());
+      
+      if (isBlocked) {
+        alert("Your account has been blocked by admin.");
+      }
+      
       window.location.href = '/auth';
     }
 

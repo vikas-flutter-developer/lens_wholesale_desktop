@@ -22,6 +22,16 @@ export const getAllLensPower = async () => {
   }
 }
 
+export const getNextBarcode = async () => {
+  try {
+    const res = await ApiClient.get('/barcodes/next');
+    return res.data;
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: err?.response?.data?.message || err.message };
+  }
+};
+
 export const getLensPower = async (data) => {
   try {
     const res = await ApiClient.post('/lens/getLensPower', data);

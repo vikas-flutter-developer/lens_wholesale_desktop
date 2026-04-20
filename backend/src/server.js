@@ -1,4 +1,7 @@
 import 'dotenv/config';
+import path from 'path';
+import express from 'express';
+import { fileURLToPath } from 'url';
 import app from './app.js'
 import './config/dbConfig/Db.js';
 import config from './config/env.js';
@@ -55,19 +58,29 @@ import superAdminRoutes from './routes/superAdmin.routes.js'
 import suggestionRoutes from './routes/suggestion.routes.js'
 import companyRoutes from './routes/Company.routes.js'
 import analyticsRoutes from './routes/analytics.routes.js'
+import customerAuthRoutes from './routes/customerAuth.routes.js';
+import authMiddleware from './middlewares/AuthMiddleware.js';
+import checkSubscriptionValidity from './middlewares/subscriptionMiddleware.js';
 
 import { startAutoInvoiceJob } from './jobs/autoInvoiceJob.js';
 
 import { startReminderJob } from './jobs/reminderJob.js';
 import { startBackupJobs } from './jobs/backupJob.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Health check route
-app.get('/', (req, res) => {
+app.get('/api/health', (req, res) => {
     res.json({ message: "Server is working fine" });
 });
 
 // Routes
 app.use('/api/auth', authRoutes);
+
+// Protected API routes check (Requires login + valid subscription)
+app.use('/api', authMiddleware, checkSubscriptionValidity);
+
 app.use('/api/customer', customerRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/items', itemRoutes);
@@ -115,13 +128,23 @@ app.use('/api/super-admin', superAdminRoutes)
 app.use('/api/suggestions', suggestionRoutes)
 app.use('/api/company', companyRoutes)
 app.use('/api/analytics', analyticsRoutes)
+app.use('/api/customer-auth', customerAuthRoutes)
+
+// Serve frontend static files
+const frontendPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendPath));
+
+// Fallback for SPA (React Router)
+app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+});
 
 
 // Start server
 const PORT = config.PORT;
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT} (on all interfaces)`);
     startAutoInvoiceJob();
     startReminderJob();
     startBackupJobs();

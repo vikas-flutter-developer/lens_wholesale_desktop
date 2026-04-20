@@ -224,20 +224,49 @@ const addAccount = async (req, res) => {
     });
   } catch (err) {
     console.error("addAccount error:", err);
+    
+    // Specific handling for Duplicate Key Error (E11000)
+    if (err.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Account ID already exists for this company. Please use a unique ID.",
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      message: "Something went wrong!",
+      message: "Something went wrong while creating the account!",
+      error: err.message
     });
   }
 };
 const getAllAccounts = async (req, res) => {
   try {
     const { companyId } = req.user;
-    const { type } = req.query;
+    const { type, search } = req.query;
     const filter = { companyId };
+    
     if (type) {
-      filter.AccountType = type;
+      if (type.toLowerCase() === "sale") {
+        // For sale transactions, show accounts with AccountType "Sale" or "Both"
+        filter.AccountType = { $in: ["Sale", "Both"] };
+      } else if (type.toLowerCase() === "purchase") {
+        // For purchase transactions, show accounts with AccountType "Purchase" or "Both"
+        filter.AccountType = { $in: ["Purchase", "Both"] };
+      } else {
+        // If type is directly provided (backward compatibility), filter exactly
+        filter.AccountType = type;
+      }
     }
+    
+    // Support search by name or account ID
+    if (search) {
+      filter.$or = [
+        { Name: { $regex: search, $options: "i" } },
+        { AccountId: { $regex: search, $options: "i" } }
+      ];
+    }
+    
     const accounts = await Account.find(filter);
     res.status(200).json(accounts);
   } catch (err) {
@@ -505,9 +534,18 @@ const updateAccount = async (req, res) => {
     });
   } catch (err) {
     console.error("updateAccount error:", err);
+
+    if (err.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Account ID matches another existing account in this company.",
+      });
+    }
+
     return res.status(500).json({
       success: false,
       message: "Something went wrong while updating the account!",
+      error: err.message
     });
   }
 };

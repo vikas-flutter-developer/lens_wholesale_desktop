@@ -41,6 +41,7 @@ import 'features/utilities/data/providers/utility_provider.dart';
 import 'features/company/data/providers/automation_provider.dart';
 import 'features/reports/data/providers/active_report_provider.dart';
 import 'features/reports/data/providers/analytics_provider.dart';
+import 'features/reports/data/providers/transaction_report_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -109,6 +110,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => CompanyAutomationProvider()),
         ChangeNotifierProvider(create: (_) => ActiveReportProvider()),
         ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
+        ChangeNotifierProvider(create: (_) => TransactionReportProvider()),
       ],
       child: LensWholesaleApp(authProvider: authProvider),
     ),

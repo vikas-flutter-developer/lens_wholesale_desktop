@@ -306,395 +306,507 @@ class _CustomerSpecificPricingScreenState extends State<CustomerSpecificPricingS
     }).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
-      body: Column(
-        children: [
-          // Header
-          _buildHeader(),
-
-          Expanded(
-            child: Row(
-              children: [
-                // Side Pane: Parties
-                _buildPartyPane(filteredAccounts),
-
-                // Main Pane: Products
-                Expanded(child: _buildProductPane(filteredProducts)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [Colors.indigo[900]!, Colors.indigo[700]!]),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Account Wise Pricing", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 4),
-              Text("Assign B2B tier pricing and custom overrides", style: TextStyle(color: Colors.indigo[100], fontSize: 13)),
-            ],
-          ),
-          Row(
-            children: [
-              _buildTypeToggle(),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: _isLoading || _selectedAccount == null ? null : _handleApplyToCategory,
-                icon: const Icon(LucideIcons.layers, size: 18),
-                label: const Text("Apply to Category"),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.indigo[900], padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: _isLoading || _selectedAccount == null ? null : _handleSave,
-                icon: const Icon(LucideIcons.save, size: 18),
-                label: const Text("Save Overrides"),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green[500], foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
-              ),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTypeToggle() {
-    return Container(
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-      child: Row(
-        children: [
-          _buildToggleButton("Sale", _priceType == "Sale"),
-          _buildToggleButton("Purchase", _priceType == "Purchase"),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToggleButton(String label, bool isSelected) {
-    return GestureDetector(
-      onTap: () {
-        setState(() => _priceType = label);
-        if (_selectedAccount != null) _fetchAccountData(_selectedAccount!);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(label, style: TextStyle(color: isSelected ? Colors.indigo[900] : Colors.white, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-      ),
-    );
-  }
-
-  Widget _buildPartyPane(List<AccountModel> accounts) {
-    return Container(
-      width: 320,
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                TextField(
-                  onChanged: (val) => setState(() => _accountSearch = val),
-                  decoration: InputDecoration(
-                    hintText: "Search Party...",
-                    prefixIcon: const Icon(LucideIcons.search, size: 18),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: _selectedCategory,
-                  items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13)))).toList(),
-                  onChanged: (v) => setState(() => _selectedCategory = v!),
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(LucideIcons.filter, size: 16),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: ListView.separated(
-              itemCount: accounts.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, indent: 64),
-              itemBuilder: (context, index) {
-                final acc = accounts[index];
-                final isSelected = _selectedAccount?.id == acc.id;
-                return ListTile(
-                  selected: isSelected,
-                  selectedTileColor: Colors.indigo[50],
-                  onTap: () => _fetchAccountData(acc),
-                  leading: CircleAvatar(
-                    backgroundColor: isSelected ? Colors.indigo[100] : const Color(0xFFF1F5F9),
-                    child: Text(acc.name.substring(0, 1).toUpperCase(), style: TextStyle(color: isSelected ? Colors.indigo[900] : Colors.blueGrey, fontWeight: FontWeight.bold)),
-                  ),
-                  title: Text(acc.name, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 13, color: isSelected ? Colors.indigo[900] : const Color(0xFF1E293B))),
-                  subtitle: Text(acc.accountCategory ?? "No Category", style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
-                  trailing: isSelected ? Icon(LucideIcons.chevronRight, size: 18, color: Colors.indigo[400]) : null,
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductPane(List<Map<String, dynamic>> products) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(0, 16, 16, 16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
-      child: Column(
-        children: [
-          _buildProductHeader(),
-          const Divider(height: 1),
-          Expanded(
-            child: _selectedAccount == null 
-              ? _buildEmptyState()
-              : _isLoading ? const Center(child: CircularProgressIndicator()) : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: products.length,
-                  itemBuilder: (context, index) => _buildProductRow(products[index]),
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Icon(LucideIcons.package, color: Colors.indigo[600]),
-          const SizedBox(width: 12),
-          Text(_selectedAccount != null ? "Overrides for ${_selectedAccount!.name}" : "Products List", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const Spacer(),
-          _buildFilterChip("All"),
-          const SizedBox(width: 8),
-          _buildFilterChip("Lenses"),
-          const SizedBox(width: 8),
-          _buildFilterChip("Items"),
-          const SizedBox(width: 24),
-          SizedBox(
-            width: 300,
-            child: TextField(
-              onChanged: (val) => setState(() => _productSearch = val),
-              decoration: InputDecoration(
-                hintText: "Search items...",
-                prefixIcon: const Icon(LucideIcons.search, size: 18),
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String label) {
-    final isSelected = _productFilter == label;
-    return ChoiceChip(
-      label: Text(label, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.blueGrey)),
-      selected: isSelected,
-      onSelected: (v) => setState(() => _productFilter = label),
-      selectedColor: Colors.indigo[600],
-      backgroundColor: const Color(0xFFF1F5F9),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      side: BorderSide.none,
-    );
-  }
-
-  Widget _buildProductRow(Map<String, dynamic> p) {
-    final pId = p['id'] as String;
-    final isLens = p['isLens'] == true;
-    final dynamic slPrice = isLens ? (p['salePrice'] != null ? p['salePrice']['default'] : 0) : p['salePrice'];
-    final double basePrice = double.tryParse(slPrice.toString()) ?? 0.0;
-    final bool hasCustom = _customPrices.containsKey(pId);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: hasCustom ? Colors.indigo.withOpacity(0.02) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: hasCustom ? Colors.indigo[200]! : const Color(0xFFE2E8F0)),
-      ),
-      child: IntrinsicHeight(
-        child: Row(
+      backgroundColor: const Color(0xFFF8FAFC), // bg-slate-50
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        child: Column(
           children: [
-            _buildProductInfo(p, isLens),
-            const VerticalDivider(width: 32),
-            _buildPowerGroups(p, pId, isLens),
-            const VerticalDivider(width: 32),
-            _buildPricingInputs(pId, basePrice, hasCustom),
+            // Header
+            Padding(
+              padding: const EdgeInsets.only(bottom: 32),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Customer Specific Pricing", style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -0.5)),
+                      const SizedBox(height: 4),
+                      Text("Assign custom prices to individual parties for products and lenses", style: TextStyle(color: const Color(0xFF64748B), fontSize: 14, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
+                        ),
+                        child: Row(
+                          children: [
+                            _buildToggleBtn("Sale", _priceType == "Sale"),
+                            _buildToggleBtn("Purchase", _priceType == "Purchase"),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [BoxShadow(color: const Color(0xFF059669).withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading || _selectedAccount == null ? null : _handleSave,
+                          icon: const Icon(LucideIcons.save, size: 20),
+                          label: const Text("Save Prices"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF059669),
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: const Color(0xFF059669).withOpacity(0.5),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                ]
+              )
+            ),
+
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Side Pane: Parties
+                  Container(
+                    width: 320,
+                    margin: const EdgeInsets.only(right: 32),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [BoxShadow(color: const Color(0xFFE2E8F0).withOpacity(0.5), blurRadius: 16, offset: const Offset(0, 4))],
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                            border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+                          ),
+                          child: TextField(
+                            onChanged: (val) => setState(() => _accountSearch = val),
+                             decoration: InputDecoration(
+                               hintText: "Search Party...",
+                               hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                               prefixIcon: const Icon(LucideIcons.search, size: 16, color: Color(0xFF94A3B8)),
+                               filled: true,
+                               fillColor: Colors.white,
+                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Color(0xFF3B82F6), width: 2)),
+                               contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                             ),
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(8),
+                            itemCount: filteredAccounts.length,
+                            itemBuilder: (context, index) {
+                               final acc = filteredAccounts[index];
+                               final isSelected = _selectedAccount?.id == acc.id;
+                               return Container(
+                                 margin: const EdgeInsets.only(bottom: 4),
+                                 decoration: BoxDecoration(
+                                   color: isSelected ? const Color(0xFFEFF6FF) : Colors.transparent,
+                                   borderRadius: BorderRadius.circular(12),
+                                   border: isSelected ? Border.all(color: const Color(0xFFDBEAFE)) : Border.all(color: Colors.transparent),
+                                 ),
+                                 child: InkWell(
+                                   borderRadius: BorderRadius.circular(12),
+                                   onTap: () => _fetchAccountData(acc),
+                                   hoverColor: const Color(0xFFF8FAFC),
+                                   child: Padding(
+                                     padding: const EdgeInsets.all(12),
+                                     child: Row(
+                                       children: [
+                                         Container(
+                                           padding: const EdgeInsets.all(8),
+                                           decoration: BoxDecoration(
+                                             color: isSelected ? const Color(0xFFDBEAFE) : const Color(0xFFF1F5F9),
+                                             borderRadius: BorderRadius.circular(8),
+                                           ),
+                                           child: Icon(LucideIcons.user, size: 16, color: isSelected ? const Color(0xFF1D4ED8) : const Color(0xFF64748B)),
+                                         ),
+                                         const SizedBox(width: 12),
+                                         Expanded(
+                                           child: Column(
+                                             crossAxisAlignment: CrossAxisAlignment.start,
+                                             children: [
+                                                Text(acc.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isSelected ? const Color(0xFF1D4ED8) : const Color(0xFF475569))),
+                                                const SizedBox(height: 2),
+                                                Text(acc.accountCategory ?? "1001", style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                             ],
+                                           ),
+                                         ),
+                                         if (isSelected) const Icon(LucideIcons.chevronRight, size: 16, color: Color(0xFF3B82F6)),
+                                       ]
+                                     )
+                                   )
+                                 )
+                               );
+                            }
+                          )
+                        )
+                      ]
+                    )
+                  ),
+
+                  // Main Pane: Products
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [BoxShadow(color: const Color(0xFFE2E8F0).withOpacity(0.5), blurRadius: 16, offset: const Offset(0, 4))],
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                              border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+                            ),
+                            child: Row(
+                              children: [
+                                 const Icon(LucideIcons.package, color: Color(0xFF2563EB), size: 24),
+                                 const SizedBox(width: 12),
+                                 Text(_selectedAccount != null ? "Pricing for: ${_selectedAccount!.name}" : "Products List", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+                                 const Spacer(),
+                                 SizedBox(
+                                   width: 300,
+                                   child: TextField(
+                                     onChanged: (val) => setState(() => _productSearch = val),
+                                     decoration: InputDecoration(
+                                       hintText: "Search Product or Group...",
+                                       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                                       prefixIcon: const Icon(LucideIcons.search, size: 16, color: Color(0xFF94A3B8)),
+                                       filled: true,
+                                       fillColor: Colors.white,
+                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2)),
+                                       contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                                     )
+                                   )
+                                 )
+                              ]
+                            )
+                          ),
+                          
+                          // The Headers Row
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0)))),
+                            child: Row(
+                              children: [
+                                 _colHeader("Sr.", flex: 1),
+                                 _colHeader("Product Info", flex: 4),
+                                 _colHeader("Power Group", flex: 3),
+                                 _colHeader("Default Price", flex: 2, center: true),
+                                 _colHeader("Percentage (%)", flex: 2, center: true),
+                                 _colHeader("Custom Price", flex: 2, center: true),
+                                 _colHeader("Status", flex: 2, center: true),
+                              ]
+                            )
+                          ),
+                          
+                          // Content
+                          Expanded(
+                            child: _selectedAccount == null
+                               ? _buildReactEmptyState()
+                               : ListView.separated(
+                                   padding: EdgeInsets.zero,
+                                   separatorBuilder: (c, i) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                                   itemCount: filteredProducts.length,
+                                   itemBuilder: (context, index) => _buildReactProductRow(filteredProducts[index], index + 1),
+                               )
+                          ),
+
+                          // Footer (if selected)
+                          if (_selectedAccount != null) ...[
+                              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                decoration: const BoxDecoration(color: Color(0xFFF8FAFC), borderRadius: BorderRadius.vertical(bottom: Radius.circular(16))),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                     Row(
+                                       children: [
+                                          const Text("TOTAL PRODUCTS: ", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1, color: Color(0xFF64748B))),
+                                          Text("${filteredProducts.length}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                                       ]
+                                     ),
+                                     TextButton(
+                                       onPressed: () {
+                                          setState(() {
+                                            _customPrices.clear();
+                                            _percentages.clear();
+                                            _selectedPGs.clear();
+                                          });
+                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cleared all un-saved changes')));
+                                       },
+                                       style: TextButton.styleFrom(foregroundColor: const Color(0xFFE11D48)),
+                                       child: const Text("CLEAR ALL CHANGES", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1))
+                                     )
+                                  ]
+                                )
+                              )
+                          ]
+                        ]
+                      )
+                    )
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProductInfo(Map<String, dynamic> p, bool isLens) {
-    return Expanded(
-      flex: 3,
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: isLens ? Colors.purple[50] : Colors.orange[50], borderRadius: BorderRadius.circular(10)),
-            child: Icon(isLens ? LucideIcons.layers : LucideIcons.box, color: isLens ? Colors.purple : Colors.orange, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 2),
-                Text(p['groupName'] ?? '', style: TextStyle(fontSize: 12, color: Colors.blueGrey[400])),
-              ],
-            ),
-          ),
-        ],
+  Widget _buildToggleBtn(String label, bool isSelected) {
+    return GestureDetector(
+      onTap: () {
+        setState(() => _priceType = label);
+        if (_selectedAccount != null) _fetchAccountData(_selectedAccount!);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isSelected ? [BoxShadow(color: const Color(0xFFBFDBFE), blurRadius: 4, offset: const Offset(0, 2))] : null,
+        ),
+        child: Text(label, style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF475569), fontWeight: isSelected ? FontWeight.bold : FontWeight.w600, fontSize: 13)),
       ),
     );
   }
 
-  Widget _buildPowerGroups(Map<String, dynamic> p, String pId, bool isLens) {
-    if (!isLens || p['powerGroups'] == null || (p['powerGroups'] as List).isEmpty) {
-      return const Expanded(flex: 2, child: Center(child: Text("Standard Pricing", style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.blueGrey))));
-    }
+  Widget _buildReactProductRow(Map<String, dynamic> p, int index) {
+      final pId = p['id'] as String;
+      final isLens = p['isLens'] == true;
+      final priceKey = _priceType == "Sale" ? 'salePrice' : 'purchasePrice';
+      final dynamic slPrice = isLens ? (p[priceKey] != null ? p[priceKey]['default'] : 0) : p[priceKey];
+      final double basePrice = double.tryParse(slPrice.toString()) ?? 0.0;
+      final bool hasCustom = _customPrices.containsKey(pId);
+      
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: const BoxDecoration(
+          color: Colors.transparent,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+             // Sr
+             Expanded(flex: 1, child: Text("$index", style: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600, fontSize: 13))),
+             
+             // Info
+             Expanded(flex: 4, child: Row(
+               children: [
+                 Container(
+                   padding: const EdgeInsets.all(8),
+                   decoration: BoxDecoration(color: isLens ? const Color(0xFFFAF5FF) : const Color(0xFFFFF7ED), borderRadius: BorderRadius.circular(8)),
+                   child: Icon(isLens ? LucideIcons.layers : LucideIcons.package, size: 16, color: isLens ? const Color(0xFF9333EA) : const Color(0xFFEA580C)),
+                 ),
+                 const SizedBox(width: 12),
+                 Expanded(
+                   child: Column(
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                       Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A))),
+                       const SizedBox(height: 2),
+                       Row(
+                         children: [
+                           Text(p['groupName'] ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                           Container(margin: const EdgeInsets.symmetric(horizontal: 6), width: 4, height: 4, decoration: const BoxDecoration(color: Color(0xFFCBD5E1), shape: BoxShape.circle)),
+                           Text(isLens ? "Lens" : "Item", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                         ]
+                       )
+                     ]
+                   )
+                 )
+               ]
+             )),
+             
+             // Power Group
+             Expanded(flex: 3, child: _buildReactPowerGroups(p, pId, isLens)),
+             
+             // Default Price
+             Expanded(flex: 2, child: Center(
+               child: Container(
+                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                 decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)),
+                 child: Text("₹$basePrice", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF475569)))
+               )
+             )),
 
-    final pgs = p['powerGroups'] as List;
-    return Expanded(
-      flex: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: pgs.take(2).map((pg) {
-          final pgId = pg['_id'] as String;
-          final isSel = _selectedPGs[pId]?[pgId] ?? false;
-          return Row(
-            children: [
-              SizedBox(width: 24, height: 24, child: Checkbox(value: isSel, activeColor: Colors.indigo, onChanged: (v) {
+             // Percentage
+             Expanded(flex: 2, child: Center(
+                 child: SizedBox(
+                   width: 70, 
+                   child: TextFormField(
+                      key: Key("pc_${pId}_$_priceType"),
+                      initialValue: _percentages[pId]?.toString() ?? "",
+                      onChanged: (v) => _handlePercentageChange(pId, v, basePrice),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                      decoration: InputDecoration(
+                        suffixText: "%",
+                        suffixStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        isDense: true,
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFF1F5F9), width: 2)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFF1F5F9), width: 2)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF60A5FA), width: 2)),
+                      )
+                   )
+                 )
+             )),
+
+             // Custom Price
+             Expanded(flex: 2, child: Center(
+                 child: SizedBox(
+                   width: 100, 
+                   child: TextFormField(
+                      key: Key("cp_${pId}_$_priceType"),
+                      initialValue: _customPrices[pId]?.toString() ?? "",
+                      onChanged: (v) => _handlePriceChange(pId, v, basePrice),
+                      textAlign: TextAlign.right,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: hasCustom ? const Color(0xFF1D4ED8) : const Color(0xFF334155)),
+                      decoration: InputDecoration(
+                        prefixText: "₹",
+                        prefixStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: hasCustom ? const Color(0xFF3B82F6) : const Color(0xFF94A3B8)),
+                        hintText: basePrice.toString(),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        isDense: true,
+                        filled: true,
+                        fillColor: hasCustom ? const Color(0xFFEFF6FF) : Colors.white,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: hasCustom ? const Color(0xFFBFDBFE) : const Color(0xFFF1F5F9), width: 2)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: hasCustom ? const Color(0xFFBFDBFE) : const Color(0xFFF1F5F9), width: 2)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2)),
+                      )
+                   )
+                 )
+             )),
+
+             // Status
+             Expanded(flex: 2, child: Center(
+                child: hasCustom
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: const Color(0xFFD1FAE5), borderRadius: BorderRadius.circular(20)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                           Container(width: 6, height: 6, decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF10B981))),
+                           const SizedBox(width: 6),
+                           const Text("CUSTOM SET", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFF047857), letterSpacing: 0.5)),
+                        ]
+                      )
+                    )
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(20)),
+                      child: const Text("DEFAULT", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5))
+                    )
+             )),
+
+          ]
+        )
+      );
+  }
+
+  Widget _colHeader(String title, {required int flex, bool center = false}) {
+     return Expanded(
+       flex: flex,
+       child: Text(title.toUpperCase(), textAlign: center ? TextAlign.center : TextAlign.left, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1, color: Color(0xFF64748B))),
+     );
+  }
+
+  Widget _buildReactPowerGroups(Map<String, dynamic> p, String pId, bool isLens) {
+     List<dynamic> pgs = [];
+     if (isLens && p['powerGroups'] != null) {
+        if (p['powerGroups'] is Map) {
+           pgs = [p['powerGroups']];
+        } else if (p['powerGroups'] is List) {
+           pgs = p['powerGroups'] as List;
+        }
+     }
+     
+     if (!isLens || pgs.isEmpty) {
+        return Row(
+          children: const [
+             Icon(LucideIcons.rotateCcw, size: 12, color: Color(0xFFCBD5E1)),
+             SizedBox(width: 6),
+             Text("No Power Groups", style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500, color: Color(0xFF94A3B8))),
+          ]
+        );
+     }
+     return Column(
+       crossAxisAlignment: CrossAxisAlignment.start,
+       mainAxisAlignment: MainAxisAlignment.center,
+       children: pgs.map((pg) {
+         final pgId = (pg['_id'] ?? pg['id'] ?? '').toString();
+         if (pgId.isEmpty) return const SizedBox.shrink(); // Safety fallback
+         final isSel = _selectedPGs[pId]?[pgId] ?? false;
+         final currentPrice = _pgPricingData[pId]?[pgId];
+         return Row(
+           crossAxisAlignment: CrossAxisAlignment.center,
+           children: [
+              SizedBox(width: 20, height: 20, child: Checkbox(value: isSel, activeColor: const Color(0xFF2563EB), side: const BorderSide(color: Color(0xFFCBD5E1)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), onChanged: (v) {
                 setState(() => _selectedPGs.putIfAbsent(pId, () => {})[pgId] = v ?? false);
               })),
-              Text(pg['label'] ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
-            ],
-          );
-        }).toList(),
-      ),
-    );
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(pg['label']?.toString() ?? '', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF334155)), overflow: TextOverflow.ellipsis, maxLines: 1),
+                    if (currentPrice != null)
+                      Text("Current Party: ₹$currentPrice", style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFF059669), letterSpacing: -0.5), overflow: TextOverflow.ellipsis, maxLines: 1)
+                  ],
+                ),
+              )
+           ]
+         );
+       }).toList()
+     );
   }
 
-  Widget _buildPricingInputs(String pId, double basePrice, bool hasCustom) {
-    return Expanded(
-      flex: 4,
-      child: Row(
-        children: [
-          Expanded(child: _buildPriceDisplay("Base", basePrice)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildInput(
-            label: "% Disc",
-            value: _percentages[pId]?.toString() ?? "",
-            onChanged: (v) => _handlePercentageChange(pId, v, basePrice),
-            suffix: "%",
-          )),
-          const SizedBox(width: 12),
-          Expanded(child: _buildInput(
-            label: "Custom",
-            value: _customPrices[pId]?.toString() ?? "",
-            onChanged: (v) => _handlePriceChange(pId, v, basePrice),
-            prefix: "₹",
-            highlight: hasCustom,
-            key: Key("cp_${pId}"),
-          )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPriceDisplay(String label, double price) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.blueGrey)),
-        Text("₹$price", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-      ],
-    );
-  }
-
-  Widget _buildInput({required String label, required String value, required ValueChanged<String> onChanged, String? prefix, String? suffix, bool highlight = false, Key? key}) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.blueGrey)),
-        const SizedBox(height: 4),
-        SizedBox(
-          height: 36,
-          child: TextFormField(
-            key: key,
-            initialValue: value,
-            onChanged: onChanged,
-            textAlign: TextAlign.right,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-            decoration: InputDecoration(
-              prefixText: prefix,
-              suffixText: suffix,
-              filled: highlight,
-              fillColor: highlight ? Colors.indigo[50] : const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: highlight ? Colors.indigo[300]! : const Color(0xFFE2E8F0))),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.indigo, width: 2)),
+  Widget _buildReactEmptyState() {
+     return Center(
+       child: Column(
+         mainAxisAlignment: MainAxisAlignment.center,
+         children: [
+            Container(
+              width: 80, height: 80, 
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFF8FAFC)),
+              alignment: Alignment.center,
+              child: const Icon(LucideIcons.user, size: 40, color: Color(0xFFE2E8F0)),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(LucideIcons.users, size: 60, color: Colors.indigo[100]),
-          const SizedBox(height: 16),
-          const Text("Select a Party to View Pricing", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-          const SizedBox(height: 8),
-          const Text("Choose an account from the left sidebar to assign custom price overrides.", textAlign: TextAlign.center, style: TextStyle(color: Colors.blueGrey)),
-        ],
-      ),
-    );
+            const SizedBox(height: 16),
+            const Text("Selection Required", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+            const SizedBox(height: 4),
+            const Text("Please select a customer from the left to manage prices", style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+         ]
+       )
+     );
   }
 }

@@ -5,6 +5,8 @@ import User from "../models/User.js";
 import LensSale from "../models/LensSale.js";
 import LensSaleChallan from "../models/LensSaleChallan.js";
 import RxSale from "../models/RxSale.js";
+import RxSaleOrder from "../models/RxSaleOrder.js";
+import SaleOrder from "../models/LensSaleOrder.js";
 import mongoose from "mongoose";
 
 
@@ -263,6 +265,9 @@ const getBarcodeData = async (req, res) => {
                     axis: data.axis,
                     add: data.add,
                     productName: data.productId?.productName,
+                    purchasePrice: data.metadata?.purchasePrice || 0,
+                    salePrice: data.metadata?.salePrice || 0,
+                    hasPowerRange: true,
                     ...data.metadata,
                 },
                 createdAt: data.createdAt,
@@ -300,7 +305,10 @@ const getBarcodeData = async (req, res) => {
                         axis: foundComb.axis,
                         add: addVal || 0,
                         productName: lensGroupWithComb.productName,
-                        stock: foundComb.initStock
+                        purchasePrice: foundComb.pPrice || lensGroupWithComb.purchasePrice || 0,
+                        salePrice: foundComb.sPrice || lensGroupWithComb.salePrice?.default || 0,
+                        stock: foundComb.initStock,
+                        hasPowerRange: true
                     }
                 });
             }
@@ -320,9 +328,10 @@ const getBarcodeData = async (req, res) => {
                 productId: standaloneItem._id,
                 lensData: {
                     productName: standaloneItem.itemName,
-                    purchasePrice: standaloneItem.purchasePrice,
-                    salePrice: standaloneItem.salePrice,
-                    stock: standaloneItem.openingStockQty
+                    purchasePrice: standaloneItem.purchasePrice || 0,
+                    salePrice: standaloneItem.salePrice || 0,
+                    stock: standaloneItem.openingStockQty || 0,
+                    hasPowerRange: false
                 }
             });
         }
@@ -341,4 +350,74 @@ const getBarcodeData = async (req, res) => {
     }
 };
 
-export { saveBarcodeData, bulkSaveBarcodeData, getBarcodeData };
+/**
+ * FETCH NEXT BARCODE (GET /api/barcodes/next)
+ * Finds the max numeric barcode across RX sales/order tables ONLY.
+ * Auto-generated RX barcodes are 5-digit numbers from 10001 to 99999.
+ */
+const getNextBarcode = async (req, res) => {
+    try {
+        const collections = [
+            { model: RxSale, name: "RxSale" },
+            { model: RxSaleOrder, name: "RxSaleOrder" }
+        ];
+
+        let maxBarcodeNum = 10000; // Starting base
+
+        for (const item of collections) {
+            const result = await item.model.aggregate([
+                { $unwind: "$items" },
+                { $project: { barcode: "$items.barcode" } },
+                { $match: { barcode: { $regex: /^\d{5}$/ } } }, // Only 5-digit numeric
+                {
+                    $group: {
+                        _id: null,
+                        maxVal: { $max: { $toInt: "$barcode" } }
+                    }
+                },
+                {
+                    $match: {
+                        maxVal: { $gte: 10001, $lte: 99999 }
+                    }
+                }
+            ]);
+
+            if (result.length > 0 && result[0].maxVal > maxBarcodeNum) {
+                maxBarcodeNum = result[0].maxVal;
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            nextBarcode: (maxBarcodeNum + 1).toString()
+        });
+    } catch (error) {
+        console.error("Error generating next barcode:", error);
+        return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
+    }
+};
+
+/**
+ * Validates uniqueness of barcodes before saving.
+ * STRICT ISOLATION: Only checks RX Order related tables.
+ */
+const validateBarcodes = async (barcodes) => {
+    if (!Array.isArray(barcodes) || barcodes.length === 0) return true;
+    
+    // Filter out empty barcodes
+    const cleanBarcodes = barcodes.filter(b => b && String(b).trim() !== "");
+    if (cleanBarcodes.length === 0) return true;
+
+    // ONLY use RX Order related tables
+    const collections = [RxSale, RxSaleOrder];
+
+    for (const model of collections) {
+        const count = await model.countDocuments({ "items.barcode": { $in: cleanBarcodes } });
+        if (count > 0) return false;
+    }
+
+    return true;
+};
+
+export { saveBarcodeData, bulkSaveBarcodeData, getBarcodeData, getNextBarcode, validateBarcodes };
+

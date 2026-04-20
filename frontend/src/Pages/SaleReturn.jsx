@@ -28,6 +28,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "react-hot-toast";
 import { roundAmount } from "../utils/amountUtils";
+import { numberToWords } from "../utils/numberToWords";
 function SaleReturnVoucher() {
   const [saleReturns, setSaleReturns] = useState([]);
   const [expandedRow, setExpandedRow] = useState(null);
@@ -161,91 +162,179 @@ function SaleReturnVoucher() {
 
   // Print Template Components
   const NormalPrintTemplate = ({ order }) => {
+    const formatDate = (dateStr) => {
+      if (!dateStr) return "-";
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    };
+
     return (
-      <div className="print-container bg-white p-8 max-w-4xl mx-auto text-slate-800">
-        <div className="flex justify-between items-start mb-10 pb-6 border-b-2 border-slate-200">
-          <div>
-            <h1 className="text-4xl font-black text-slate-900 mb-1">SALE RETURN</h1>
-            <p className="text-slate-500 font-medium">Return Confirmation & Receipt</p>
+      <div className="print-container bg-white p-4 max-w-4xl mx-auto text-slate-800 font-sans" style={{ minHeight: '800px' }}>
+        {/* Header Section */}
+        <div className="flex justify-between items-center mb-6 pb-2 border-b border-slate-300">
+          <div className="flex items-center gap-4">
+            <img src="/sadguru_logo.svg" alt="Logo" style={{ width: '120px', height: 'auto' }} />
           </div>
-          <div className="text-right">
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Date</p>
-            <p className="text-lg font-bold text-slate-800">{new Date(order?.billData?.date || Date.now()).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</p>
+          <div className="flex-1 text-center">
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">SALE RETURN</h1>
+          </div>
+          <div className="w-[120px]"></div> {/* Spacer to keep title centered */}
+        </div>
+
+        <div className="grid grid-cols-2 gap-8 mb-4">
+          {/* Left: Party Details */}
+          <div className="space-y-1">
+            <div className="flex gap-2">
+              <span className="font-bold w-28">Party Name</span>
+              <span>: {order?.partyData?.partyAccount || "-"}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="font-bold w-28">Address</span>
+              <span className="flex-1">: {order?.partyData?.address || "-"}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="font-bold w-28">State</span>
+              <span>: {order?.partyData?.stateCode || "-"}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="font-bold w-28">Phone</span>
+              <span>: {order?.partyData?.contactNumber || "-"}</span>
+            </div>
+          </div>
+
+          {/* Right: Bill Information */}
+          <div className="space-y-1 ml-auto">
+            <div className="flex gap-2 justify-end">
+              <span className="font-bold w-28">Bill Series</span>
+              <span className="w-32">: {order?.billData?.billSeries || "-"}</span>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <span className="font-bold w-28">Bill No</span>
+              <span className="w-32">: {order?.billData?.billNo || "-"}</span>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <span className="font-bold w-28">Date</span>
+              <span className="w-32">: {formatDate(order?.billData?.date)}</span>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-12 mb-10">
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <h3 className="font-black text-base text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-200 pb-2">VOUCHER DETAILS</h3>
-            <div className="space-y-2 text-base">
-              <p className="flex justify-between"><span className="text-slate-500 font-semibold">Series:</span> <span className="font-bold text-slate-800">{order?.billData?.billSeries || "-"}</span></p>
-              <p className="flex justify-between"><span className="text-slate-500 font-semibold">Bill No:</span> <span className="font-bold text-slate-800">{order?.billData?.billNo || "-"}</span></p>
-              <p className="flex justify-between"><span className="text-slate-500 font-semibold">Type:</span> <span className="font-bold text-slate-800">{order?.billData?.billType || "-"}</span></p>
-            </div>
-          </div>
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <h3 className="font-black text-base text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-200 pb-2">PARTY DETAILS</h3>
-            <div className="space-y-2 text-base">
-              <p className="font-bold text-xl text-slate-900 mb-1">{order?.partyData?.partyAccount || "-"}</p>
-              <p className="flex gap-2 items-center text-slate-600"><span className="font-semibold">Phone:</span> {order?.partyData?.contactNumber || "-"}</p>
-              <p className="flex gap-2 items-start text-slate-600 leading-tight"><span className="font-semibold">Address:</span> {order?.partyData?.address || "-"}</p>
-            </div>
-          </div>
-        </div>
-
-        <table className="print-items-table w-full mb-8">
+        {/* Table Section */}
+        <table className="w-full border-collapse border border-slate-400 text-[11px]">
           <thead>
-            <tr className="bg-slate-800 text-white">
-              <th className="py-3 px-4 text-left text-sm font-bold uppercase tracking-wider rounded-tl-lg">Item Name</th>
-              <th className="py-3 px-2 text-center text-sm font-bold uppercase tracking-wider">Sph</th>
-              <th className="py-3 px-2 text-center text-sm font-bold uppercase tracking-wider">Cyl</th>
-              <th className="py-3 px-2 text-center text-sm font-bold uppercase tracking-wider">Axis</th>
-              <th className="py-3 px-2 text-center text-sm font-bold uppercase tracking-wider">Qty</th>
-              <th className="py-3 px-2 text-right text-sm font-bold uppercase tracking-wider">Price</th>
-              <th className="py-3 px-4 text-right text-sm font-bold uppercase tracking-wider rounded-tr-lg">Total</th>
+            <tr className="bg-slate-100 uppercase">
+              <th className="border border-slate-400 p-1 w-8">SR</th>
+              <th className="border border-slate-400 p-1 text-left">ITEM NAME</th>
+              <th className="border border-slate-400 p-1">ORDER NO</th>
+              <th className="border border-slate-400 p-1">EYE</th>
+              <th className="border border-slate-400 p-1">SPH</th>
+              <th className="border border-slate-400 p-1">CYL</th>
+              <th className="border border-slate-400 p-1">AXIS</th>
+              <th className="border border-slate-400 p-1">ADD</th>
+              <th className="border border-slate-400 p-1">QTY</th>
+              <th className="border border-slate-400 p-1 text-right">PRICE</th>
+              <th className="border border-slate-400 p-1 text-right">DISC</th>
+              <th className="border border-slate-400 p-1 text-right">TOTAL</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 border-x border-b border-slate-200">
+          <tbody>
             {order?.items?.map((item, idx) => (
-              <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                <td className="py-3 px-4 text-base font-medium text-slate-800">{item.itemName || "-"}</td>
-                <td className="py-3 px-2 text-center text-base font-mono text-slate-600">{item.sph || "-"}</td>
-                <td className="py-3 px-2 text-center text-base font-mono text-slate-600">{item.cyl || "-"}</td>
-                <td className="py-3 px-2 text-center text-base font-mono text-slate-600">{item.axis || "-"}</td>
-                <td className="py-3 px-2 text-center text-base font-bold text-slate-800">{item.qty || 0}</td>
-                <td className="py-3 px-2 text-right text-base font-mono text-slate-600">₹{roundAmount(item.salePrice || 0)}</td>
-                <td className="py-3 px-4 text-right text-base font-bold text-slate-900 tracking-tight">₹{roundAmount(item.totalAmount || 0)}</td>
+              <tr key={idx} className="h-8">
+                <td className="border border-slate-400 p-1 text-center">{idx + 1}</td>
+                <td className="border border-slate-400 p-1 font-bold">{item.itemName || "-"}</td>
+                <td className="border border-slate-400 p-1 text-center">{item.orderNo || item.refId || "-"}</td>
+                <td className="border border-slate-400 p-1 text-center">{item.eye || "-"}</td>
+                <td className="border border-slate-400 p-1 text-center font-mono">{item.sph || "-"}</td>
+                <td className="border border-slate-400 p-1 text-center font-mono">{item.cyl || "-"}</td>
+                <td className="border border-slate-400 p-1 text-center font-mono">{item.axis || "-"}</td>
+                <td className="border border-slate-400 p-1 text-center font-mono">{item.add || "-"}</td>
+                <td className="border border-slate-400 p-1 text-center font-bold">{item.qty || 0}</td>
+                <td className="border border-slate-400 p-1 text-right">{roundAmount(item.salePrice || 0)}</td>
+                <td className="border border-slate-400 p-1 text-right">{item.discount || 0}%</td>
+                <td className="border border-slate-400 p-1 text-right font-bold">{roundAmount(item.totalAmount || 0)}</td>
               </tr>
             ))}
+            {[...Array(Math.max(0, 5 - (order?.items?.length || 0)))].map((_, i) => (
+               <tr key={`empty-${i}`} className="h-8">
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+                 <td className="border border-slate-400 p-1"></td>
+               </tr>
+            ))}
+            <tr className="bg-slate-50 font-bold">
+              <td colSpan={2} className="border border-slate-400 p-1 text-center uppercase tracking-widest text-[10px]">Total</td>
+              <td colSpan={6} className="border border-slate-400 p-1"></td>
+              <td className="border border-slate-400 p-1 text-center">{order?.items?.reduce((sum, i) => sum + (Number(i.qty) || 0), 0)}</td>
+              <td className="border border-slate-400 p-1"></td>
+              <td className="border border-slate-400 p-1"></td>
+              <td className="border border-slate-400 p-1 text-right">{roundAmount(order?.subtotal || 0)}</td>
+            </tr>
           </tbody>
         </table>
 
-        <div className="flex justify-end mb-10">
-          <div className="w-full max-w-xs space-y-3 bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex justify-between text-base text-slate-500">
-              <span className="font-semibold">Subtotal</span>
-              <span className="font-bold text-slate-700">₹{roundAmount(order?.subtotal || 0)}</span>
+        {/* Footer Section */}
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="space-y-4">
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase">Total Invoice value ( In Words ) :</p>
+              <p className="text-sm font-black italic">{numberToWords(order?.netAmount || 0)}</p>
             </div>
-            <div className="flex justify-between text-base text-slate-500">
-              <span className="font-semibold">Taxes</span>
-              <span className="font-bold text-emerald-600">₹{roundAmount(order?.taxesAmount || 0)}</span>
+            <div className="pt-2 border-t border-slate-200">
+              <p className="text-[10px] font-bold text-slate-800">Terms & Condition</p>
+              <p className="text-[10px] text-slate-500 italic leading-tight mt-1">
+                We declare that this invoice shows the actual price of the goods described<br />
+                and that all particulars are true and correct.
+              </p>
             </div>
-            <div className="pt-2 mt-2 border-t-2 border-slate-200 flex justify-between items-center text-slate-900">
-              <span className="text-xl font-black uppercase tracking-tighter">Total</span>
-              <span className="text-2xl font-black tabular-nums tracking-tighter">₹{roundAmount(order?.netAmount || 0)}</span>
+          </div>
+
+          <div className="ml-auto w-64 space-y-1 text-sm border-l border-slate-200 pl-6">
+            <div className="flex justify-between">
+              <span className="font-bold">Total Amount</span>
+              <span>{roundAmount(order?.netAmount || 0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-bold">Paid Amt</span>
+              <span>{roundAmount(order?.paidAmount || 0)}</span>
+            </div>
+            <div className="flex justify-between text-red-600 font-black border-b border-slate-200 pb-1">
+              <span className="font-bold">Due Amt</span>
+              <span>{roundAmount(order?.dueAmount || 0)}</span>
+            </div>
+            <div className="flex justify-between pt-1">
+              <span className="font-bold">Prev.Bal</span>
+              <span>{roundAmount(order?.partyData?.prevBalance || order?.partyData?.CurrentBalance?.amount || 0)}</span>
+            </div>
+            <div className="flex justify-between pt-2 mt-4 border-t border-slate-400 font-black text-lg">
+               <span>Net Payable</span>
+               <span>{roundAmount((order?.dueAmount || 0) + (order?.partyData?.prevBalance || order?.partyData?.CurrentBalance?.amount || 0))}</span>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-slate-100 text-center">
-          <p className="text-slate-400 text-sm italic font-medium">Thank you!</p>
-          <div className="flex justify-center gap-12 mt-8 opacity-30">
-            <div className="w-32 h-0.5 bg-slate-400"></div>
-            <div className="w-32 h-0.5 bg-slate-400"></div>
+        {/* Signature Section */}
+        <div className="mt-16 flex justify-between px-8">
+          <div className="text-center">
+              <div className="w-32 border-b border-slate-400 mb-2"></div>
+              <p className="text-[10px] uppercase font-bold text-slate-400">Customer Sign</p>
           </div>
-          <div className="flex justify-center gap-12 mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            <span className="w-32">Authorized Sign</span>
-            <span className="w-32">Customer Sign</span>
+          <div className="text-center">
+               <p className="text-[11px] font-black mb-12">For, Sadguru Opticals</p>
+              <div className="w-40 border-b border-slate-400 mb-2"></div>
+              <p className="text-[10px] uppercase font-bold text-slate-400">Authorized Signatory</p>
           </div>
         </div>
       </div>
@@ -412,81 +501,146 @@ function SaleReturnVoucher() {
   };
 
   const handleNormalPrint = (order) => {
+    const formatDate = (dateStr) => {
+      if (!dateStr) return "-";
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    };
+
     const items = order?.items || [];
     const itemRows = items
       .map(
-        (it, idx) => `<tr style="background:${idx % 2 === 0 ? '#fff' : '#f8fafc'}">
-          <td>${it.itemName || "-"}</td>
-          <td style="text-align:center">${it.eye || "-"}</td>
-          <td style="text-align:center">${it.sph || "-"}</td>
-          <td style="text-align:center">${it.cyl || "-"}</td>
-          <td style="text-align:center">${it.axis || "-"}</td>
-          <td style="text-align:center">${it.qty || 0}</td>
-          <td style="text-align:right">&#8377;${roundAmount(it.salePrice || 0)}</td>
-          <td style="text-align:right">&#8377;${roundAmount(it.totalAmount || 0)}</td>
+        (it, idx) => `<tr>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${idx + 1}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;font-weight:bold">${it.itemName || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.orderNo || it.refId || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.eye || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.sph || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.cyl || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.axis || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.add || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center;font-weight:bold">${it.qty || 0}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:right">&#8377;${roundAmount(it.salePrice || 0)}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:right">${it.discount || 0}%</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:right;font-weight:bold">&#8377;${roundAmount(it.totalAmount || 0)}</td>
         </tr>`
       )
       .join("");
+
+    const emptyRows = Array.from({ length: Math.max(0, 5 - items.length) })
+      .map(() => `<tr>
+          ${Array(12).fill('<td style="border:1px solid #94a3b8;padding:4px;height:24px"></td>').join('')}
+        </tr>`)
+      .join("");
+
+    const totalQty = items.reduce((sum, it) => sum + (Number(it.qty) || 0), 0);
+    const prevBal = order?.partyData?.prevBalance || order?.partyData?.CurrentBalance?.amount || 0;
+    const netPayable = (order?.dueAmount || 0) + prevBal;
 
     const html = `<!DOCTYPE html>
       <html>
       <head>
         <title>Sale Return - Normal Print</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
-          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
-          .title { font-size: 26px; font-weight: 900; margin: 0; }
-          .subtitle { font-size: 12px; color: #64748b; margin: 4px 0 0; }
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-          .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
-          .card h3 { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 1px; margin: 0 0 8px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
-          .card p { margin: 4px 0; font-size: 12px; display: flex; justify-content: space-between; }
-          .card p span:first-child { color: #64748b; }
-          .card p span:last-child { font-weight: 700; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-          th { background: #1e293b; color: white; padding: 8px; font-size: 11px; text-align: left; }
-          td { border: 1px solid #cbd5e1; padding: 7px 8px; font-size: 12px; }
-          .totals { max-width: 280px; margin-left: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc; }
-          .totals p { margin: 4px 0; font-size: 12px; display: flex; justify-content: space-between; }
-          .total-final { font-size: 16px; font-weight: 900; border-top: 2px solid #e2e8f0; padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between; }
-          .footer { margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #94a3b8; }
-          .sign-row { display: flex; justify-content: center; gap: 80px; margin-top: 20px; }
-          .sign-line { width: 120px; border-top: 1px solid #cbd5e1; text-align: center; padding-top: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+          body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #1e293b; background: white; }
+          .header { display: flex; align-items: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 20px; }
+          .logo { width: 120px; }
+          .title { flex: 1; text-align: center; font-size: 28px; font-weight: 900; letter-spacing: -0.025em; margin: 0; }
+          .info-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; margin-bottom: 20px; font-size: 12px; }
+          .party-details div, .bill-info div { display: flex; margin-bottom: 4px; }
+          .label { font-weight: 700; width: 100px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
+          th { background: #f1f5f9; border: 1px solid #94a3b8; padding: 6px; text-transform: uppercase; }
+          .summary-section { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; margin-top: 10px; }
+          .summary-table { width: 100%; border-left: 1px solid #e2e8f0; padding-left: 20px; font-size: 13px; }
+          .summary-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+          .net-pay { font-size: 18px; font-weight: 900; border-top: 2px solid #475569; padding-top: 8px; margin-top: 12px; }
+          .signatures { display: flex; justify-content: space-between; margin-top: 60px; padding: 0 40px; }
+          .sig-box { text-align: center; }
+          .sig-line { width: 150px; border-top: 1px solid #475569; margin-bottom: 4px; }
+          .sig-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+          @media print { margin: 0; }
         </style>
       </head>
       <body>
         <div class="header">
-          <div><p class="title">SALE RETURN</p><p class="subtitle">Return Confirmation &amp; Receipt</p></div>
-          <div style="text-align:right"><p style="font-size:10px;color:#94a3b8;margin:0">DATE</p><p style="font-size:14px;font-weight:700;margin:4px 0 0">${new Date(order?.billData?.date || Date.now()).toLocaleDateString("en-IN")}</p></div>
+          <img src="/sadguru_logo.svg" class="logo" />
+          <h1 class="title">SALE RETURN</h1>
+          <div style="width:120px"></div>
         </div>
-        <div class="grid">
-          <div class="card">
-            <h3>Voucher Details</h3>
-            <p><span>Series:</span><span>${order?.billData?.billSeries || "-"}</span></p>
-            <p><span>Bill No:</span><span>${order?.billData?.billNo || "-"}</span></p>
-            <p><span>Type:</span><span>${order?.returnType?.toUpperCase() || "-"}</span></p>
+
+        <div class="info-grid">
+          <div class="party-details">
+            <div><span class="label">Party Name</span><span>: ${order?.partyData?.partyAccount || "-"}</span></div>
+            <div><span class="label">Address</span><span>: ${order?.partyData?.address || "-"}</span></div>
+            <div><span class="label">State</span><span>: ${order?.partyData?.stateCode || "-"}</span></div>
+            <div><span class="label">Phone</span><span>: ${order?.partyData?.contactNumber || "-"}</span></div>
           </div>
-          <div class="card">
-            <h3>Party Details</h3>
-            <p style="font-size:14px;font-weight:700">${order?.partyData?.partyAccount || "-"}</p>
-            <p><span>Phone:</span><span>${order?.partyData?.contactNumber || "-"}</span></p>
-            <p><span>Address:</span><span>${order?.partyData?.address || "-"}</span></p>
+          <div class="bill-info" style="margin-left: auto">
+            <div style="justify-content: flex-end"><span class="label">Bill Series</span><span style="width:120px">: ${order?.billData?.billSeries || "-"}</span></div>
+            <div style="justify-content: flex-end"><span class="label">Bill No</span><span style="width:120px">: ${order?.billData?.billNo || "-"}</span></div>
+            <div style="justify-content: flex-end"><span class="label">Date</span><span style="width:120px">: ${formatDate(order?.billData?.date)}</span></div>
           </div>
         </div>
+
         <table>
-          <thead><tr><th>Item Name</th><th>Eye</th><th>Sph</th><th>Cyl</th><th>Axis</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-          <tbody>${itemRows || "<tr><td colspan='8' style='text-align:center;color:#94a3b8'>No items</td></tr>"}</tbody>
+          <thead>
+            <tr>
+              <th>SR</th><th>Item Name</th><th>Order No</th><th>Eye</th><th>Sph</th><th>Cyl</th><th>Axis</th><th>Add</th><th>Qty</th><th>Price</th><th>Disc</th><th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+            ${emptyRows}
+            <tr style="background:#f8fafc;font-weight:700">
+              <td colspan="2" style="border:1px solid #94a3b8;padding:6px;text-align:center;text-transform:uppercase;letter-spacing:2px">Total</td>
+              <td colspan="6" style="border:1px solid #94a3b8;padding:6px"></td>
+              <td style="border:1px solid #94a3b8;padding:6px;text-align:center">${totalQty}</td>
+              <td colspan="2" style="border:1px solid #94a3b8;padding:6px"></td>
+              <td style="border:1px solid #94a3b8;padding:6px;text-align:right">&#8377;${roundAmount(order?.subtotal || 0)}</td>
+            </tr>
+          </tbody>
         </table>
-        <div class="totals">
-          <p><span>Subtotal</span><span>&#8377;${roundAmount(order?.subtotal || 0)}</span></p>
-          <p><span>Taxes</span><span>&#8377;${roundAmount(order?.taxesAmount || 0)}</span></p>
-          <div class="total-final"><span>TOTAL</span><span>&#8377;${roundAmount(order?.netAmount || 0)}</span></div>
+
+        <div class="summary-section">
+          <div style="display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <p style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin:0">Total Invoice value ( In Words ) :</p>
+              <p style="font-size:14px;font-weight:900;font-style:italic;margin:4px 0">${numberToWords(order?.netAmount || 0)}</p>
+            </div>
+            <div style="border-top:1px solid #e2e8f0;padding-top:10px">
+              <p style="font-size:10px;font-weight:700;margin:0">Terms & Condition</p>
+              <p style="font-size:10px;color:#64748b;font-style:italic;margin:4px 0;line-height:1.2">
+                We declare that this invoice shows the actual price of the goods described<br/>
+                and that all particulars are true and correct.
+              </p>
+            </div>
+          </div>
+          <div class="summary-table">
+            <div class="summary-row"><span style="font-weight:700">Total Amount</span><span>&#8377;${roundAmount(order?.netAmount || 0)}</span></div>
+            <div class="summary-row"><span style="font-weight:700">Paid Amt</span><span>&#8377;${roundAmount(order?.paidAmount || 0)}</span></div>
+            <div class="summary-row" style="color:#dc2626;font-weight:900;border-bottom:1px solid #e2e8f0;padding-bottom:4px">
+              <span style="font-weight:700">Due Amt</span><span>&#8377;${roundAmount(order?.dueAmount || 0)}</span>
+            </div>
+            <div class="summary-row" style="padding-top:4px"><span style="font-weight:700">Prev.Bal</span><span>&#8377;${roundAmount(prevBal)}</span></div>
+            <div class="summary-row net-pay"><span>Net Payable</span><span>&#8377;${roundAmount(netPayable)}</span></div>
+          </div>
         </div>
-        <div class="footer">
-          Thank you!
-          <div class="sign-row">
-            <div class="sign-line">Authorized Sign</div>
-            <div class="sign-line">Customer Sign</div>
+
+        <div class="signatures">
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            <span class="sig-label">Customer Sign</span>
+          </div>
+          <div class="sig-box">
+             <p style="font-size:11px;font-weight:900;margin-bottom:40px">For, Sadguru Opticals</p>
+            <div class="sig-line" style="width:180px"></div>
+            <span class="sig-label">Authorized Signatory</span>
           </div>
         </div>
       </body>

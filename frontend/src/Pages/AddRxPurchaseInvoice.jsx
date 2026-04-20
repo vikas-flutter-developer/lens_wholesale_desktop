@@ -33,6 +33,8 @@ import { useContext } from "react";
 import { AuthContext } from "../AuthContext";
 import { getFinancialYearSeries } from "../utils/billingUtils";
 import { getNextBillNumberForRxPurchase } from "../controllers/RxPurchase.controller";
+import { roundAmount, formatPowerValue } from "../utils/amountUtils";
+import { getBarcodeDetails, getBarcodeErrorMessage, getLensPriceByPower } from "../controllers/barcode.controller";
 function AddRxPurchaseInvoice() {
   const { user } = useContext(AuthContext);
   const [accounts, setAccounts] = useState([]);
@@ -856,6 +858,43 @@ function AddRxPurchaseInvoice() {
       const disc = Number(copy[index].discount) || 0;
       const discountAmount = qty * price * (disc / 100);
       copy[index].totalAmount = (qty * price - discountAmount).toFixed(2);
+
+      // ── Price Sync Logic: Fetch prices for power-based items ──────────────
+      // When power fields change, fetch Lens Group pricing (with or without itemId)
+      if (["itemName", "sph", "cyl", "axis", "add"].includes(field)) {
+        const item = copy[index];
+        if (item.itemName && (item.sph !== "" || item.cyl !== "" || item.add !== "")) {
+          // If itemId exists, use it; otherwise try to find it from itemName
+          let itemIdToUse = item.itemId;
+          if (!itemIdToUse && item.itemName) {
+            // Find the item in allLens to get its ID
+            const foundLens = allLens.find(lx => lx.productName === item.itemName || lx.itemName === item.itemName);
+            itemIdToUse = foundLens?.id || foundLens?._id || foundLens?.itemId;
+          }
+          
+          if (itemIdToUse) {
+            getLensPriceByPower(itemIdToUse, item.sph, item.cyl, item.axis, item.add)
+              .then(priceData => {
+                if (priceData && priceData.found) {
+                  setItems(current => {
+                    const updated = [...current];
+                    if (updated[index]) {
+                      updated[index].purchasePrice = priceData.purchasePrice || updated[index].purchasePrice;
+                      updated[index].salePrice = priceData.salePrice || updated[index].salePrice;
+                      // Recalculate totalAmount with new price
+                      const qty = parseFloat(updated[index].qty) || 0;
+                      const newPrice = parseFloat(updated[index].purchasePrice ?? updated[index].salePrice) || 0;
+                      const disc = Number(updated[index].discount) || 0;
+                      updated[index].totalAmount = (qty * newPrice - qty * newPrice * (disc / 100)).toFixed(2);
+                    }
+                    return updated;
+                  });
+                }
+              })
+              .catch(err => console.error("Price fetch error:", err));
+          }
+        }
+      }
 
       return copy;
     });
@@ -1738,7 +1777,7 @@ function AddRxPurchaseInvoice() {
                             value={item.sph}
                             onChange={(e) =>
                               updateItem(index, "sph", e.target.value)
-                            }
+                            } onBlur={(e) => updateItem(index, "sph", formatPowerValue(e.target.value))}
                             className="w-full px-1 py-1.5 text-xs text-center font-mono bg-transparent border-b border-dashed border-slate-300 focus:border-blue-500 focus:bg-white rounded-none outline-none"
                           />
                         </td>
@@ -1749,7 +1788,7 @@ function AddRxPurchaseInvoice() {
                             value={item.cyl}
                             onChange={(e) =>
                               updateItem(index, "cyl", e.target.value)
-                            }
+                            } onBlur={(e) => updateItem(index, "cyl", formatPowerValue(e.target.value))}
                             className="w-full px-1 py-1.5 text-xs text-center font-mono bg-transparent border-b border-dashed border-slate-300 focus:border-blue-500 focus:bg-white rounded-none outline-none"
                           />
                         </td>
@@ -1771,7 +1810,7 @@ function AddRxPurchaseInvoice() {
                             value={item.add}
                             onChange={(e) =>
                               updateItem(index, "add", e.target.value)
-                            }
+                            } onBlur={(e) => updateItem(index, "add", formatPowerValue(e.target.value))}
                             className="w-full px-1 py-1.5 text-xs text-center font-mono bg-transparent border-b border-dashed border-slate-300 focus:border-blue-500 focus:bg-white rounded-none outline-none"
                           />
                         </td>

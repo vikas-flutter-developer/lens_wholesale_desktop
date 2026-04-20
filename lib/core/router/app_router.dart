@@ -21,6 +21,7 @@ import '../../features/masters/presentation/pages/add_item_page.dart';
 import '../../features/masters/presentation/pages/add_lens_group_page.dart';
 import '../../features/masters/presentation/pages/inventory_master_page.dart';
 import '../../features/masters/presentation/pages/lens_price_screen.dart';
+import '../../features/masters/presentation/pages/lens_rate_master_screen.dart';
 import '../../features/masters/presentation/pages/customer_specific_pricing_screen.dart';
 import '../../features/sales/presentation/pages/lens_sale_order_page.dart';
 import '../../features/sales/presentation/pages/add_lens_sale_order_page.dart';
@@ -50,7 +51,6 @@ import '../../features/purchases/presentation/pages/add_rx_purchase_return_page.
 import '../../features/purchases/presentation/pages/contact_lens_purchase_list_page.dart';
 import '../../features/purchases/presentation/pages/add_contact_lens_purchase_page.dart';
 import '../../features/inventory/presentation/pages/lens_stock_report_page.dart';
-import '../../features/inventory/presentation/pages/barcode_management_page.dart';
 import '../../features/inventory/presentation/pages/lens_location_page.dart';
 import '../../features/inventory/presentation/pages/add_damage_entry_page.dart';
 import '../../features/inventory/presentation/pages/damage_and_shrinkage_page.dart';
@@ -73,16 +73,18 @@ import '../../features/reports/presentation/pages/lens_movement_report_page.dart
 import '../../features/reports/presentation/pages/power_movement_report_page.dart';
 import '../../features/reports/presentation/pages/party_wise_item_report_page.dart';
 import '../../features/reports/presentation/pages/stock_reorder_report_page.dart';
+import '../../features/reports/presentation/pages/sale_item_group_wise_report_page.dart';
+import '../../features/reports/presentation/pages/transaction_details_combined_page.dart';
 import '../../features/audits/presentation/pages/verify_lens_stock_page.dart';
 import '../../features/audits/presentation/pages/verify_billing_page.dart';
 import '../../features/audits/presentation/pages/verify_bank_statement_page.dart';
 import '../../features/utilities/presentation/pages/backup_restore_page.dart';
 import '../../features/utilities/presentation/pages/bulk_update_page.dart';
 import '../../features/utilities/presentation/pages/offers_page.dart';
-import '../../features/inventory/presentation/pages/barcode_management_page.dart';
 import '../../features/utilities/presentation/pages/shortcut_settings_page.dart';
 import '../../features/company/presentation/pages/modify_company_page.dart';
 import '../../features/reports/presentation/pages/active_dashboard_page.dart';
+import '../../features/reports/presentation/pages/booked_by_activity_report_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -205,6 +207,14 @@ GoRouter createAppRouter(AuthProvider authProvider) {
           builder: (context, state) => const LensPriceScreen(),
         ),
         GoRoute(
+          path: '/lenstransaction/lensratemaster',
+          builder: (context, state) {
+            final id = state.uri.queryParameters['id'];
+            final powerGroupId = state.uri.queryParameters['powerGroupId'];
+            return LensRateMasterScreen(id: id, powerGroupId: powerGroupId);
+          },
+        ),
+        GoRoute(
           path: '/masters/inventorymaster/productpriceaccountcategorywise',
           builder: (context, state) => const CustomerSpecificPricingScreen(),
         ),
@@ -306,14 +316,9 @@ GoRouter createAppRouter(AuthProvider authProvider) {
             return AddRxSaleReturnPage(returnId: id);
           },
         ),
-        // Inventory & Barcodes
         GoRoute(
           path: '/lenstransaction/lensstockreport',
           builder: (context, state) => const LensStockReportPage(),
-        ),
-        GoRoute(
-          path: '/inventory/barcode-management',
-          builder: (context, state) => const BarcodeManagementPage(),
         ),
         GoRoute(
           path: '/inventory/lens-location',
@@ -561,8 +566,28 @@ GoRouter createAppRouter(AuthProvider authProvider) {
           builder: (context, state) => const PartyWiseItemReportPage(),
         ),
         GoRoute(
-          path: '/reports/inventory/stock-reorder',
+          path: '/reports/stockandinventory/itemstockreorder',
           builder: (context, state) => const StockReorderReportPage(),
+        ),
+        GoRoute(
+          path: '/reports/othersaleorderreports/saleitemgroupwisereport',
+          builder: (context, state) => const SaleItemGroupWiseReportPage(),
+        ),
+        GoRoute(
+          path: '/reports/transactiondetails/transactionsummary',
+          builder: (context, state) => const TransactionDetailsCombinedPage(initialIndex: 0),
+        ),
+        GoRoute(
+          path: '/reports/transactiondetails/transactiondetail',
+          builder: (context, state) => const TransactionDetailsCombinedPage(initialIndex: 1),
+        ),
+        GoRoute(
+          path: '/reports/transactiondetails/salesummaryformats',
+          builder: (context, state) => const TransactionDetailsCombinedPage(initialIndex: 2),
+        ),
+        GoRoute(
+          path: '/reports/otherreports/bookedbyreport',
+          builder: (context, state) => const BookedByActivityReportPage(),
         ),
         // Audits
         GoRoute(
@@ -589,10 +614,6 @@ GoRouter createAppRouter(AuthProvider authProvider) {
         GoRoute(
           path: '/utilities/offers',
           builder: (context, state) => const OffersManagementPage(),
-        ),
-        GoRoute(
-          path: '/inventory/barcode-management',
-          builder: (context, state) => const BarcodeManagementPage(),
         ),
         GoRoute(
           path: '/utilities/shortcutkeys',

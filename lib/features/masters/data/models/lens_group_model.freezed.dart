@@ -1156,6 +1156,8 @@ mixin _$LensAddGroup {
   String? get id => throw _privateConstructorUsedError;
   String? get name => throw _privateConstructorUsedError;
   String? get label => throw _privateConstructorUsedError;
+  @JsonKey(name: 'addValue', fromJson: _parseString)
+  String? get addValue => throw _privateConstructorUsedError;
   @JsonKey(fromJson: _parseCombinations)
   List<LensCombination> get combinations => throw _privateConstructorUsedError;
 
@@ -1180,6 +1182,7 @@ abstract class $LensAddGroupCopyWith<$Res> {
     String? id,
     String? name,
     String? label,
+    @JsonKey(name: 'addValue', fromJson: _parseString) String? addValue,
     @JsonKey(fromJson: _parseCombinations) List<LensCombination> combinations,
   });
 }
@@ -1202,6 +1205,7 @@ class _$LensAddGroupCopyWithImpl<$Res, $Val extends LensAddGroup>
     Object? id = freezed,
     Object? name = freezed,
     Object? label = freezed,
+    Object? addValue = freezed,
     Object? combinations = null,
   }) {
     return _then(
@@ -1217,6 +1221,10 @@ class _$LensAddGroupCopyWithImpl<$Res, $Val extends LensAddGroup>
             label: freezed == label
                 ? _value.label
                 : label // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            addValue: freezed == addValue
+                ? _value.addValue
+                : addValue // ignore: cast_nullable_to_non_nullable
                       as String?,
             combinations: null == combinations
                 ? _value.combinations
@@ -1241,6 +1249,7 @@ abstract class _$$LensAddGroupImplCopyWith<$Res>
     String? id,
     String? name,
     String? label,
+    @JsonKey(name: 'addValue', fromJson: _parseString) String? addValue,
     @JsonKey(fromJson: _parseCombinations) List<LensCombination> combinations,
   });
 }
@@ -1262,6 +1271,7 @@ class __$$LensAddGroupImplCopyWithImpl<$Res>
     Object? id = freezed,
     Object? name = freezed,
     Object? label = freezed,
+    Object? addValue = freezed,
     Object? combinations = null,
   }) {
     return _then(
@@ -1277,6 +1287,10 @@ class __$$LensAddGroupImplCopyWithImpl<$Res>
         label: freezed == label
             ? _value.label
             : label // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        addValue: freezed == addValue
+            ? _value.addValue
+            : addValue // ignore: cast_nullable_to_non_nullable
                   as String?,
         combinations: null == combinations
             ? _value._combinations
@@ -1294,6 +1308,7 @@ class _$LensAddGroupImpl implements _LensAddGroup {
     this.id,
     this.name,
     this.label,
+    @JsonKey(name: 'addValue', fromJson: _parseString) this.addValue,
     @JsonKey(fromJson: _parseCombinations)
     final List<LensCombination> combinations = const [],
   }) : _combinations = combinations;
@@ -1307,6 +1322,9 @@ class _$LensAddGroupImpl implements _LensAddGroup {
   final String? name;
   @override
   final String? label;
+  @override
+  @JsonKey(name: 'addValue', fromJson: _parseString)
+  final String? addValue;
   final List<LensCombination> _combinations;
   @override
   @JsonKey(fromJson: _parseCombinations)
@@ -1318,7 +1336,7 @@ class _$LensAddGroupImpl implements _LensAddGroup {
 
   @override
   String toString() {
-    return 'LensAddGroup(id: $id, name: $name, label: $label, combinations: $combinations)';
+    return 'LensAddGroup(id: $id, name: $name, label: $label, addValue: $addValue, combinations: $combinations)';
   }
 
   @override
@@ -1329,6 +1347,8 @@ class _$LensAddGroupImpl implements _LensAddGroup {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.label, label) || other.label == label) &&
+            (identical(other.addValue, addValue) ||
+                other.addValue == addValue) &&
             const DeepCollectionEquality().equals(
               other._combinations,
               _combinations,
@@ -1342,6 +1362,7 @@ class _$LensAddGroupImpl implements _LensAddGroup {
     id,
     name,
     label,
+    addValue,
     const DeepCollectionEquality().hash(_combinations),
   );
 
@@ -1364,6 +1385,7 @@ abstract class _LensAddGroup implements LensAddGroup {
     final String? id,
     final String? name,
     final String? label,
+    @JsonKey(name: 'addValue', fromJson: _parseString) final String? addValue,
     @JsonKey(fromJson: _parseCombinations)
     final List<LensCombination> combinations,
   }) = _$LensAddGroupImpl;
@@ -1377,6 +1399,9 @@ abstract class _LensAddGroup implements LensAddGroup {
   String? get name;
   @override
   String? get label;
+  @override
+  @JsonKey(name: 'addValue', fromJson: _parseString)
+  String? get addValue;
   @override
   @JsonKey(fromJson: _parseCombinations)
   List<LensCombination> get combinations;

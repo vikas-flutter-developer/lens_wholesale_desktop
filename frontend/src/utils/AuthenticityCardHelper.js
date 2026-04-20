@@ -223,17 +223,17 @@ export const printAuthenticityCard = (transaction, allLenses = [], allItems = []
           <div class="card-wrapper">
             <div class="back-side">
               <div class="header-row">
-                <div>Order no ${orderNo}</div>
-                <div>Date ${orderDate}</div>
+                <div>Order no : ${orderNo}</div>
+                <div>Date : ${orderDate}</div>
               </div>
 
               <div class="info-section">
                 <div class="info-item">
-                  <span>Customer name</span>
+                  <span>Customer name :</span>
                   <span>${group.customerName || "-"}</span>
                 </div>
                 <div class="info-item">
-                  <span>Optician name</span>
+                  <span>Optician name :</span>
                   <span>${partyName}</span>
                 </div>
                 <div class="info-item">

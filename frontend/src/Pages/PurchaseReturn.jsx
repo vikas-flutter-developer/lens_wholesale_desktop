@@ -29,6 +29,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from 'react-hot-toast'
 import { roundAmount } from "../utils/amountUtils";
+import { numberToWords } from "../utils/numberToWords";
+
 function PurchaseReturnVoucher() {
   const [purchaseReturns, setPurchaseReturns] = useState([])
   const [expandedRow, setExpandedRow] = useState(null);
@@ -335,82 +337,147 @@ function PurchaseReturnVoucher() {
     setExpandedRow(expandedRow === id ? null : id);
   };
 
-  const handleNormalPrint = (v) => {
-    const items = v.items || [];
+  const handleNormalPrint = (order) => {
+    const formatDate = (dateStr) => {
+      if (!dateStr) return "-";
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    };
+
+    const items = order?.items || [];
     const itemRows = items
       .map(
-        (it, idx) => `<tr style="background:${idx % 2 === 0 ? '#fff' : '#f8fafc'}">
-          <td>${it.itemName || it.productName || "-"}</td>
-          <td style="text-align:center">${it.eye || "-"}</td>
-          <td style="text-align:center">${it.sph || "-"}</td>
-          <td style="text-align:center">${it.cyl || "-"}</td>
-          <td style="text-align:center">${it.axis || "-"}</td>
-          <td style="text-align:center">${it.qty || 0}</td>
-          <td style="text-align:right">&#8377;${roundAmount(it.purchasePrice || 0)}</td>
-          <td style="text-align:right">&#8377;${roundAmount(it.totalAmount || 0)}</td>
+        (it, idx) => `<tr>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${idx + 1}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;font-weight:bold">${it.itemName || it.productName || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.orderNo || it.refId || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.eye || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.sph || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.cyl || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.axis || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.add || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center;font-weight:bold">${it.qty || 0}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:right">&#8377;${roundAmount(it.purchasePrice || 0)}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:right">${it.discount || 0}%</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:right;font-weight:bold">&#8377;${roundAmount(it.totalAmount || 0)}</td>
         </tr>`
       )
       .join("");
+
+    const emptyRows = Array.from({ length: Math.max(0, 5 - items.length) })
+      .map(() => `<tr>
+          ${Array(12).fill('<td style="border:1px solid #94a3b8;padding:4px;height:24px"></td>').join('')}
+        </tr>`)
+      .join("");
+
+    const totalQty = items.reduce((sum, it) => sum + (Number(it.qty) || 0), 0);
+    const prevBal = order?.partyData?.prevBalance || order?.partyData?.CurrentBalance?.amount || 0;
+    const netPayable = (order?.dueAmount || 0) + prevBal;
 
     const html = `<!DOCTYPE html>
       <html>
       <head>
         <title>Purchase Return - Normal Print</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
-          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
-          .title { font-size: 26px; font-weight: 900; margin: 0; }
-          .subtitle { font-size: 12px; color: #64748b; margin: 4px 0 0; }
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-          .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
-          .card h3 { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 1px; margin: 0 0 8px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
-          .card p { margin: 4px 0; font-size: 12px; display: flex; justify-content: space-between; }
-          .card p span:first-child { color: #64748b; }
-          .card p span:last-child { font-weight: 700; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-          th { background: #1e293b; color: white; padding: 8px; font-size: 11px; text-align: left; }
-          td { border: 1px solid #cbd5e1; padding: 7px 8px; font-size: 12px; }
-          .totals { max-width: 280px; margin-left: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc; }
-          .totals p { margin: 4px 0; font-size: 12px; display: flex; justify-content: space-between; }
-          .total-final { font-size: 16px; font-weight: 900; border-top: 2px solid #e2e8f0; padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between; }
-          .footer { margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #94a3b8; }
-          .sign-row { display: flex; justify-content: center; gap: 80px; margin-top: 20px; }
-          .sign-line { width: 120px; border-top: 1px solid #cbd5e1; text-align: center; padding-top: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+          body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #1e293b; background: white; }
+          .header { display: flex; align-items: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 20px; }
+          .logo { width: 120px; }
+          .title { flex: 1; text-align: center; font-size: 28px; font-weight: 900; letter-spacing: -0.025em; margin: 0; }
+          .info-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; margin-bottom: 20px; font-size: 12px; }
+          .party-details div, .bill-info div { display: flex; margin-bottom: 4px; }
+          .label { font-weight: 700; width: 100px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
+          th { background: #f1f5f9; border: 1px solid #94a3b8; padding: 6px; text-transform: uppercase; }
+          .summary-section { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; margin-top: 10px; }
+          .summary-table { width: 100%; border-left: 1px solid #e2e8f0; padding-left: 20px; font-size: 13px; }
+          .summary-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+          .net-pay { font-size: 18px; font-weight: 900; border-top: 2px solid #475569; padding-top: 8px; margin-top: 12px; }
+          .signatures { display: flex; justify-content: space-between; margin-top: 60px; padding: 0 40px; }
+          .sig-box { text-align: center; }
+          .sig-line { width: 150px; border-top: 1px solid #475569; margin-bottom: 4px; }
+          .sig-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+          @media print { margin: 0; }
         </style>
       </head>
       <body>
         <div class="header">
-          <div><p class="title">PURCHASE RETURN</p><p class="subtitle">Return Confirmation & Receipt</p></div>
-          <div style="text-align:right"><p style="font-size:10px;color:#94a3b8;margin:0">DATE</p><p style="font-size:14px;font-weight:700;margin:4px 0 0">${new Date(v.billData?.date || Date.now()).toLocaleDateString("en-IN")}</p></div>
+          <img src="/sadguru_logo.svg" class="logo" />
+          <h1 class="title">PURCHASE RETURN</h1>
+          <div style="width:120px"></div>
         </div>
-        <div class="grid">
-          <div class="card">
-            <h3>Voucher Details</h3>
-            <p><span>Series:</span><span>${v.billData?.billSeries || "-"}</span></p>
-            <p><span>Bill No:</span><span>${v.billData?.billNo || "-"}</span></p>
-            <p><span>Type:</span><span>${v.returnType?.toUpperCase() || "-"}</span></p>
+
+        <div class="info-grid">
+          <div class="party-details">
+            <div><span class="label">Party Name</span><span>: ${order?.partyData?.partyAccount || "-"}</span></div>
+            <div><span class="label">Address</span><span>: ${order?.partyData?.address || "-"}</span></div>
+            <div><span class="label">State</span><span>: ${order?.partyData?.stateCode || "-"}</span></div>
+            <div><span class="label">Phone</span><span>: ${order?.partyData?.contactNumber || "-"}</span></div>
           </div>
-          <div class="card">
-            <h3>Party Details</h3>
-            <p style="font-size:14px;font-weight:700">${v.partyData?.partyAccount || "-"}</p>
-            <p><span>Phone:</span><span>${v.partyData?.contactNumber || "-"}</span></p>
-            <p><span>Address:</span><span>${v.partyData?.address || "-"}</span></p>
+          <div class="bill-info" style="margin-left: auto">
+            <div style="justify-content: flex-end"><span class="label">Bill Series</span><span style="width:120px">: ${order?.billData?.billSeries || "-"}</span></div>
+            <div style="justify-content: flex-end"><span class="label">Bill No</span><span style="width:120px">: ${order?.billData?.billNo || "-"}</span></div>
+            <div style="justify-content: flex-end"><span class="label">Date</span><span style="width:120px">: ${formatDate(order?.billData?.date)}</span></div>
           </div>
         </div>
+
         <table>
-          <thead><tr><th>Item Name</th><th>Eye</th><th>Sph</th><th>Cyl</th><th>Axis</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-          <tbody>${itemRows || "<tr><td colspan='8' style='text-align:center;color:#94a3b8'>No items</td></tr>"}</tbody>
+          <thead>
+            <tr>
+              <th>SR</th><th>Item Name</th><th>Order No</th><th>Eye</th><th>Sph</th><th>Cyl</th><th>Axis</th><th>Add</th><th>Qty</th><th>Price</th><th>Disc</th><th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+            ${emptyRows}
+            <tr style="background:#f8fafc;font-weight:700">
+              <td colspan="2" style="border:1px solid #94a3b8;padding:6px;text-align:center;text-transform:uppercase;letter-spacing:2px">Total</td>
+              <td colspan="6" style="border:1px solid #94a3b8;padding:6px"></td>
+              <td style="border:1px solid #94a3b8;padding:6px;text-align:center">${totalQty}</td>
+              <td colspan="2" style="border:1px solid #94a3b8;padding:6px"></td>
+              <td style="border:1px solid #94a3b8;padding:6px;text-align:right">&#8377;${roundAmount(order?.subtotal || 0)}</td>
+            </tr>
+          </tbody>
         </table>
-        <div class="totals">
-          <p><span>Subtotal</span><span>&#8377;${roundAmount(v.subtotal || 0)}</span></p>
-          <p><span>Taxes</span><span>&#8377;${roundAmount(v.taxesAmount || 0)}</span></p>
-          <div class="total-final"><span>TOTAL</span><span>&#8377;${roundAmount(v.netAmount || 0)}</span></div>
+
+        <div class="summary-section">
+          <div style="display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <p style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin:0">Total Invoice value ( In Words ) :</p>
+              <p style="font-size:14px;font-weight:900;font-style:italic;margin:4px 0">${numberToWords(order?.netAmount || 0)}</p>
+            </div>
+            <div style="border-top:1px solid #e2e8f0;padding-top:10px">
+              <p style="font-size:10px;font-weight:700;margin:0">Terms & Condition</p>
+              <p style="font-size:10px;color:#64748b;font-style:italic;margin:4px 0;line-height:1.2">
+                We declare that this invoice shows the actual price of the goods described<br/>
+                and that all particulars are true and correct.
+              </p>
+            </div>
+          </div>
+          <div class="summary-table">
+            <div class="summary-row"><span style="font-weight:700">Total Amount</span><span>&#8377;${roundAmount(order?.netAmount || 0)}</span></div>
+            <div class="summary-row"><span style="font-weight:700">Paid Amt</span><span>&#8377;${roundAmount(order?.paidAmount || 0)}</span></div>
+            <div class="summary-row" style="color:#dc2626;font-weight:900;border-bottom:1px solid #e2e8f0;padding-bottom:4px">
+              <span style="font-weight:700">Due Amt</span><span>&#8377;${roundAmount(order?.dueAmount || 0)}</span>
+            </div>
+            <div class="summary-row" style="padding-top:4px"><span style="font-weight:700">Prev.Bal</span><span>&#8377;${roundAmount(prevBal)}</span></div>
+            <div class="summary-row net-pay"><span>Net Payable</span><span>&#8377;${roundAmount(netPayable)}</span></div>
+          </div>
         </div>
-        <div class="footer">
-          Thank you!
-          <div class="sign-row">
-            <div class="sign-line">Authorized Sign</div>
-            <div class="sign-line">Supplier Sign</div>
+
+        <div class="signatures">
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            <span class="sig-label">Customer Sign</span>
+          </div>
+          <div class="sig-box">
+             <p style="font-size:11px;font-weight:900;margin-bottom:40px">For, Sadguru Opticals</p>
+            <div class="sig-line" style="width:180px"></div>
+            <span class="sig-label">Authorized Signatory</span>
           </div>
         </div>
       </body>
@@ -423,6 +490,7 @@ function PurchaseReturnVoucher() {
   };
 
   const generateBarcodePrint = (v) => {
+
     printBarcodeStickers(v, [], []);
   };
 

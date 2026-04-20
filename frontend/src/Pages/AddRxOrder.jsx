@@ -23,7 +23,7 @@ import {
 import BulkLensMatrixV2 from "../Components/BulkLensMatrixV2";
 import { getAllAccounts } from "../controllers/Account.controller";
 import { getAllTaxCategories } from "../controllers/TaxCategoryController";
-import { getAllLensPower, getCombinationStock } from "../controllers/LensGroupCreationController";
+import { getAllLensPower, getCombinationStock, getNextBarcode } from "../controllers/LensGroupCreationController";
 import {
   addRxSaleOrder,
   getRxSaleOrder,
@@ -39,6 +39,8 @@ import { getFinancialYearSeries } from "../utils/billingUtils";
 import { Toaster, toast } from "react-hot-toast";
 import { validateAccountLimits, getValidationErrorMessage } from "../utils/accountLimitValidator";
 import { getSuggestions, learnSuggestions, deleteSuggestion } from "../controllers/Suggestion.controller";
+import { getBarcodeDetails, getBarcodeErrorMessage, getLensPriceByPower } from "../controllers/barcode.controller";
+import { formatPowerValue } from "../utils/amountUtils";
 
 const Header = ({ isReadOnly, id, partyData }) => (
   <div className="flex items-center justify-between px-4 py-1 bg-white border-b border-slate-200 sticky top-0 z-[100] shadow-sm flex-shrink-0">
@@ -135,6 +137,30 @@ function AddRxOrder() {
   const [taxes, setTaxes] = useState([{ id: 1, taxName: "", type: "Additive", percentage: "2.5", amount: "0.00" }]);
   const [remark, setRemark] = useState("");
   const [status, setStatus] = useState("Pending");
+  const [nextBarcodeBase, setNextBarcodeBase] = useState(null);
+  const qtyRefs = useRef([]);
+
+  const focusOnQtyInput = (rowIndex) => {
+    setTimeout(() => {
+      qtyRefs.current[rowIndex]?.focus();
+      qtyRefs.current[rowIndex]?.select();
+    }, 0);
+  };
+
+  const generateBarcode = (currentItems, rowIndex) => {
+    if (nextBarcodeBase === null) return "";
+    
+    // Count how many numeric barcodes >= nextBarcodeBase already exist in the table before this row
+    let countNumericAboveBase = 0;
+    for (let i = 0; i < rowIndex; i++) {
+      const b = parseInt(currentItems[i].barcode);
+      if (!isNaN(b) && b >= nextBarcodeBase) {
+        countNumericAboveBase++;
+      }
+    }
+    
+    return (nextBarcodeBase + countNumericAboveBase).toString();
+  };
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -275,7 +301,7 @@ function AddRxOrder() {
   // Initial fetch of master data
   const fetch = async () => {
     try {
-      const res = await getAllAccounts();
+      const res = await getAllAccounts("sale"); // Filter for Sale and Both account types
       setAccounts(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error("getAllAccounts failed:", err);
@@ -364,6 +390,17 @@ function AddRxOrder() {
     } catch(e) {}
   };
 
+  const fetchBaseBarcode = async () => {
+    try {
+      const res = await getNextBarcode();
+      if (res.success) {
+        setNextBarcodeBase(Number(res.nextBarcode));
+      }
+    } catch (err) {
+      console.error("Failed to fetch next barcode:", err);
+    }
+  };
+
   const handleDeleteSuggestion = async (val, type) => {
       if(!window.confirm(`Remove "${val}" from suggestions?`)) return;
       const res = await deleteSuggestion(val, type);
@@ -380,6 +417,7 @@ function AddRxOrder() {
     fetchTax();
     fetchlenses();
     fetchAutoSuggestions();
+    fetchBaseBarcode();
   }, []);
 
   // Merge tax suggestions
@@ -423,7 +461,11 @@ function AddRxOrder() {
 
   const query = (partyData.partyAccount || "").trim();
   const filteredAccounts = query.length > 0
-    ? accounts.filter((acc) => String(acc.Name || "").toLowerCase().includes(query.toLowerCase()))
+    ? accounts.filter((acc) => {
+      const name = String(acc.Name || "").toLowerCase();
+      const accountId = String(acc.AccountId || "").toLowerCase();
+      return name.includes(query.toLowerCase()) || accountId.includes(query.toLowerCase());
+    })
     : accounts.slice(0, 10);
 
   useEffect(() => {
@@ -447,7 +489,7 @@ function AddRxOrder() {
       partyAccount: acc.Name || "",
       contactNumber: acc.MobileNumber || "",
       stateCode: acc.State || "",
-      address: "",
+      address: primaryAddr,
       allAddresses: allAddresses,
       creditLimit: acc.CreditLimit || "",
       CurrentBalance: {
@@ -458,6 +500,12 @@ function AddRxOrder() {
     setCategory(accCategory);
     setShowSuggestions(false);
     setActiveIndex(-1);
+
+    // Auto-select default tax/bill type for this account
+    const defaultTax = allTaxes.find((tax) => tax.isDefault === true);
+    if (defaultTax) {
+      selectTax(defaultTax);
+    }
 
     // Fetch next bill number for this party
     try {
@@ -583,8 +631,10 @@ function AddRxOrder() {
   // Vendor & Customer Autocomplete
   const [vendorQueries, setVendorQueries] = useState({});
   const [showVendorSuggestions, setShowVendorSuggestions] = useState({});
+  const [activeVendorIndexes, setActiveVendorIndexes] = useState({});
   const [customerQueries, setCustomerQueries] = useState({});
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState({});
+  const [activeCustomerIndexes, setActiveCustomerIndexes] = useState({});
 
   const getFilteredVendors = (index) => {
     const q = (vendorQueries[index] || "").trim().toLowerCase();
@@ -619,6 +669,103 @@ function AddRxOrder() {
     updateItem(index, "customer", acc.Name);
     setCustomerQueries((prev) => ({ ...prev, [index]: acc.Name }));
     setShowCustomerSuggestions((prev) => ({ ...prev, [index]: false }));
+  };
+
+  // Keyboard navigation handlers for table columns
+  const handleTableVendorKeyDown = (e, index) => {
+    const options = getFilteredVendors(index);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showVendorSuggestions[index]) {
+        setShowVendorSuggestions(p => ({ ...p, [index]: true }));
+        setActiveVendorIndexes(p => ({ ...p, [index]: 0 }));
+      } else {
+        setActiveVendorIndexes(p => ({
+          ...p,
+          [index]: Math.min((p[index] || 0) + 1, options.length - 1)
+        }));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveVendorIndexes(p => ({
+        ...p,
+        [index]: Math.max((p[index] || 0) - 1, 0)
+      }));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const activeIdx = activeVendorIndexes[index] ?? -1;
+      if (activeIdx >= 0 && activeIdx < options.length) {
+        selectVendor(options[activeIdx], index);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setShowVendorSuggestions(p => ({ ...p, [index]: false }));
+      setActiveVendorIndexes(p => ({ ...p, [index]: -1 }));
+    }
+  };
+
+  const handleTableCustomerKeyDown = (e, index) => {
+    const options = getFilteredCustomers(index);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showCustomerSuggestions[index]) {
+        setShowCustomerSuggestions(p => ({ ...p, [index]: true }));
+        setActiveCustomerIndexes(p => ({ ...p, [index]: 0 }));
+      } else {
+        setActiveCustomerIndexes(p => ({
+          ...p,
+          [index]: Math.min((p[index] || 0) + 1, options.length - 1)
+        }));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveCustomerIndexes(p => ({
+        ...p,
+        [index]: Math.max((p[index] || 0) - 1, 0)
+      }));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const activeIdx = activeCustomerIndexes[index] ?? -1;
+      if (activeIdx >= 0 && activeIdx < options.length) {
+        selectCustomer(options[activeIdx], index);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setShowCustomerSuggestions(p => ({ ...p, [index]: false }));
+      setActiveCustomerIndexes(p => ({ ...p, [index]: -1 }));
+    }
+  };
+
+  const handleTableItemKeyDown = (e, index) => {
+    const options = getFilteredLens(index);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showItemSuggestions[index]) {
+        setShowItemSuggestions(p => ({ ...p, [index]: true }));
+        setActiveItemIndexes(p => ({ ...p, [index]: 0 }));
+      } else {
+        setActiveItemIndexes(p => ({
+          ...p,
+          [index]: Math.min((p[index] || 0) + 1, options.length - 1)
+        }));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveItemIndexes(p => ({
+        ...p,
+        [index]: Math.max((p[index] || 0) - 1, 0)
+      }));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const activeIdx = activeItemIndexes[index] ?? -1;
+      if (activeIdx >= 0 && activeIdx < options.length) {
+        selectLens(options[activeIdx], index);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setShowItemSuggestions(p => ({ ...p, [index]: false }));
+      setActiveItemIndexes(p => ({ ...p, [index]: -1 }));
+    }
   };
 
   const getFilteredLens = (index) => {
@@ -732,6 +879,12 @@ function AddRxOrder() {
         purchasePrice: lens.purchasePrice ?? 0,
         eye: lens.eye ?? copy[index].eye ?? "",
       };
+
+      // --- AUTO BARCODE GENERATION ---
+      const hasPowerRange = lens.sphMin || lens.sphMax || lens.cylMin || lens.cylMax || lens.addMin || lens.addMax;
+      if (!hasPowerRange && !lens.barcode && !copy[index].barcode) {
+        copy[index].barcode = generateBarcode(copy, index);
+      }
 
       const price = parseFloat(copy[index].salePrice) || 0;
       const disc = parseFloat(copy[index].discount) || 0;
@@ -859,6 +1012,12 @@ function AddRxOrder() {
           if (isNaN(currentQty) || currentQty <= 0) {
             copy[index].qty = 1;
           }
+
+          // --- AUTO BARCODE GENERATION ---
+          const hasPowerRange = selectedItem.sphMin || selectedItem.sphMax || selectedItem.cylMin || selectedItem.cylMax || selectedItem.addMin || selectedItem.addMax;
+          if (!hasPowerRange && !selectedItem.barcode && !copy[index].barcode) {
+            copy[index].barcode = generateBarcode(copy);
+          }
         }
       }
  
@@ -869,10 +1028,12 @@ function AddRxOrder() {
       const discountAmount = qty * price * (disc / 100);
       copy[index].totalAmount = (qty * price - discountAmount).toFixed(2);
 
-      // --- REAL-TIME STOCK & BARCODE REFRESH ---
+      // --- REAL-TIME STOCK, BARCODE & PRICE REFRESH ---
       const powerFields = ["itemName", "sph", "cyl", "add", "axis", "eye"];
       if (powerFields.includes(field)) {
         const { itemName, sph, cyl, add, axis, eye } = copy[index];
+        
+        // Stock & Barcode Fetch
         if (itemName && (sph !== "" || cyl !== "" || add !== "")) {
           const fetchStock = async () => {
             try {
@@ -899,10 +1060,73 @@ function AddRxOrder() {
           };
           fetchStock();
         }
+
+        // Price Sync Logic (for manual selection)
+        if (["itemName", "sph", "cyl", "axis", "add"].includes(field)) {
+          if (itemName && (sph !== "" || cyl !== "" || add !== "")) {
+            // Find the item in allLens to get its ID
+            const foundLens = allLens.find(lx => lx.productName === itemName);
+            const itemIdToUse = foundLens?._id || foundLens?.id;
+
+            if (itemIdToUse) {
+              getLensPriceByPower(itemIdToUse, sph, cyl, axis, add)
+                .then(priceData => {
+                  if (priceData && priceData.found) {
+                    setItems(current => {
+                      const updated = [...current];
+                      if (updated[index]) {
+                        updated[index].salePrice = priceData.salePrice || updated[index].salePrice;
+                        updated[index].purchasePrice = priceData.purchasePrice || updated[index].purchasePrice;
+                        // Recalculate totalAmount
+                        const q = parseFloat(updated[index].qty) || 0;
+                        const p = parseFloat(updated[index].salePrice) || 0;
+                        const d = Number(updated[index].discount) || 0;
+                        updated[index].totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+                      }
+                      return updated;
+                    });
+                  }
+                })
+                .catch(err => console.error("Price fetch error:", err));
+            }
+          }
+        }
       }
 
       return copy;
     });
+  };
+
+  const handleBarcodeBlur = async (barcode, rowIndex) => {
+    if (!barcode || barcode.trim() === "") return;
+    try {
+      const barcodeData = await getBarcodeDetails(barcode);
+      if (barcodeData) {
+        setItems(prev => {
+          const c = [...prev];
+          const row = c[rowIndex];
+          row.itemName = barcodeData.itemName || row.itemName;
+          row.eye = barcodeData.eye || row.eye;
+          row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
+          row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
+          row.axis = barcodeData.axis || row.axis;
+          row.add = barcodeData.add || row.add;
+          row.salePrice = barcodeData.price || row.salePrice;
+          row.avlStk = barcodeData.stock !== undefined ? barcodeData.stock : row.avlStk;
+          const q = parseFloat(row.qty) || 0;
+          const p = parseFloat(row.salePrice) || 0;
+          const d = parseFloat(row.discount) || 0;
+          row.totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+          return c;
+        });
+        toast.success(`Product loaded from barcode`);
+        focusOnQtyInput(rowIndex);
+      } else {
+        toast.error("Product not found");
+      }
+    } catch (error) {
+      toast.error(getBarcodeErrorMessage(error));
+    }
   };
 
   const addTaxRow = () => {
@@ -939,6 +1163,52 @@ function AddRxOrder() {
 
     if (changed) setTaxes(newTaxes);
   }, [items, taxes]); // Caution: adding taxes dependency might cause loops if not careful, but logic checks value diff
+
+  // Auto-scroll to highlighted suggestion for party account dropdown
+  useEffect(() => {
+    if (showSuggestions && activeIndex >= 0) {
+      setTimeout(() => {
+        const activeEl = document.querySelector(`#party-item-rx-${activeIndex}`);
+        if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }, 0);
+    }
+  }, [activeIndex, showSuggestions]);
+
+  // Auto-scroll to highlighted suggestion for item description dropdown
+  useEffect(() => {
+    Object.keys(activeItemIndexes).forEach((index) => {
+      if (showItemSuggestions[index] && activeItemIndexes[index] >= 0) {
+        setTimeout(() => {
+          const activeEl = document.querySelector(`#item-suggestion-rx-${index}-${activeItemIndexes[index]}`);
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 0);
+      }
+    });
+  }, [activeItemIndexes, showItemSuggestions]);
+
+  // Auto-scroll to highlighted suggestion for vendor dropdown
+  useEffect(() => {
+    Object.keys(activeVendorIndexes).forEach((index) => {
+      if (showVendorSuggestions[index] && activeVendorIndexes[index] >= 0) {
+        setTimeout(() => {
+          const activeEl = document.querySelector(`.vendor-suggestion-rx-${index}-${activeVendorIndexes[index]}`);
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 0);
+      }
+    });
+  }, [activeVendorIndexes, showVendorSuggestions]);
+
+  // Auto-scroll to highlighted suggestion for customer dropdown
+  useEffect(() => {
+    Object.keys(activeCustomerIndexes).forEach((index) => {
+      if (showCustomerSuggestions[index] && activeCustomerIndexes[index] >= 0) {
+        setTimeout(() => {
+          const activeEl = document.querySelector(`.customer-suggestion-rx-${index}-${activeCustomerIndexes[index]}`);
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 0);
+      }
+    });
+  }, [activeCustomerIndexes, showCustomerSuggestions]);
 
   const computeTotalTax = () => taxes.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
   const computeNetAmount = () => computeSubtotal() + computeTotalTax();
@@ -1076,24 +1346,60 @@ function AddRxOrder() {
               </div>
             </div>
 
-            <div className="p-3 grid grid-cols-3 gap-3">
-              {[
-                { label: "Series", value: billData.billSeries, key: "billSeries", placeholder: "Series" },
-                { label: "Order No", value: billData.billNo, key: "billNo", placeholder: "Order #" },
-                { label: "Date", value: safeDate(billData.date), key: "date", type: "date" }
-              ].map((field) => (
-                <div key={field.key}>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-wider">{field.label}</label>
+            <div className="p-3 space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "Series", value: billData.billSeries, key: "billSeries", placeholder: "Series" },
+                  { label: "Bill No", value: billData.billNo, key: "billNo", placeholder: "Order #" },
+                  { label: "Date", value: safeDate(billData.date), key: "date", type: "date" }
+                ].map((field) => (
+                  <div key={field.key}>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-wider">{field.label}</label>
+                    <input
+                      type={field.type || "text"}
+                      value={field.value}
+                      disabled={isReadOnly}
+                      onChange={(e) => setBillData(b => ({ ...b, [field.key]: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-all disabled:opacity-50"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-wider">Bill Type</label>
                   <input
-                    type={field.type || "text"}
-                    value={field.value}
+                    type="text"
+                    value={billData.billType}
                     disabled={isReadOnly}
-                    onChange={(e) => setBillData(b => ({ ...b, [field.key]: e.target.value }))}
+                    onChange={(e) => setBillData(b => ({ ...b, billType: e.target.value }))}
                     className="w-full px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-all disabled:opacity-50"
+                    placeholder="Bill Type"
                   />
                 </div>
-              ))}
-
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-wider">Godown</label>
+                  <input
+                    type="text"
+                    value={billData.godown}
+                    disabled={isReadOnly}
+                    onChange={(e) => setBillData(b => ({ ...b, godown: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-all disabled:opacity-50"
+                    placeholder="HO"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-wider">Booked By</label>
+                  <input
+                    type="text"
+                    value={billData.bookedBy}
+                    disabled={isReadOnly}
+                    onChange={(e) => setBillData(b => ({ ...b, bookedBy: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-all disabled:opacity-50"
+                    placeholder="Agent Name"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1131,14 +1437,15 @@ function AddRxOrder() {
                     className="w-full pl-9 pr-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-200 outline-none transition-all disabled:opacity-50"
                   />
                   {showSuggestions && filteredAccounts.length > 0 && (
-                    <div className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-lg z-[1000] overflow-hidden max-h-48 overflow-y-auto">
+                    <div className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-lg z-[1000] overflow-hidden max-h-56 overflow-y-auto">
                       {filteredAccounts.map((acc, idx) => (
                         <div
                           key={idx}
+                          id={`party-item-rx-${idx}`}
                           onMouseDown={() => selectAccount(acc)}
                           className={`px-3 py-2 text-xs font-bold uppercase transition-colors cursor-pointer border-b border-slate-50 last:border-0 ${activeIndex === idx ? "bg-purple-600 text-white" : "hover:bg-purple-50 text-slate-700"}`}
                         >
-                          {acc.Name}
+                          {acc.Name} (ID: {acc.AccountId}) - Station: {acc.Stations?.[0] || "-"}
                         </div>
                       ))}
                     </div>
@@ -1247,6 +1554,7 @@ function AddRxOrder() {
                         value={item.barcode || ""}
                         disabled={isReadOnly}
                         onChange={(e) => updateItem(index, "barcode", e.target.value)}
+                        onBlur={(e) => !isReadOnly && handleBarcodeBlur(e.target.value, index)}
                         className="w-full px-2 py-1.5 text-xs font-bold text-slate-600 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition-all placeholder:text-[10px] placeholder:italic placeholder:font-medium"
                         placeholder="Scan..."
                       />
@@ -1266,14 +1574,16 @@ function AddRxOrder() {
                           }}
                           onFocus={() => setShowItemSuggestions(p => ({ ...p, [index]: true }))}
                           onBlur={() => setTimeout(() => setShowItemSuggestions(p => ({ ...p, [index]: false })), 200)}
+                          onKeyDown={(e) => handleTableItemKeyDown(e, index)}
                           className="w-full px-2 py-1.5 text-sm font-black text-slate-800 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition-all"
                           placeholder="Search Item..."
                         />
                         {showItemSuggestions[index] && getFilteredLens(index).length > 0 && (
-                          <div className="absolute top-full left-0 w-[350px] mt-1 bg-white border border-slate-200 shadow-2xl rounded-xl z-[9999] overflow-hidden py-1">
+                          <div className="absolute top-full left-0 w-[350px] mt-1 bg-white border border-slate-200 shadow-2xl rounded-xl z-[9999] overflow-hidden py-1 max-h-56 overflow-y-auto">
                             {getFilteredLens(index).map((lens, i) => (
                               <div
                                 key={i}
+                                id={`item-suggestion-rx-${index}-${i}`}
                                 onMouseDown={() => selectLens(lens, index)}
                                 className={`px-4 py-2 cursor-pointer border-b border-slate-50 last:border-0 transition-colors flex flex-col gap-0.5 ${activeItemIndexes[index] === i ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-slate-700"}`}
                               >
@@ -1306,14 +1616,20 @@ function AddRxOrder() {
                           value={item[pow]}
                           disabled={isReadOnly}
                           onChange={(e) => updateItem(index, pow, e.target.value)}
+                          onBlur={(e) => {
+                            if (["sph", "cyl", "add"].includes(pow)) {
+                              updateItem(index, pow, formatPowerValue(e.target.value));
+                            }
+                          }}
                           className="w-full px-1 py-1.5 text-sm font-black text-center text-blue-700 bg-transparent border-b border-dashed border-blue-200 focus:bg-white focus:border-blue-500 focus:ring-0 outline-none transition-all placeholder:text-[10px] placeholder:text-blue-300"
-                          placeholder={pow === "eye" ? "RL" : "0.00"}
+                          placeholder={pow === "eye" ? "RL" : (["sph", "cyl", "add"].includes(pow) ? "+0.00" : "0")}
                         />
                       </td>
                     ))}
 
                     <td className="p-1 px-1.5 bg-emerald-50/20">
                       <input
+                        ref={(el) => (qtyRefs.current[index] = el)}
                         type="number"
                         min="0"
                         value={item.qty}
@@ -1356,6 +1672,7 @@ function AddRxOrder() {
                           type="text"
                           value={vendorQueries[index] ?? item.vendor ?? ""}
                           disabled={isReadOnly}
+                          onKeyDown={(e) => handleTableVendorKeyDown(e, index)}
                           onChange={(e) => {
                             const val = e.target.value;
                             setVendorQueries(p => ({ ...p, [index]: val }));
@@ -1368,9 +1685,11 @@ function AddRxOrder() {
                           placeholder="Vendor"
                         />
                         {showVendorSuggestions[index] && getFilteredVendors(index).length > 0 && (
-                          <div className="absolute top-full left-0 w-52 bg-white rounded-lg shadow-xl border border-slate-200 z-[120]">
+                          <div className="absolute top-full left-0 w-52 bg-white rounded-lg shadow-xl border border-slate-200 z-[120] max-h-56 overflow-y-auto">
                             {getFilteredVendors(index).map((acc, i) => (
-                              <div key={i} onMouseDown={() => selectVendor(acc, index)} className="px-3 py-1.5 cursor-pointer hover:bg-blue-50 border-b border-slate-50 text-[10px] font-black text-slate-700 uppercase">
+                              <div key={i} className={`vendor-suggestion-rx-${index}-${i} px-3 py-1.5 cursor-pointer border-b border-slate-50 text-[10px] font-black text-slate-700 uppercase transition-colors ${
+                                i === activeVendorIndexes[index] ? 'bg-blue-100 text-blue-800 font-black' : 'hover:bg-blue-50'
+                              }`} onMouseDown={() => selectVendor(acc, index)} onMouseEnter={() => setActiveVendorIndexes(p => ({ ...p, [index]: i }))} onMouseLeave={() => setActiveVendorIndexes(p => ({ ...p, [index]: -1 }))}>
                                 {acc.Name}
                               </div>
                             ))}
@@ -1386,6 +1705,7 @@ function AddRxOrder() {
                           type="text"
                           value={customerQueries[index] ?? item.customer ?? ""}
                           disabled={isReadOnly}
+                          onKeyDown={(e) => handleTableCustomerKeyDown(e, index)}
                           onChange={(e) => {
                             const val = e.target.value;
                             setCustomerQueries(p => ({ ...p, [index]: val }));
@@ -1398,9 +1718,11 @@ function AddRxOrder() {
                           placeholder="Customer"
                         />
                         {showCustomerSuggestions[index] && getFilteredCustomers(index).length > 0 && (
-                          <div className="absolute top-full left-0 w-52 bg-white rounded-lg shadow-xl border border-slate-200 z-[120]">
+                          <div className="absolute top-full left-0 w-52 bg-white rounded-lg shadow-xl border border-slate-200 z-[120] max-h-56 overflow-y-auto">
                             {getFilteredCustomers(index).map((acc, i) => (
-                              <div key={i} onMouseDown={() => selectCustomer(acc, index)} className="px-3 py-1.5 cursor-pointer hover:bg-blue-50 border-b border-slate-50 text-[10px] font-black text-slate-700 uppercase">
+                              <div key={i} className={`customer-suggestion-rx-${index}-${i} px-3 py-1.5 cursor-pointer border-b border-slate-50 text-[10px] font-black text-slate-700 uppercase transition-colors ${
+                                i === activeCustomerIndexes[index] ? 'bg-blue-100 text-blue-800 font-black' : 'hover:bg-blue-50'
+                              }`} onMouseDown={() => selectCustomer(acc, index)} onMouseEnter={() => setActiveCustomerIndexes(p => ({ ...p, [index]: i }))} onMouseLeave={() => setActiveCustomerIndexes(p => ({ ...p, [index]: -1 }))}>
                                 {acc.Name}
                               </div>
                             ))}

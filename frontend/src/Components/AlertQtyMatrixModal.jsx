@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { X, Save, RotateCcw, Filter, Search, Info, Grid3X3, ChevronDown, Copy } from "lucide-react";
 import toast from "react-hot-toast";
+import { handleDropdownKeyDown } from "../utils/dropdownKeyboardHandler";
 
 /**
  * AlertQtyMatrixModal
@@ -18,6 +19,7 @@ const AlertQtyMatrixModal = ({ groups, powerGroups = [], isOpen, onClose, onSave
     // --- Power Group checkbox state ---
     const [selectedPowerGroups, setSelectedPowerGroups] = useState([]);
     const [pgDropdownOpen, setPgDropdownOpen] = useState(false);
+    const [pgHighlightedIndex, setPgHighlightedIndex] = useState(-1);
     const pgDropdownRef = useRef(null);
 
     const [eyeMode, setEyeMode] = useState("RL");
@@ -57,6 +59,69 @@ const AlertQtyMatrixModal = ({ groups, powerGroups = [], isOpen, onClose, onSave
             }
         }
     }, [isOpen, groups, eyeFilter, powerGroups]);
+
+    // Reset highlight when dropdown closes
+    useEffect(() => {
+        if (!pgDropdownOpen) {
+            setPgHighlightedIndex(-1);
+        }
+    }, [pgDropdownOpen]);
+
+    // Auto-scroll to highlighted option in power groups dropdown
+    useEffect(() => {
+        if (pgDropdownOpen && pgHighlightedIndex >= 0) {
+            setTimeout(() => {
+                const activeEl = pgDropdownRef.current?.querySelector(`.pg-option-${pgHighlightedIndex}`);
+                if (activeEl) {
+                    activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                }
+            }, 0);
+        }
+    }, [pgHighlightedIndex, pgDropdownOpen]);
+
+    // Handle keyboard navigation for power groups dropdown
+    const handlePgDropdownKeyDown = (e) => {
+        if (!pgDropdownOpen) {
+            if (e.key === "ArrowDown" || e.key === "Enter") {
+                e.preventDefault();
+                setPgDropdownOpen(true);
+                setPgHighlightedIndex(0);
+            }
+            return;
+        }
+
+        switch (e.key) {
+            case "ArrowDown":
+                e.preventDefault();
+                setPgHighlightedIndex((prev) =>
+                    Math.min(prev + 1, powerGroups.length - 1)
+                );
+                break;
+
+            case "ArrowUp":
+                e.preventDefault();
+                setPgHighlightedIndex((prev) =>
+                    Math.max(prev - 1, 0)
+                );
+                break;
+
+            case "Enter":
+                e.preventDefault();
+                if (pgHighlightedIndex >= 0 && pgHighlightedIndex < powerGroups.length) {
+                    togglePg(powerGroups[pgHighlightedIndex]);
+                }
+                break;
+
+            case "Escape":
+                e.preventDefault();
+                setPgDropdownOpen(false);
+                setPgHighlightedIndex(-1);
+                break;
+
+            default:
+                break;
+        }
+    };
 
     // When Show is clicked
     const handleGenerate = () => {
@@ -406,10 +471,11 @@ const AlertQtyMatrixModal = ({ groups, powerGroups = [], isOpen, onClose, onSave
                                     </span>
                                 )}
                             </label>
-                            <div className="relative">
+                            <div className="relative" ref={pgDropdownRef}>
                                 <button
                                     type="button"
                                     onClick={() => setPgDropdownOpen(prev => !prev)}
+                                    onKeyDown={handlePgDropdownKeyDown}
                                     className="w-full flex items-center justify-between px-3 py-1.5 text-sm border border-slate-300 rounded bg-white hover:border-blue-400 focus:border-blue-500 outline-none transition-all"
                                 >
                                     <span className={selectedPowerGroups.length > 0 ? 'text-slate-800 font-medium' : 'text-slate-400'}>
@@ -458,7 +524,14 @@ const AlertQtyMatrixModal = ({ groups, powerGroups = [], isOpen, onClose, onSave
                                                 return (
                                                     <label
                                                         key={idx}
-                                                        className={`flex items-start gap-2.5 px-3 py-2.5 cursor-pointer transition-colors hover:bg-blue-50 ${checked ? 'bg-blue-50/60' : ''}`}
+                                                        className={`pg-option-${idx} flex items-start gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${
+                                                            idx === pgHighlightedIndex
+                                                                ? 'bg-blue-100 font-semibold'
+                                                                : checked ? 'bg-blue-50/60 hover:bg-blue-50'
+                                                                : 'hover:bg-blue-50'
+                                                        }`}
+                                                        onMouseEnter={() => setPgHighlightedIndex(idx)}
+                                                        onMouseLeave={() => setPgHighlightedIndex(-1)}
                                                     >
                                                         <input
                                                             type="checkbox"
@@ -466,7 +539,9 @@ const AlertQtyMatrixModal = ({ groups, powerGroups = [], isOpen, onClose, onSave
                                                             onChange={() => togglePg(pg)}
                                                             className="w-3.5 h-3.5 accent-blue-600 mt-0.5 flex-shrink-0"
                                                         />
-                                                        <span className="text-xs font-semibold text-slate-700 leading-relaxed">{label}</span>
+                                                        <span className={`text-xs font-semibold leading-relaxed ${
+                                                            idx === pgHighlightedIndex ? 'text-blue-800' : 'text-slate-700'
+                                                        }`}>{label}</span>
                                                     </label>
                                                 );
                                             })}

@@ -3200,9 +3200,9 @@ StockReorderItem _$StockReorderItemFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$StockReorderItem {
-  String get productName => throw _privateConstructorUsedError;
-  String get groupName => throw _privateConstructorUsedError;
-  String get unit => throw _privateConstructorUsedError;
+  String? get productName => throw _privateConstructorUsedError;
+  String? get groupName => throw _privateConstructorUsedError;
+  String? get unit => throw _privateConstructorUsedError;
   double get alertQty => throw _privateConstructorUsedError;
   double get stock => throw _privateConstructorUsedError;
   double? get minStock => throw _privateConstructorUsedError;
@@ -3230,9 +3230,9 @@ abstract class $StockReorderItemCopyWith<$Res> {
   ) = _$StockReorderItemCopyWithImpl<$Res, StockReorderItem>;
   @useResult
   $Res call({
-    String productName,
-    String groupName,
-    String unit,
+    String? productName,
+    String? groupName,
+    String? unit,
     double alertQty,
     double stock,
     double? minStock,
@@ -3261,9 +3261,9 @@ class _$StockReorderItemCopyWithImpl<$Res, $Val extends StockReorderItem>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? productName = null,
-    Object? groupName = null,
-    Object? unit = null,
+    Object? productName = freezed,
+    Object? groupName = freezed,
+    Object? unit = freezed,
     Object? alertQty = null,
     Object? stock = null,
     Object? minStock = freezed,
@@ -3275,18 +3275,18 @@ class _$StockReorderItemCopyWithImpl<$Res, $Val extends StockReorderItem>
   }) {
     return _then(
       _value.copyWith(
-            productName: null == productName
+            productName: freezed == productName
                 ? _value.productName
                 : productName // ignore: cast_nullable_to_non_nullable
-                      as String,
-            groupName: null == groupName
+                      as String?,
+            groupName: freezed == groupName
                 ? _value.groupName
                 : groupName // ignore: cast_nullable_to_non_nullable
-                      as String,
-            unit: null == unit
+                      as String?,
+            unit: freezed == unit
                 ? _value.unit
                 : unit // ignore: cast_nullable_to_non_nullable
-                      as String,
+                      as String?,
             alertQty: null == alertQty
                 ? _value.alertQty
                 : alertQty // ignore: cast_nullable_to_non_nullable
@@ -3349,9 +3349,9 @@ abstract class _$$StockReorderItemImplCopyWith<$Res>
   @override
   @useResult
   $Res call({
-    String productName,
-    String groupName,
-    String unit,
+    String? productName,
+    String? groupName,
+    String? unit,
     double alertQty,
     double stock,
     double? minStock,
@@ -3380,9 +3380,9 @@ class __$$StockReorderItemImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? productName = null,
-    Object? groupName = null,
-    Object? unit = null,
+    Object? productName = freezed,
+    Object? groupName = freezed,
+    Object? unit = freezed,
     Object? alertQty = null,
     Object? stock = null,
     Object? minStock = freezed,
@@ -3394,18 +3394,18 @@ class __$$StockReorderItemImplCopyWithImpl<$Res>
   }) {
     return _then(
       _$StockReorderItemImpl(
-        productName: null == productName
+        productName: freezed == productName
             ? _value.productName
             : productName // ignore: cast_nullable_to_non_nullable
-                  as String,
-        groupName: null == groupName
+                  as String?,
+        groupName: freezed == groupName
             ? _value.groupName
             : groupName // ignore: cast_nullable_to_non_nullable
-                  as String,
-        unit: null == unit
+                  as String?,
+        unit: freezed == unit
             ? _value.unit
             : unit // ignore: cast_nullable_to_non_nullable
-                  as String,
+                  as String?,
         alertQty: null == alertQty
             ? _value.alertQty
             : alertQty // ignore: cast_nullable_to_non_nullable
@@ -3447,9 +3447,9 @@ class __$$StockReorderItemImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$StockReorderItemImpl implements _StockReorderItem {
   const _$StockReorderItemImpl({
-    required this.productName,
-    required this.groupName,
-    required this.unit,
+    this.productName,
+    this.groupName,
+    this.unit,
     this.alertQty = 0,
     this.stock = 0,
     this.minStock,
@@ -3464,11 +3464,11 @@ class _$StockReorderItemImpl implements _StockReorderItem {
       _$$StockReorderItemImplFromJson(json);
 
   @override
-  final String productName;
+  final String? productName;
   @override
-  final String groupName;
+  final String? groupName;
   @override
-  final String unit;
+  final String? unit;
   @override
   @JsonKey()
   final double alertQty;
@@ -3554,9 +3554,9 @@ class _$StockReorderItemImpl implements _StockReorderItem {
 
 abstract class _StockReorderItem implements StockReorderItem {
   const factory _StockReorderItem({
-    required final String productName,
-    required final String groupName,
-    required final String unit,
+    final String? productName,
+    final String? groupName,
+    final String? unit,
     final double alertQty,
     final double stock,
     final double? minStock,
@@ -3571,11 +3571,11 @@ abstract class _StockReorderItem implements StockReorderItem {
       _$StockReorderItemImpl.fromJson;
 
   @override
-  String get productName;
+  String? get productName;
   @override
-  String get groupName;
+  String? get groupName;
   @override
-  String get unit;
+  String? get unit;
   @override
   double get alertQty;
   @override
@@ -3607,11 +3607,11 @@ StockReorderLensInfo _$StockReorderLensInfoFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$StockReorderLensInfo {
-  String? get sph => throw _privateConstructorUsedError;
-  String? get cyl => throw _privateConstructorUsedError;
+  dynamic get sph => throw _privateConstructorUsedError;
+  dynamic get cyl => throw _privateConstructorUsedError;
   String? get eye => throw _privateConstructorUsedError;
-  String? get axis => throw _privateConstructorUsedError;
-  String? get add => throw _privateConstructorUsedError;
+  dynamic get axis => throw _privateConstructorUsedError;
+  dynamic get add => throw _privateConstructorUsedError;
 
   /// Serializes this StockReorderLensInfo to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -3630,7 +3630,7 @@ abstract class $StockReorderLensInfoCopyWith<$Res> {
     $Res Function(StockReorderLensInfo) then,
   ) = _$StockReorderLensInfoCopyWithImpl<$Res, StockReorderLensInfo>;
   @useResult
-  $Res call({String? sph, String? cyl, String? eye, String? axis, String? add});
+  $Res call({dynamic sph, dynamic cyl, String? eye, dynamic axis, dynamic add});
 }
 
 /// @nodoc
@@ -3662,11 +3662,11 @@ class _$StockReorderLensInfoCopyWithImpl<
             sph: freezed == sph
                 ? _value.sph
                 : sph // ignore: cast_nullable_to_non_nullable
-                      as String?,
+                      as dynamic,
             cyl: freezed == cyl
                 ? _value.cyl
                 : cyl // ignore: cast_nullable_to_non_nullable
-                      as String?,
+                      as dynamic,
             eye: freezed == eye
                 ? _value.eye
                 : eye // ignore: cast_nullable_to_non_nullable
@@ -3674,11 +3674,11 @@ class _$StockReorderLensInfoCopyWithImpl<
             axis: freezed == axis
                 ? _value.axis
                 : axis // ignore: cast_nullable_to_non_nullable
-                      as String?,
+                      as dynamic,
             add: freezed == add
                 ? _value.add
                 : add // ignore: cast_nullable_to_non_nullable
-                      as String?,
+                      as dynamic,
           )
           as $Val,
     );
@@ -3694,7 +3694,7 @@ abstract class _$$StockReorderLensInfoImplCopyWith<$Res>
   ) = __$$StockReorderLensInfoImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String? sph, String? cyl, String? eye, String? axis, String? add});
+  $Res call({dynamic sph, dynamic cyl, String? eye, dynamic axis, dynamic add});
 }
 
 /// @nodoc
@@ -3722,11 +3722,11 @@ class __$$StockReorderLensInfoImplCopyWithImpl<$Res>
         sph: freezed == sph
             ? _value.sph
             : sph // ignore: cast_nullable_to_non_nullable
-                  as String?,
+                  as dynamic,
         cyl: freezed == cyl
             ? _value.cyl
             : cyl // ignore: cast_nullable_to_non_nullable
-                  as String?,
+                  as dynamic,
         eye: freezed == eye
             ? _value.eye
             : eye // ignore: cast_nullable_to_non_nullable
@@ -3734,11 +3734,11 @@ class __$$StockReorderLensInfoImplCopyWithImpl<$Res>
         axis: freezed == axis
             ? _value.axis
             : axis // ignore: cast_nullable_to_non_nullable
-                  as String?,
+                  as dynamic,
         add: freezed == add
             ? _value.add
             : add // ignore: cast_nullable_to_non_nullable
-                  as String?,
+                  as dynamic,
       ),
     );
   }
@@ -3759,15 +3759,15 @@ class _$StockReorderLensInfoImpl implements _StockReorderLensInfo {
       _$$StockReorderLensInfoImplFromJson(json);
 
   @override
-  final String? sph;
+  final dynamic sph;
   @override
-  final String? cyl;
+  final dynamic cyl;
   @override
   final String? eye;
   @override
-  final String? axis;
+  final dynamic axis;
   @override
-  final String? add;
+  final dynamic add;
 
   @override
   String toString() {
@@ -3779,16 +3779,23 @@ class _$StockReorderLensInfoImpl implements _StockReorderLensInfo {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$StockReorderLensInfoImpl &&
-            (identical(other.sph, sph) || other.sph == sph) &&
-            (identical(other.cyl, cyl) || other.cyl == cyl) &&
+            const DeepCollectionEquality().equals(other.sph, sph) &&
+            const DeepCollectionEquality().equals(other.cyl, cyl) &&
             (identical(other.eye, eye) || other.eye == eye) &&
-            (identical(other.axis, axis) || other.axis == axis) &&
-            (identical(other.add, add) || other.add == add));
+            const DeepCollectionEquality().equals(other.axis, axis) &&
+            const DeepCollectionEquality().equals(other.add, add));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, sph, cyl, eye, axis, add);
+  int get hashCode => Object.hash(
+    runtimeType,
+    const DeepCollectionEquality().hash(sph),
+    const DeepCollectionEquality().hash(cyl),
+    eye,
+    const DeepCollectionEquality().hash(axis),
+    const DeepCollectionEquality().hash(add),
+  );
 
   /// Create a copy of StockReorderLensInfo
   /// with the given fields replaced by the non-null parameter values.
@@ -3810,26 +3817,26 @@ class _$StockReorderLensInfoImpl implements _StockReorderLensInfo {
 
 abstract class _StockReorderLensInfo implements StockReorderLensInfo {
   const factory _StockReorderLensInfo({
-    final String? sph,
-    final String? cyl,
+    final dynamic sph,
+    final dynamic cyl,
     final String? eye,
-    final String? axis,
-    final String? add,
+    final dynamic axis,
+    final dynamic add,
   }) = _$StockReorderLensInfoImpl;
 
   factory _StockReorderLensInfo.fromJson(Map<String, dynamic> json) =
       _$StockReorderLensInfoImpl.fromJson;
 
   @override
-  String? get sph;
+  dynamic get sph;
   @override
-  String? get cyl;
+  dynamic get cyl;
   @override
   String? get eye;
   @override
-  String? get axis;
+  dynamic get axis;
   @override
-  String? get add;
+  dynamic get add;
 
   /// Create a copy of StockReorderLensInfo
   /// with the given fields replaced by the non-null parameter values.
@@ -3837,4 +3844,1009 @@ abstract class _StockReorderLensInfo implements StockReorderLensInfo {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$StockReorderLensInfoImplCopyWith<_$StockReorderLensInfoImpl>
   get copyWith => throw _privateConstructorUsedError;
+}
+
+SaleItemGroupWiseItem _$SaleItemGroupWiseItemFromJson(
+  Map<String, dynamic> json,
+) {
+  return _SaleItemGroupWiseItem.fromJson(json);
+}
+
+/// @nodoc
+mixin _$SaleItemGroupWiseItem {
+  String? get billNo => throw _privateConstructorUsedError;
+  String? get date => throw _privateConstructorUsedError;
+  String? get party => throw _privateConstructorUsedError;
+  String? get productGroup => throw _privateConstructorUsedError;
+  String? get productName => throw _privateConstructorUsedError;
+  double get qty => throw _privateConstructorUsedError;
+  double get prodPrice => throw _privateConstructorUsedError;
+  double get prodDisPct => throw _privateConstructorUsedError;
+  double get prodDisRs => throw _privateConstructorUsedError;
+  double get otherDisPct => throw _privateConstructorUsedError;
+  double get otherDisRs => throw _privateConstructorUsedError;
+  double get prodValue => throw _privateConstructorUsedError;
+  double get prodTxbleAmt => throw _privateConstructorUsedError;
+  double get invoiceTotalAmt => throw _privateConstructorUsedError;
+  double get cash => throw _privateConstructorUsedError;
+  double get bank => throw _privateConstructorUsedError;
+
+  /// Serializes this SaleItemGroupWiseItem to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of SaleItemGroupWiseItem
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $SaleItemGroupWiseItemCopyWith<SaleItemGroupWiseItem> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $SaleItemGroupWiseItemCopyWith<$Res> {
+  factory $SaleItemGroupWiseItemCopyWith(
+    SaleItemGroupWiseItem value,
+    $Res Function(SaleItemGroupWiseItem) then,
+  ) = _$SaleItemGroupWiseItemCopyWithImpl<$Res, SaleItemGroupWiseItem>;
+  @useResult
+  $Res call({
+    String? billNo,
+    String? date,
+    String? party,
+    String? productGroup,
+    String? productName,
+    double qty,
+    double prodPrice,
+    double prodDisPct,
+    double prodDisRs,
+    double otherDisPct,
+    double otherDisRs,
+    double prodValue,
+    double prodTxbleAmt,
+    double invoiceTotalAmt,
+    double cash,
+    double bank,
+  });
+}
+
+/// @nodoc
+class _$SaleItemGroupWiseItemCopyWithImpl<
+  $Res,
+  $Val extends SaleItemGroupWiseItem
+>
+    implements $SaleItemGroupWiseItemCopyWith<$Res> {
+  _$SaleItemGroupWiseItemCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of SaleItemGroupWiseItem
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? billNo = freezed,
+    Object? date = freezed,
+    Object? party = freezed,
+    Object? productGroup = freezed,
+    Object? productName = freezed,
+    Object? qty = null,
+    Object? prodPrice = null,
+    Object? prodDisPct = null,
+    Object? prodDisRs = null,
+    Object? otherDisPct = null,
+    Object? otherDisRs = null,
+    Object? prodValue = null,
+    Object? prodTxbleAmt = null,
+    Object? invoiceTotalAmt = null,
+    Object? cash = null,
+    Object? bank = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            billNo: freezed == billNo
+                ? _value.billNo
+                : billNo // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            date: freezed == date
+                ? _value.date
+                : date // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            party: freezed == party
+                ? _value.party
+                : party // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            productGroup: freezed == productGroup
+                ? _value.productGroup
+                : productGroup // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            productName: freezed == productName
+                ? _value.productName
+                : productName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            qty: null == qty
+                ? _value.qty
+                : qty // ignore: cast_nullable_to_non_nullable
+                      as double,
+            prodPrice: null == prodPrice
+                ? _value.prodPrice
+                : prodPrice // ignore: cast_nullable_to_non_nullable
+                      as double,
+            prodDisPct: null == prodDisPct
+                ? _value.prodDisPct
+                : prodDisPct // ignore: cast_nullable_to_non_nullable
+                      as double,
+            prodDisRs: null == prodDisRs
+                ? _value.prodDisRs
+                : prodDisRs // ignore: cast_nullable_to_non_nullable
+                      as double,
+            otherDisPct: null == otherDisPct
+                ? _value.otherDisPct
+                : otherDisPct // ignore: cast_nullable_to_non_nullable
+                      as double,
+            otherDisRs: null == otherDisRs
+                ? _value.otherDisRs
+                : otherDisRs // ignore: cast_nullable_to_non_nullable
+                      as double,
+            prodValue: null == prodValue
+                ? _value.prodValue
+                : prodValue // ignore: cast_nullable_to_non_nullable
+                      as double,
+            prodTxbleAmt: null == prodTxbleAmt
+                ? _value.prodTxbleAmt
+                : prodTxbleAmt // ignore: cast_nullable_to_non_nullable
+                      as double,
+            invoiceTotalAmt: null == invoiceTotalAmt
+                ? _value.invoiceTotalAmt
+                : invoiceTotalAmt // ignore: cast_nullable_to_non_nullable
+                      as double,
+            cash: null == cash
+                ? _value.cash
+                : cash // ignore: cast_nullable_to_non_nullable
+                      as double,
+            bank: null == bank
+                ? _value.bank
+                : bank // ignore: cast_nullable_to_non_nullable
+                      as double,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$SaleItemGroupWiseItemImplCopyWith<$Res>
+    implements $SaleItemGroupWiseItemCopyWith<$Res> {
+  factory _$$SaleItemGroupWiseItemImplCopyWith(
+    _$SaleItemGroupWiseItemImpl value,
+    $Res Function(_$SaleItemGroupWiseItemImpl) then,
+  ) = __$$SaleItemGroupWiseItemImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String? billNo,
+    String? date,
+    String? party,
+    String? productGroup,
+    String? productName,
+    double qty,
+    double prodPrice,
+    double prodDisPct,
+    double prodDisRs,
+    double otherDisPct,
+    double otherDisRs,
+    double prodValue,
+    double prodTxbleAmt,
+    double invoiceTotalAmt,
+    double cash,
+    double bank,
+  });
+}
+
+/// @nodoc
+class __$$SaleItemGroupWiseItemImplCopyWithImpl<$Res>
+    extends
+        _$SaleItemGroupWiseItemCopyWithImpl<$Res, _$SaleItemGroupWiseItemImpl>
+    implements _$$SaleItemGroupWiseItemImplCopyWith<$Res> {
+  __$$SaleItemGroupWiseItemImplCopyWithImpl(
+    _$SaleItemGroupWiseItemImpl _value,
+    $Res Function(_$SaleItemGroupWiseItemImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of SaleItemGroupWiseItem
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? billNo = freezed,
+    Object? date = freezed,
+    Object? party = freezed,
+    Object? productGroup = freezed,
+    Object? productName = freezed,
+    Object? qty = null,
+    Object? prodPrice = null,
+    Object? prodDisPct = null,
+    Object? prodDisRs = null,
+    Object? otherDisPct = null,
+    Object? otherDisRs = null,
+    Object? prodValue = null,
+    Object? prodTxbleAmt = null,
+    Object? invoiceTotalAmt = null,
+    Object? cash = null,
+    Object? bank = null,
+  }) {
+    return _then(
+      _$SaleItemGroupWiseItemImpl(
+        billNo: freezed == billNo
+            ? _value.billNo
+            : billNo // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        date: freezed == date
+            ? _value.date
+            : date // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        party: freezed == party
+            ? _value.party
+            : party // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        productGroup: freezed == productGroup
+            ? _value.productGroup
+            : productGroup // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        productName: freezed == productName
+            ? _value.productName
+            : productName // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        qty: null == qty
+            ? _value.qty
+            : qty // ignore: cast_nullable_to_non_nullable
+                  as double,
+        prodPrice: null == prodPrice
+            ? _value.prodPrice
+            : prodPrice // ignore: cast_nullable_to_non_nullable
+                  as double,
+        prodDisPct: null == prodDisPct
+            ? _value.prodDisPct
+            : prodDisPct // ignore: cast_nullable_to_non_nullable
+                  as double,
+        prodDisRs: null == prodDisRs
+            ? _value.prodDisRs
+            : prodDisRs // ignore: cast_nullable_to_non_nullable
+                  as double,
+        otherDisPct: null == otherDisPct
+            ? _value.otherDisPct
+            : otherDisPct // ignore: cast_nullable_to_non_nullable
+                  as double,
+        otherDisRs: null == otherDisRs
+            ? _value.otherDisRs
+            : otherDisRs // ignore: cast_nullable_to_non_nullable
+                  as double,
+        prodValue: null == prodValue
+            ? _value.prodValue
+            : prodValue // ignore: cast_nullable_to_non_nullable
+                  as double,
+        prodTxbleAmt: null == prodTxbleAmt
+            ? _value.prodTxbleAmt
+            : prodTxbleAmt // ignore: cast_nullable_to_non_nullable
+                  as double,
+        invoiceTotalAmt: null == invoiceTotalAmt
+            ? _value.invoiceTotalAmt
+            : invoiceTotalAmt // ignore: cast_nullable_to_non_nullable
+                  as double,
+        cash: null == cash
+            ? _value.cash
+            : cash // ignore: cast_nullable_to_non_nullable
+                  as double,
+        bank: null == bank
+            ? _value.bank
+            : bank // ignore: cast_nullable_to_non_nullable
+                  as double,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$SaleItemGroupWiseItemImpl implements _SaleItemGroupWiseItem {
+  const _$SaleItemGroupWiseItemImpl({
+    this.billNo,
+    this.date,
+    this.party,
+    this.productGroup,
+    this.productName,
+    this.qty = 0,
+    this.prodPrice = 0,
+    this.prodDisPct = 0,
+    this.prodDisRs = 0,
+    this.otherDisPct = 0,
+    this.otherDisRs = 0,
+    this.prodValue = 0,
+    this.prodTxbleAmt = 0,
+    this.invoiceTotalAmt = 0,
+    this.cash = 0,
+    this.bank = 0,
+  });
+
+  factory _$SaleItemGroupWiseItemImpl.fromJson(Map<String, dynamic> json) =>
+      _$$SaleItemGroupWiseItemImplFromJson(json);
+
+  @override
+  final String? billNo;
+  @override
+  final String? date;
+  @override
+  final String? party;
+  @override
+  final String? productGroup;
+  @override
+  final String? productName;
+  @override
+  @JsonKey()
+  final double qty;
+  @override
+  @JsonKey()
+  final double prodPrice;
+  @override
+  @JsonKey()
+  final double prodDisPct;
+  @override
+  @JsonKey()
+  final double prodDisRs;
+  @override
+  @JsonKey()
+  final double otherDisPct;
+  @override
+  @JsonKey()
+  final double otherDisRs;
+  @override
+  @JsonKey()
+  final double prodValue;
+  @override
+  @JsonKey()
+  final double prodTxbleAmt;
+  @override
+  @JsonKey()
+  final double invoiceTotalAmt;
+  @override
+  @JsonKey()
+  final double cash;
+  @override
+  @JsonKey()
+  final double bank;
+
+  @override
+  String toString() {
+    return 'SaleItemGroupWiseItem(billNo: $billNo, date: $date, party: $party, productGroup: $productGroup, productName: $productName, qty: $qty, prodPrice: $prodPrice, prodDisPct: $prodDisPct, prodDisRs: $prodDisRs, otherDisPct: $otherDisPct, otherDisRs: $otherDisRs, prodValue: $prodValue, prodTxbleAmt: $prodTxbleAmt, invoiceTotalAmt: $invoiceTotalAmt, cash: $cash, bank: $bank)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$SaleItemGroupWiseItemImpl &&
+            (identical(other.billNo, billNo) || other.billNo == billNo) &&
+            (identical(other.date, date) || other.date == date) &&
+            (identical(other.party, party) || other.party == party) &&
+            (identical(other.productGroup, productGroup) ||
+                other.productGroup == productGroup) &&
+            (identical(other.productName, productName) ||
+                other.productName == productName) &&
+            (identical(other.qty, qty) || other.qty == qty) &&
+            (identical(other.prodPrice, prodPrice) ||
+                other.prodPrice == prodPrice) &&
+            (identical(other.prodDisPct, prodDisPct) ||
+                other.prodDisPct == prodDisPct) &&
+            (identical(other.prodDisRs, prodDisRs) ||
+                other.prodDisRs == prodDisRs) &&
+            (identical(other.otherDisPct, otherDisPct) ||
+                other.otherDisPct == otherDisPct) &&
+            (identical(other.otherDisRs, otherDisRs) ||
+                other.otherDisRs == otherDisRs) &&
+            (identical(other.prodValue, prodValue) ||
+                other.prodValue == prodValue) &&
+            (identical(other.prodTxbleAmt, prodTxbleAmt) ||
+                other.prodTxbleAmt == prodTxbleAmt) &&
+            (identical(other.invoiceTotalAmt, invoiceTotalAmt) ||
+                other.invoiceTotalAmt == invoiceTotalAmt) &&
+            (identical(other.cash, cash) || other.cash == cash) &&
+            (identical(other.bank, bank) || other.bank == bank));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    billNo,
+    date,
+    party,
+    productGroup,
+    productName,
+    qty,
+    prodPrice,
+    prodDisPct,
+    prodDisRs,
+    otherDisPct,
+    otherDisRs,
+    prodValue,
+    prodTxbleAmt,
+    invoiceTotalAmt,
+    cash,
+    bank,
+  );
+
+  /// Create a copy of SaleItemGroupWiseItem
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$SaleItemGroupWiseItemImplCopyWith<_$SaleItemGroupWiseItemImpl>
+  get copyWith =>
+      __$$SaleItemGroupWiseItemImplCopyWithImpl<_$SaleItemGroupWiseItemImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$SaleItemGroupWiseItemImplToJson(this);
+  }
+}
+
+abstract class _SaleItemGroupWiseItem implements SaleItemGroupWiseItem {
+  const factory _SaleItemGroupWiseItem({
+    final String? billNo,
+    final String? date,
+    final String? party,
+    final String? productGroup,
+    final String? productName,
+    final double qty,
+    final double prodPrice,
+    final double prodDisPct,
+    final double prodDisRs,
+    final double otherDisPct,
+    final double otherDisRs,
+    final double prodValue,
+    final double prodTxbleAmt,
+    final double invoiceTotalAmt,
+    final double cash,
+    final double bank,
+  }) = _$SaleItemGroupWiseItemImpl;
+
+  factory _SaleItemGroupWiseItem.fromJson(Map<String, dynamic> json) =
+      _$SaleItemGroupWiseItemImpl.fromJson;
+
+  @override
+  String? get billNo;
+  @override
+  String? get date;
+  @override
+  String? get party;
+  @override
+  String? get productGroup;
+  @override
+  String? get productName;
+  @override
+  double get qty;
+  @override
+  double get prodPrice;
+  @override
+  double get prodDisPct;
+  @override
+  double get prodDisRs;
+  @override
+  double get otherDisPct;
+  @override
+  double get otherDisRs;
+  @override
+  double get prodValue;
+  @override
+  double get prodTxbleAmt;
+  @override
+  double get invoiceTotalAmt;
+  @override
+  double get cash;
+  @override
+  double get bank;
+
+  /// Create a copy of SaleItemGroupWiseItem
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$SaleItemGroupWiseItemImplCopyWith<_$SaleItemGroupWiseItemImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+BookedByReportItem _$BookedByReportItemFromJson(Map<String, dynamic> json) {
+  return _BookedByReportItem.fromJson(json);
+}
+
+/// @nodoc
+mixin _$BookedByReportItem {
+  String? get id => throw _privateConstructorUsedError;
+  String? get orderDate => throw _privateConstructorUsedError;
+  String? get orderTime => throw _privateConstructorUsedError;
+  String? get billNo => throw _privateConstructorUsedError;
+  String? get bookedBy => throw _privateConstructorUsedError;
+  String? get itemName => throw _privateConstructorUsedError;
+  String? get eye => throw _privateConstructorUsedError;
+  dynamic get sph => throw _privateConstructorUsedError;
+  dynamic get cyl => throw _privateConstructorUsedError;
+  dynamic get axis => throw _privateConstructorUsedError;
+  dynamic get add => throw _privateConstructorUsedError;
+  int get qty => throw _privateConstructorUsedError;
+  double get netAmount => throw _privateConstructorUsedError;
+  String? get partyName => throw _privateConstructorUsedError;
+  String? get remark => throw _privateConstructorUsedError;
+  String? get orderType => throw _privateConstructorUsedError;
+
+  /// Serializes this BookedByReportItem to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of BookedByReportItem
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $BookedByReportItemCopyWith<BookedByReportItem> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $BookedByReportItemCopyWith<$Res> {
+  factory $BookedByReportItemCopyWith(
+    BookedByReportItem value,
+    $Res Function(BookedByReportItem) then,
+  ) = _$BookedByReportItemCopyWithImpl<$Res, BookedByReportItem>;
+  @useResult
+  $Res call({
+    String? id,
+    String? orderDate,
+    String? orderTime,
+    String? billNo,
+    String? bookedBy,
+    String? itemName,
+    String? eye,
+    dynamic sph,
+    dynamic cyl,
+    dynamic axis,
+    dynamic add,
+    int qty,
+    double netAmount,
+    String? partyName,
+    String? remark,
+    String? orderType,
+  });
+}
+
+/// @nodoc
+class _$BookedByReportItemCopyWithImpl<$Res, $Val extends BookedByReportItem>
+    implements $BookedByReportItemCopyWith<$Res> {
+  _$BookedByReportItemCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of BookedByReportItem
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = freezed,
+    Object? orderDate = freezed,
+    Object? orderTime = freezed,
+    Object? billNo = freezed,
+    Object? bookedBy = freezed,
+    Object? itemName = freezed,
+    Object? eye = freezed,
+    Object? sph = freezed,
+    Object? cyl = freezed,
+    Object? axis = freezed,
+    Object? add = freezed,
+    Object? qty = null,
+    Object? netAmount = null,
+    Object? partyName = freezed,
+    Object? remark = freezed,
+    Object? orderType = freezed,
+  }) {
+    return _then(
+      _value.copyWith(
+            id: freezed == id
+                ? _value.id
+                : id // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            orderDate: freezed == orderDate
+                ? _value.orderDate
+                : orderDate // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            orderTime: freezed == orderTime
+                ? _value.orderTime
+                : orderTime // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            billNo: freezed == billNo
+                ? _value.billNo
+                : billNo // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            bookedBy: freezed == bookedBy
+                ? _value.bookedBy
+                : bookedBy // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            itemName: freezed == itemName
+                ? _value.itemName
+                : itemName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            eye: freezed == eye
+                ? _value.eye
+                : eye // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            sph: freezed == sph
+                ? _value.sph
+                : sph // ignore: cast_nullable_to_non_nullable
+                      as dynamic,
+            cyl: freezed == cyl
+                ? _value.cyl
+                : cyl // ignore: cast_nullable_to_non_nullable
+                      as dynamic,
+            axis: freezed == axis
+                ? _value.axis
+                : axis // ignore: cast_nullable_to_non_nullable
+                      as dynamic,
+            add: freezed == add
+                ? _value.add
+                : add // ignore: cast_nullable_to_non_nullable
+                      as dynamic,
+            qty: null == qty
+                ? _value.qty
+                : qty // ignore: cast_nullable_to_non_nullable
+                      as int,
+            netAmount: null == netAmount
+                ? _value.netAmount
+                : netAmount // ignore: cast_nullable_to_non_nullable
+                      as double,
+            partyName: freezed == partyName
+                ? _value.partyName
+                : partyName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            remark: freezed == remark
+                ? _value.remark
+                : remark // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            orderType: freezed == orderType
+                ? _value.orderType
+                : orderType // ignore: cast_nullable_to_non_nullable
+                      as String?,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$BookedByReportItemImplCopyWith<$Res>
+    implements $BookedByReportItemCopyWith<$Res> {
+  factory _$$BookedByReportItemImplCopyWith(
+    _$BookedByReportItemImpl value,
+    $Res Function(_$BookedByReportItemImpl) then,
+  ) = __$$BookedByReportItemImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String? id,
+    String? orderDate,
+    String? orderTime,
+    String? billNo,
+    String? bookedBy,
+    String? itemName,
+    String? eye,
+    dynamic sph,
+    dynamic cyl,
+    dynamic axis,
+    dynamic add,
+    int qty,
+    double netAmount,
+    String? partyName,
+    String? remark,
+    String? orderType,
+  });
+}
+
+/// @nodoc
+class __$$BookedByReportItemImplCopyWithImpl<$Res>
+    extends _$BookedByReportItemCopyWithImpl<$Res, _$BookedByReportItemImpl>
+    implements _$$BookedByReportItemImplCopyWith<$Res> {
+  __$$BookedByReportItemImplCopyWithImpl(
+    _$BookedByReportItemImpl _value,
+    $Res Function(_$BookedByReportItemImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of BookedByReportItem
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = freezed,
+    Object? orderDate = freezed,
+    Object? orderTime = freezed,
+    Object? billNo = freezed,
+    Object? bookedBy = freezed,
+    Object? itemName = freezed,
+    Object? eye = freezed,
+    Object? sph = freezed,
+    Object? cyl = freezed,
+    Object? axis = freezed,
+    Object? add = freezed,
+    Object? qty = null,
+    Object? netAmount = null,
+    Object? partyName = freezed,
+    Object? remark = freezed,
+    Object? orderType = freezed,
+  }) {
+    return _then(
+      _$BookedByReportItemImpl(
+        id: freezed == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        orderDate: freezed == orderDate
+            ? _value.orderDate
+            : orderDate // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        orderTime: freezed == orderTime
+            ? _value.orderTime
+            : orderTime // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        billNo: freezed == billNo
+            ? _value.billNo
+            : billNo // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        bookedBy: freezed == bookedBy
+            ? _value.bookedBy
+            : bookedBy // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        itemName: freezed == itemName
+            ? _value.itemName
+            : itemName // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        eye: freezed == eye
+            ? _value.eye
+            : eye // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        sph: freezed == sph
+            ? _value.sph
+            : sph // ignore: cast_nullable_to_non_nullable
+                  as dynamic,
+        cyl: freezed == cyl
+            ? _value.cyl
+            : cyl // ignore: cast_nullable_to_non_nullable
+                  as dynamic,
+        axis: freezed == axis
+            ? _value.axis
+            : axis // ignore: cast_nullable_to_non_nullable
+                  as dynamic,
+        add: freezed == add
+            ? _value.add
+            : add // ignore: cast_nullable_to_non_nullable
+                  as dynamic,
+        qty: null == qty
+            ? _value.qty
+            : qty // ignore: cast_nullable_to_non_nullable
+                  as int,
+        netAmount: null == netAmount
+            ? _value.netAmount
+            : netAmount // ignore: cast_nullable_to_non_nullable
+                  as double,
+        partyName: freezed == partyName
+            ? _value.partyName
+            : partyName // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        remark: freezed == remark
+            ? _value.remark
+            : remark // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        orderType: freezed == orderType
+            ? _value.orderType
+            : orderType // ignore: cast_nullable_to_non_nullable
+                  as String?,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$BookedByReportItemImpl implements _BookedByReportItem {
+  const _$BookedByReportItemImpl({
+    this.id,
+    this.orderDate,
+    this.orderTime,
+    this.billNo,
+    this.bookedBy,
+    this.itemName,
+    this.eye,
+    this.sph,
+    this.cyl,
+    this.axis,
+    this.add,
+    this.qty = 0,
+    this.netAmount = 0.0,
+    this.partyName,
+    this.remark,
+    this.orderType,
+  });
+
+  factory _$BookedByReportItemImpl.fromJson(Map<String, dynamic> json) =>
+      _$$BookedByReportItemImplFromJson(json);
+
+  @override
+  final String? id;
+  @override
+  final String? orderDate;
+  @override
+  final String? orderTime;
+  @override
+  final String? billNo;
+  @override
+  final String? bookedBy;
+  @override
+  final String? itemName;
+  @override
+  final String? eye;
+  @override
+  final dynamic sph;
+  @override
+  final dynamic cyl;
+  @override
+  final dynamic axis;
+  @override
+  final dynamic add;
+  @override
+  @JsonKey()
+  final int qty;
+  @override
+  @JsonKey()
+  final double netAmount;
+  @override
+  final String? partyName;
+  @override
+  final String? remark;
+  @override
+  final String? orderType;
+
+  @override
+  String toString() {
+    return 'BookedByReportItem(id: $id, orderDate: $orderDate, orderTime: $orderTime, billNo: $billNo, bookedBy: $bookedBy, itemName: $itemName, eye: $eye, sph: $sph, cyl: $cyl, axis: $axis, add: $add, qty: $qty, netAmount: $netAmount, partyName: $partyName, remark: $remark, orderType: $orderType)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$BookedByReportItemImpl &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.orderDate, orderDate) ||
+                other.orderDate == orderDate) &&
+            (identical(other.orderTime, orderTime) ||
+                other.orderTime == orderTime) &&
+            (identical(other.billNo, billNo) || other.billNo == billNo) &&
+            (identical(other.bookedBy, bookedBy) ||
+                other.bookedBy == bookedBy) &&
+            (identical(other.itemName, itemName) ||
+                other.itemName == itemName) &&
+            (identical(other.eye, eye) || other.eye == eye) &&
+            const DeepCollectionEquality().equals(other.sph, sph) &&
+            const DeepCollectionEquality().equals(other.cyl, cyl) &&
+            const DeepCollectionEquality().equals(other.axis, axis) &&
+            const DeepCollectionEquality().equals(other.add, add) &&
+            (identical(other.qty, qty) || other.qty == qty) &&
+            (identical(other.netAmount, netAmount) ||
+                other.netAmount == netAmount) &&
+            (identical(other.partyName, partyName) ||
+                other.partyName == partyName) &&
+            (identical(other.remark, remark) || other.remark == remark) &&
+            (identical(other.orderType, orderType) ||
+                other.orderType == orderType));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    orderDate,
+    orderTime,
+    billNo,
+    bookedBy,
+    itemName,
+    eye,
+    const DeepCollectionEquality().hash(sph),
+    const DeepCollectionEquality().hash(cyl),
+    const DeepCollectionEquality().hash(axis),
+    const DeepCollectionEquality().hash(add),
+    qty,
+    netAmount,
+    partyName,
+    remark,
+    orderType,
+  );
+
+  /// Create a copy of BookedByReportItem
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$BookedByReportItemImplCopyWith<_$BookedByReportItemImpl> get copyWith =>
+      __$$BookedByReportItemImplCopyWithImpl<_$BookedByReportItemImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$BookedByReportItemImplToJson(this);
+  }
+}
+
+abstract class _BookedByReportItem implements BookedByReportItem {
+  const factory _BookedByReportItem({
+    final String? id,
+    final String? orderDate,
+    final String? orderTime,
+    final String? billNo,
+    final String? bookedBy,
+    final String? itemName,
+    final String? eye,
+    final dynamic sph,
+    final dynamic cyl,
+    final dynamic axis,
+    final dynamic add,
+    final int qty,
+    final double netAmount,
+    final String? partyName,
+    final String? remark,
+    final String? orderType,
+  }) = _$BookedByReportItemImpl;
+
+  factory _BookedByReportItem.fromJson(Map<String, dynamic> json) =
+      _$BookedByReportItemImpl.fromJson;
+
+  @override
+  String? get id;
+  @override
+  String? get orderDate;
+  @override
+  String? get orderTime;
+  @override
+  String? get billNo;
+  @override
+  String? get bookedBy;
+  @override
+  String? get itemName;
+  @override
+  String? get eye;
+  @override
+  dynamic get sph;
+  @override
+  dynamic get cyl;
+  @override
+  dynamic get axis;
+  @override
+  dynamic get add;
+  @override
+  int get qty;
+  @override
+  double get netAmount;
+  @override
+  String? get partyName;
+  @override
+  String? get remark;
+  @override
+  String? get orderType;
+
+  /// Create a copy of BookedByReportItem
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$BookedByReportItemImplCopyWith<_$BookedByReportItemImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }

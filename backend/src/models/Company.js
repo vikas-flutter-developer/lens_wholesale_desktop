@@ -44,6 +44,8 @@ const CompanySchema = new Schema({
     autoInvoiceEnabled: { type: Boolean, default: false },
     invoiceDates: { type: [Number], default: [] }, // e.g. [15, 30]
 
+    isBlocked: { type: Boolean, default: false },
+
 }, { timestamps: true });
 
 const Company = mongoose.model("Company", CompanySchema);

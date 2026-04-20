@@ -1,10 +1,11 @@
 import express from 'express';
 import authMiddleware from '../middlewares/AuthMiddleware.js';
-import { addLensPurchaseOrder, getLensPurchaseOrder, getAllLensPurchaseOrder, editLensPurchaseOrder, removeLensPurchaseOrder, createLensPurchaseInvoice, createLensPurchaseChallan, updatePurchaseOrderStatus, updateOrderQuantities, updatePurchaseItemStatus, updateItemQty, updatePurchaseOrderItemsQty, updateCancelReason } from '../controllers/LensPurchaseOrder.controller.js'
+import { addLensPurchaseOrder, getLensPurchaseOrder, getAllLensPurchaseOrder, editLensPurchaseOrder, removeLensPurchaseOrder, createLensPurchaseInvoice, createLensPurchaseChallan, updatePurchaseOrderStatus, updateOrderQuantities, updatePurchaseItemStatus, updateItemQty, updatePurchaseOrderItemsQty, updateCancelReason, getNextBillNumberForLensPurchaseOrder } from '../controllers/LensPurchaseOrder.controller.js'
 const router = express.Router();
 
 router.post('/createLensPurchaseOrder', authMiddleware, addLensPurchaseOrder);
 router.post('/getLensPurchaseOrder', authMiddleware, getLensPurchaseOrder);
+router.post('/getNextBillNumber', authMiddleware, getNextBillNumberForLensPurchaseOrder);
 router.post('/createLensInvoice', authMiddleware, createLensPurchaseInvoice);
 router.post('/createLensChallan', authMiddleware, createLensPurchaseChallan);
 router.get('/getAllLensPurchaseOrder', authMiddleware, getAllLensPurchaseOrder);

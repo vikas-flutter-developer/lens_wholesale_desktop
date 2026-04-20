@@ -15,6 +15,7 @@ import {
     Barcode
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { printLensLocationBarcodes } from "../utils/LensLocationBarcodeHelper";
 
 function LensLocation() {
     const [formData, setFormData] = useState({
@@ -459,73 +460,16 @@ function LensLocation() {
         }, 500);
     };
 
-    const handleBarcodePrint = () => {
-        const nonZeroCells = [];
-        matrix.rows.forEach(row => {
-            matrix.addValues.forEach(add => {
-                const cellKey = `${row.sph}_${row.cyl}_${row.eye}_${add}`;
-                const qty = matrixData[cellKey];
-                if (qty && Number(qty) > 0) {
-                    nonZeroCells.push({
-                        sph: row.sph.toFixed(2),
-                        cyl: row.cyl.toFixed(2),
-                        eye: row.eye,
-                        add: `+${add.toFixed(2)}`,
-                        qty: qty
-                    });
-                }
-            });
-        });
-
-        if (nonZeroCells.length === 0) {
-            toast.error("No non-zero cells to print barcodes for.");
+    const handleBarcodePrint = async () => {
+        if (!matrix.rows.length) {
+            toast.error("No data to print.");
             return;
         }
 
-        const printWindow = window.open("", "_blank");
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Barcode Print</title>
-                    <style>
-                        body { font-family: sans-serif; margin: 0; padding: 20px; }
-                        .barcode-grid { 
-                            display: grid; 
-                            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
-                            gap: 15px; 
-                        }
-                        .label { 
-                            border: 1px dashed #ccc; 
-                            padding: 10px; 
-                            text-align: center; 
-                            page-break-inside: avoid;
-                        }
-                        .item-title { font-size: 10px; color: #666; margin-bottom: 5px; }
-                        .power-row { font-weight: bold; font-size: 14px; }
-                        .eye-add { font-size: 12px; margin-top: 3px; }
-                        .qty { font-size: 10px; font-weight: normal; margin-top: 5px; color: #444; }
-                        @media print {
-                            body { padding: 0; }
-                            .no-print { display: none; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="barcode-grid">
-                        ${nonZeroCells.map(c => `
-                            <div class="label">
-                                <div class="item-title">${formData.productName}</div>
-                                <div class="power-row">S: ${c.sph} C: ${c.cyl}</div>
-                                <div class="eye-add">Eye: ${c.eye} | Add: ${c.add}</div>
-                                <div class="qty">Qty: ${c.qty}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
+        const res = await printLensLocationBarcodes(formData, matrix, matrixData, locationMap);
+        if (res && !res.success) {
+            toast.error(res.message);
+        }
     };
 
     // Matrix construction

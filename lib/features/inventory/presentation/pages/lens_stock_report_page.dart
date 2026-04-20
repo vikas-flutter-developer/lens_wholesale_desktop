@@ -14,8 +14,6 @@ class LensStockReportPage extends StatefulWidget {
 }
 
 class _LensStockReportPageState extends State<LensStockReportPage> with SingleTickerProviderStateMixin {
-  final TextEditingController _scanController = TextEditingController();
-  final FocusNode _scanFocusNode = FocusNode();
   late TabController _tabController;
   
   String? _selectedLensGroupId;
@@ -27,7 +25,6 @@ class _LensStockReportPageState extends State<LensStockReportPage> with SingleTi
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scanFocusNode.requestFocus();
       Provider.of<master_providers.LensGroupProvider>(context, listen: false).fetchAllLensPower();
       Provider.of<master_providers.ItemMasterProvider>(context, listen: false).fetchItems();
     });
@@ -35,59 +32,10 @@ class _LensStockReportPageState extends State<LensStockReportPage> with SingleTi
 
   @override
   void dispose() {
-    _scanController.dispose();
-    _scanFocusNode.dispose();
     _tabController.dispose();
     super.dispose();
   }
 
-  void _handleScan(String value) async {
-    if (value.isEmpty) return;
-    
-    final provider = Provider.of<InventoryProvider>(context, listen: false);
-    final barcodeData = await provider.lookupBarcode(value);
-
-    if (barcodeData != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Found Item: ${barcodeData.productId}'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      setState(() {
-        _selectedLensGroupId = barcodeData.productId;
-      });
-      provider.fetchStockReport(
-        lensGroup: barcodeData.productId,
-        sph: barcodeData.sph,
-        cyl: barcodeData.cyl,
-        add: barcodeData.add,
-      );
-    } else if (mounted) {
-      final deliveryData = await provider.checkDeliveryQR(value);
-      if (deliveryData != null) {
-        _showDeliveryConfirmation(deliveryData);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Not found'), backgroundColor: Colors.orange),
-        );
-      }
-    }
-    
-    _scanController.clear();
-    _scanFocusNode.requestFocus();
-  }
-
-  void _showDeliveryConfirmation(Map<String, dynamic> data) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delivery Confirmed'),
-        content: Text('Order ID: ${data['lensData']?['orderId'] ?? 'N/A'}'),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,8 +51,6 @@ class _LensStockReportPageState extends State<LensStockReportPage> with SingleTi
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            const SizedBox(height: 24),
-            _buildFastScanBar(),
             const SizedBox(height: 24),
             _buildFilters(lensGroupProvider, itemProvider),
             const SizedBox(height: 24),
@@ -161,41 +107,6 @@ class _LensStockReportPageState extends State<LensStockReportPage> with SingleTi
     );
   }
 
-  Widget _buildFastScanBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: Row(
-        children: [
-          const Icon(LucideIcons.scanLine, color: Color(0xFF3B82F6), size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: KeyboardListener(
-              focusNode: FocusNode(),
-              onKeyEvent: (event) {
-                if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
-                  _handleScan(_scanController.text);
-                }
-              },
-              child: TextField(
-                controller: _scanController,
-                focusNode: _scanFocusNode,
-                onSubmitted: _handleScan,
-                decoration: const InputDecoration(
-                  hintText: "Fast Input: SCAN barcode or QR...",
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildFilters(master_providers.LensGroupProvider lensGroups, master_providers.ItemMasterProvider items) {
     return Row(

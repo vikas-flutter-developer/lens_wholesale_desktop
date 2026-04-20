@@ -28,7 +28,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../AuthContext";
 import { getFinancialYearSeries } from "../utils/billingUtils";
-import { roundAmount } from "../utils/amountUtils";
+import { roundAmount, formatPowerValue } from "../utils/amountUtils";
+import { getBarcodeDetails, getBarcodeErrorMessage, getLensPriceByPower } from "../controllers/barcode.controller";
 
 function AddRxSaleReturn() {
   const { user } = useContext(AuthContext);
@@ -84,7 +85,7 @@ function AddRxSaleReturn() {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await getAllAccounts();
+        const res = await getAllAccounts("sale"); // Filter for Sale and Both account types
         setAccounts(Array.isArray(res) ? res : []);
       } catch (err) {
         console.error("getAllAccounts failed:", err);
@@ -351,9 +352,11 @@ function AddRxSaleReturn() {
   const query = (partyData.partyAccount || "").trim();
   const filteredAccounts =
     query.length > 0
-      ? accounts.filter((acc) =>
-        String(acc.Name || "").toLowerCase().includes(query.toLowerCase())
-      )
+      ? accounts.filter((acc) => {
+        const name = String(acc.Name || "").toLowerCase();
+        const accountId = String(acc.AccountId || "").toLowerCase();
+        return name.includes(query.toLowerCase()) || accountId.includes(query.toLowerCase());
+      })
       : accounts.slice(0, 10);
 
   useEffect(() => {
@@ -738,12 +741,41 @@ function AddRxSaleReturn() {
         }
       }
 
-      // calculate totalAmount based on salePrice
-      const qty = parseFloat(copy[index].qty) || 0;
-      const price = parseFloat(copy[index].salePrice) || 0;
-      const disc = Number(copy[index].discount) || 0;
-      const discountAmount = qty * price * (disc / 100);
-      copy[index].totalAmount = (qty * price - discountAmount).toFixed(2);
+      // ── Price Sync Logic: Fetch prices for power-based items ──────────────
+      // When power fields change, fetch Lens Group pricing (with or without itemId)
+      if (["itemName", "sph", "cyl", "axis", "add"].includes(field)) {
+        const item = copy[index];
+        if (item.itemName && (item.sph !== "" || item.cyl !== "" || item.add !== "")) {
+          // If itemId exists, use it; otherwise try to find it from itemName
+          let itemIdToUse = item.itemId;
+          if (!itemIdToUse && item.itemName) {
+            // Find the item in allLens to get its ID
+            const foundLens = allLens.find(lx => lx.productName === item.itemName || lx.itemName === item.itemName);
+            itemIdToUse = foundLens?.id || foundLens?._id || foundLens?.itemId;
+          }
+          
+          if (itemIdToUse) {
+            getLensPriceByPower(itemIdToUse, item.sph, item.cyl, item.axis, item.add)
+              .then(priceData => {
+                if (priceData && priceData.found) {
+                  setItems(current => {
+                    const updated = [...current];
+                    if (updated[index]) {
+                      updated[index].salePrice = priceData.salePrice || updated[index].salePrice;
+                      // Recalculate totalAmount with new price
+                      const qty = parseFloat(updated[index].qty) || 0;
+                      const newPrice = parseFloat(updated[index].salePrice) || 0;
+                      const disc = Number(updated[index].discount) || 0;
+                      updated[index].totalAmount = (qty * newPrice - qty * newPrice * (disc / 100)).toFixed(2);
+                    }
+                    return updated;
+                  });
+                }
+              })
+              .catch(err => console.error("Price fetch error:", err));
+          }
+        }
+      }
 
       return copy;
     });
@@ -1278,7 +1310,7 @@ function AddRxSaleReturn() {
                           }`}
                       >
                         <div className="flex justify-between items-center gap-2">
-                          <div className="font-medium">{acc.Name || "-"}</div>
+                          <div className="font-medium">{acc.Name || "-"} (ID: {acc.AccountId}) - Station: {acc.Stations?.[0] || "-"}</div>
                           <div className="text-xs text-slate-400">
                             {acc.MobileNumber || ""}
                           </div>
@@ -1559,7 +1591,7 @@ function AddRxSaleReturn() {
                             value={item.sph}
                             onChange={(e) =>
                               updateItem(index, "sph", e.target.value)
-                            }
+                            } onBlur={(e) => updateItem(index, "sph", formatPowerValue(e.target.value))}
                             className="w-full px-1 py-1.5 text-xs text-center font-mono bg-transparent border-b border-dashed border-slate-300 focus:border-blue-500 focus:bg-white rounded-none outline-none"
                           />
                         </td>
@@ -1570,7 +1602,7 @@ function AddRxSaleReturn() {
                             value={item.cyl}
                             onChange={(e) =>
                               updateItem(index, "cyl", e.target.value)
-                            }
+                            } onBlur={(e) => updateItem(index, "cyl", formatPowerValue(e.target.value))}
                             className="w-full px-1 py-1.5 text-xs text-center font-mono bg-transparent border-b border-dashed border-slate-300 focus:border-blue-500 focus:bg-white rounded-none outline-none"
                           />
                         </td>
@@ -1592,7 +1624,7 @@ function AddRxSaleReturn() {
                             value={item.add}
                             onChange={(e) =>
                               updateItem(index, "add", e.target.value)
-                            }
+                            } onBlur={(e) => updateItem(index, "add", formatPowerValue(e.target.value))}
                             className="w-full px-1 py-1.5 text-xs text-center font-mono bg-transparent border-b border-dashed border-slate-300 focus:border-blue-500 focus:bg-white rounded-none outline-none"
                           />
                         </td>

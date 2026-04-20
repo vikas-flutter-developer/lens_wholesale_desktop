@@ -101,6 +101,7 @@ _$LensAddGroupImpl _$$LensAddGroupImplFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String?,
       name: json['name'] as String?,
       label: json['label'] as String?,
+      addValue: _parseString(json['addValue']),
       combinations: json['combinations'] == null
           ? const []
           : _parseCombinations(json['combinations']),
@@ -111,6 +112,7 @@ Map<String, dynamic> _$$LensAddGroupImplToJson(_$LensAddGroupImpl instance) =>
       'id': instance.id,
       'name': instance.name,
       'label': instance.label,
+      'addValue': instance.addValue,
       'combinations': instance.combinations,
     };
 

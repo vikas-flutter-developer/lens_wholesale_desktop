@@ -18,6 +18,7 @@ import { getPartyWiseItemReport } from '../controllers/Reports.controller';
 import { getAllGroups } from '../controllers/groupcontroller';
 import { getAllAccounts } from '../controllers/Account.controller';
 import { getAllLensPower } from '../controllers/LensGroupCreationController';
+import { getAllItems } from '../controllers/itemcontroller';
 import toast from 'react-hot-toast';
 
 export default function PartyWiseItemReport() {
@@ -90,12 +91,14 @@ export default function PartyWiseItemReport() {
         cyl: true,
         axis: true,
         add: true,
+        remark: true,
         qty: true,
         loc: true,
         pricePerUnit: true,
         totalPrice: true,
         productMargin: true,
-        remark: false,
+        vendorName: true,
+        dc_id: true,
     });
 
     const columnLabels = {
@@ -117,6 +120,8 @@ export default function PartyWiseItemReport() {
         totalPrice: 'Total Price',
         productMargin: 'Product Margin',
         remark: 'Remarks',
+        vendorName: 'Vendor Name',
+        dc_id: 'DC ID',
     };
 
     const transactionTypes = [
@@ -144,34 +149,47 @@ export default function PartyWiseItemReport() {
 
     const fetchInitialData = async () => {
         try {
-            const [groupRes, accountRes, itemRes] = await Promise.all([
+            const [groupRes, accountRes, itemRes, itemMasterRes] = await Promise.all([
                 getAllGroups(),
                 getAllAccounts(),
-                getAllLensPower()
+                getAllLensPower(),
+                getAllItems()
             ]);
             setGroups(groupRes.groups || []);
             setAccounts(Array.isArray(accountRes) ? accountRes : accountRes.data || []);
             const itemData = itemRes?.data ?? itemRes;
             setItems(Array.isArray(itemData) ? itemData : []);
 
-            // Build lens master map for margin calculation
+            // Build price map for margin calculation (Lens combinations + Item Master)
+            const map = {};
+            
+            // Add Lens Group combinations (by combinationId)
             if (itemRes?.success && Array.isArray(itemRes.data)) {
-                const map = {};
                 itemRes.data.forEach((group) => {
                     if (group.addGroups) {
                         group.addGroups.forEach((ag) => {
                             if (ag.combinations) {
                                 ag.combinations.forEach((comb) => {
                                     if (comb._id) {
-                                        map[String(comb._id)] = Number(comb.pPrice) || 0;
+                                        map[`comb_${String(comb._id)}`] = Number(comb.pPrice) || 0;
                                     }
                                 });
                             }
                         });
                     }
                 });
-                setLensMasterMap(map);
             }
+            
+            // Add Item Master items (by itemName) - for non-power-range items
+            if (itemMasterRes?.items && Array.isArray(itemMasterRes.items)) {
+                itemMasterRes.items.forEach((item) => {
+                    if (item.itemName) {
+                        map[`item_${String(item.itemName).toLowerCase()}`] = Number(item.purchasePrice) || 0;
+                    }
+                });
+            }
+            
+            setLensMasterMap(map);
         } catch (error) {
             console.error('Error fetching initial data:', error);
         }
@@ -228,7 +246,14 @@ export default function PartyWiseItemReport() {
             visibleCols.map(col => {
                 const value = row[col];
                 if (col === 'productMargin') {
-                    const cost = Number(row.purchasePrice || 0) || lensMasterMap[row.combinationId] || 0;
+                    let cost = Number(row.purchasePrice || 0);
+                    if (cost === 0) {
+                      if (row.combinationId && lensMasterMap[`comb_${row.combinationId}`] !== undefined) {
+                        cost = lensMasterMap[`comb_${row.combinationId}`];
+                      } else if (row.productName && lensMasterMap[`item_${String(row.productName).toLowerCase()}`] !== undefined) {
+                        cost = lensMasterMap[`item_${String(row.productName).toLowerCase()}`];
+                      }
+                    }
                     const totalCost = cost * (Number(row.qty) || 0);
                     const margin = (Number(row.totalPrice) || 0) - totalCost;
                     if (marginUnit === 'percent') {
@@ -273,7 +298,14 @@ export default function PartyWiseItemReport() {
                 val = (parseFloat(val) || 0).toFixed(2);
             }
             if (col.key === 'productMargin') {
-                const cost = Number(row.purchasePrice || 0) || lensMasterMap[row.combinationId] || 0;
+                let cost = Number(row.purchasePrice || 0);
+                if (cost === 0) {
+                  if (row.combinationId && lensMasterMap[`comb_${row.combinationId}`] !== undefined) {
+                    cost = lensMasterMap[`comb_${row.combinationId}`];
+                  } else if (row.productName && lensMasterMap[`item_${String(row.productName).toLowerCase()}`] !== undefined) {
+                    cost = lensMasterMap[`item_${String(row.productName).toLowerCase()}`];
+                  }
+                }
                 const totalCost = cost * (Number(row.qty) || 0);
                 const margin = (Number(row.totalPrice) || 0) - totalCost;
                 if (marginUnit === 'percent') {
@@ -458,7 +490,14 @@ export default function PartyWiseItemReport() {
         return displayData.reduce((acc, r) => {
             const qty = parseFloat(r.qty) || 0;
             const totalPrice = parseFloat(r.totalPrice) || 0;
-            const cost = Number(r.purchasePrice || 0) || lensMasterMap[r.combinationId] || 0;
+            let cost = Number(r.purchasePrice || 0);
+            if (cost === 0) {
+              if (r.combinationId && lensMasterMap[`comb_${r.combinationId}`] !== undefined) {
+                cost = lensMasterMap[`comb_${r.combinationId}`];
+              } else if (r.productName && lensMasterMap[`item_${String(r.productName).toLowerCase()}`] !== undefined) {
+                cost = lensMasterMap[`item_${String(r.productName).toLowerCase()}`];
+              }
+            }
             const totalCost = cost * qty;
             const margin = totalPrice - totalCost;
 
@@ -779,7 +818,8 @@ export default function PartyWiseItemReport() {
                                     {visibleColumns.sph && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 text-center w-14">SPH</th>}
                                     {visibleColumns.cyl && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 text-center w-14">CYL</th>}
                                     {visibleColumns.axis && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 text-center w-12">AXIS</th>}
-                                    {visibleColumns.add && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 text-center w-12">ADD</th>}
+                                    {visibleColumns.add && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 text-center w-14">ADD</th>}
+                                    {visibleColumns.remark && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 min-w-[120px]">Remarks</th>}
                                     {visibleColumns.qty && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 text-center w-12">Qty</th>}
                                     {visibleColumns.loc && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 text-center w-24">LOC</th>}
                                     {visibleColumns.pricePerUnit && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 text-right w-20">Price/Unit</th>}
@@ -798,7 +838,8 @@ export default function PartyWiseItemReport() {
                                             </div>
                                         </th>
                                     )}
-                                    {visibleColumns.remark && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 min-w-[120px]">Remarks</th>}
+                                    {visibleColumns.vendorName && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 min-w-[150px]">Vendor Name</th>}
+                                    {visibleColumns.dc_id && <th className="px-2 py-2.5 border-r border-blue-500 print:border-slate-300 w-32">DC ID</th>}
                                     <th className="px-2 py-2.5 text-center w-20 print:hidden">Actions</th>
                                 </tr>
                             </thead>
@@ -820,7 +861,21 @@ export default function PartyWiseItemReport() {
                                                 <td className="px-2 py-2 border-r border-slate-100 text-center text-slate-500 tabular-nums">{row.sNo}</td>
                                             )}
                                             {visibleColumns.transType && (
-                                                <td className="px-2 py-2 border-r border-slate-100 text-slate-600 text-xs">{row.transType}</td>
+                                                <td className="px-2 py-2 border-r border-slate-100 text-xs">
+                                                    <span className={`px-2 py-1 rounded-full font-bold uppercase tracking-tighter text-[10px] ${
+                                                        row.transType === 'Sale Order' ? 'bg-blue-100 text-blue-700' :
+                                                        row.transType === 'Rx Sale Order' ? 'bg-purple-100 text-purple-700' :
+                                                        row.transType === 'Contact Lens & Sol Sale Order' ? 'bg-emerald-100 text-emerald-700' :
+                                                        row.transType === 'Purchase Order' ? 'bg-orange-100 text-orange-700' :
+                                                        row.transType === 'Rx Purchase Order' ? 'bg-rose-100 text-rose-700' :
+                                                        row.transType === 'Contact Lens & Sol Purchase Order' ? 'bg-cyan-100 text-cyan-700' :
+                                                        row.transType === 'Sale Invoice' ? 'bg-slate-100 text-slate-700' :
+                                                        row.transType === 'Purchase Invoice' ? 'bg-amber-100 text-amber-700' :
+                                                        'bg-gray-100 text-gray-600'
+                                                    }`}>
+                                                        {row.transType}
+                                                    </span>
+                                                </td>
                                             )}
                                             {visibleColumns.vchSeries && (
                                                 <td className="px-2 py-2 border-r border-slate-100 text-slate-600 font-mono text-xs">{row.vchSeries}</td>
@@ -875,6 +930,11 @@ export default function PartyWiseItemReport() {
                                                     {parseFloat(row.add).toFixed(2)}
                                                 </td>
                                             )}
+                                            {visibleColumns.remark && (
+                                                <td className="px-2 py-2 border-r border-slate-100 text-slate-500 text-xs truncate max-w-[120px]" title={row.remark}>
+                                                    {row.remark || '—'}
+                                                </td>
+                                            )}
                                             {visibleColumns.qty && (
                                                 <td className={`px-2 py-2 border-r border-slate-100 text-center font-bold ${row.qty > 0 ? 'text-green-600 print:text-black' : 'text-red-600 print:text-black'}`}>
                                                     {row.qty}
@@ -898,7 +958,14 @@ export default function PartyWiseItemReport() {
                                             {visibleColumns.productMargin && (
                                                 <td className={`px-2 py-2 border-r border-slate-100 text-right font-bold bg-emerald-50/50`}>
                                                     {(() => {
-                                                        const cost = Number(row.purchasePrice || 0) || lensMasterMap[row.combinationId] || 0;
+                                                        let cost = Number(row.purchasePrice || 0);
+                                                        if (cost === 0) {
+                                                          if (row.combinationId && lensMasterMap[`comb_${row.combinationId}`] !== undefined) {
+                                                            cost = lensMasterMap[`comb_${row.combinationId}`];
+                                                          } else if (row.productName && lensMasterMap[`item_${String(row.productName).toLowerCase()}`] !== undefined) {
+                                                            cost = lensMasterMap[`item_${String(row.productName).toLowerCase()}`];
+                                                          }
+                                                        }
                                                         const totalCost = cost * (Number(row.qty) || 0);
                                                         const margin = (Number(row.totalPrice) || 0) - totalCost;
                                                         const isNegative = margin < 0;
@@ -919,9 +986,14 @@ export default function PartyWiseItemReport() {
                                                     })()}
                                                 </td>
                                             )}
-                                            {visibleColumns.remark && (
-                                                <td className="px-2 py-2 border-r border-slate-100 text-slate-500 text-xs truncate max-w-[120px]" title={row.remark}>
-                                                    {row.remark || '—'}
+                                            {visibleColumns.vendorName && (
+                                                <td className="px-2 py-2 border-r border-slate-100 text-slate-600 text-xs truncate max-w-[150px]" title={row.vendorName}>
+                                                    {row.vendorName || '—'}
+                                                </td>
+                                            )}
+                                            {visibleColumns.dc_id && (
+                                                <td className="px-2 py-2 border-r border-slate-100 text-blue-600 font-semibold text-xs text-center">
+                                                    {row.dc_id || '—'}
                                                 </td>
                                             )}
                                             <td className="px-2 py-2 text-center print:hidden">
@@ -984,6 +1056,8 @@ export default function PartyWiseItemReport() {
                                             </td>
                                         )}
                                         {visibleColumns.remark && <td className="px-2 py-2.5"></td>}
+                                        {visibleColumns.vendorName && <td className="px-2 py-2.5"></td>}
+                                        {visibleColumns.dc_id && <td className="px-2 py-2.5"></td>}
                                         <td className="px-2 py-2.5 print:hidden"></td>
                                     </tr>
                                 </tfoot>

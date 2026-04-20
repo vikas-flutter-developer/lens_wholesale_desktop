@@ -14,7 +14,9 @@ class LensPriceScreen extends StatefulWidget {
 class _LensPriceScreenState extends State<LensPriceScreen> {
   List<Map<String, dynamic>> _lensData = [];
   bool _isLoading = false;
+  bool _isDeleting = false;
   String _searchText = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -41,13 +43,13 @@ class _LensPriceScreenState extends State<LensPriceScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Reset Highlights", style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text("Are you sure you want to reset all price highlights? This cannot be undone."),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: const Text("Are you sure you want to reset all price highlights?"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true), 
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[700], foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFCA8A04), foregroundColor: Colors.white),
             child: const Text("Reset Highlights")
           ),
         ],
@@ -58,10 +60,10 @@ class _LensPriceScreenState extends State<LensPriceScreen> {
     final provider = Provider.of<LensGroupProvider>(context, listen: false);
     final success = await provider.resetAllLensPriceHighlights();
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Highlights reset successfully.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Price highlights reset')));
       _fetchData();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to reset highlights.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to reset highlights')));
     }
   }
 
@@ -69,19 +71,13 @@ class _LensPriceScreenState extends State<LensPriceScreen> {
      final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(LucideIcons.alertTriangle, color: Colors.red),
-            SizedBox(width: 8),
-            Text("Confirm Delete"),
-          ],
-        ),
-        content: const Text("Are you sure you want to delete this lens power permanently?"),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Confirm Delete"),
+        content: const Text("Are you sure you want to delete this lens power?"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true), 
             child: const Text("Delete")
           ),
@@ -91,19 +87,25 @@ class _LensPriceScreenState extends State<LensPriceScreen> {
     if (confirm != true) return;
 
     final provider = Provider.of<LensGroupProvider>(context, listen: false);
+    setState(() => _isDeleting = true);
     try {
       await provider.removeLensPower([id]);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully.')));
-      _fetchData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lens power deleted successfully')));
+        _fetchData();
+      }
     } catch(e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
     }
   }
 
   List<Map<String, dynamic>> get _visibleLenses {
     final q = _searchText.trim().toLowerCase();
     
-    // Search filtering
     final filtered = q.isEmpty 
         ? _lensData 
         : _lensData.where((lens) {
@@ -111,10 +113,16 @@ class _LensPriceScreenState extends State<LensPriceScreen> {
             return fields.contains(q);
           }).toList();
 
-    // Flatten per power group matching React logic
     final List<Map<String, dynamic>> flattened = [];
     for (var lens in filtered) {
-       final pGroups = lens['powerGroups'] as List?;
+       final rawGroups = lens['powerGroups'];
+       List<dynamic>? pGroups;
+       if (rawGroups is List) {
+         pGroups = rawGroups;
+       } else if (rawGroups is Map) {
+         pGroups = [rawGroups];
+       }
+       
        if (pGroups != null && pGroups.isNotEmpty) {
           for (var pg in pGroups) {
              flattened.add({
@@ -143,261 +151,346 @@ class _LensPriceScreenState extends State<LensPriceScreen> {
     final lenses = _visibleLenses;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Premium Header with Gradient
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue[900]!, Colors.blue[700]!],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+      backgroundColor: const Color(0xFFF1F5F9), // bg-slate-100
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            const Padding(
+              padding: EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Lens Price List", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                  SizedBox(height: 4),
+                  Text("Manage lens pricing and specifications", style: TextStyle(color: Color(0xFF475569), fontSize: 14)),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
-              ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Lens Price List", 
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: -0.5)
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Manage lens pricing and specifications across categories", 
-                      style: TextStyle(color: Colors.blue[100], fontSize: 14)
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _buildHeaderAction(
-                      label: "Add Lens Price",
-                      icon: LucideIcons.plus,
-                      color: Colors.teal[500]!,
-                      onPressed: () => context.push('/masters/inventorymaster/lensgroupcreation'),
-                    ),
-                    const SizedBox(width: 12),
-                    _buildHeaderAction(
-                      label: "Reset Highlights",
-                      icon: LucideIcons.refreshCw,
-                      color: Colors.amber[600]!,
-                      onPressed: _resetHighlights,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
 
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
-                    ),
-                    child: TextField(
-                      onChanged: (val) => setState(() => _searchText = val),
-                      decoration: InputDecoration(
-                        hintText: "Search by Name, Group, Power Group...",
-                        prefixIcon: const Icon(LucideIcons.search, size: 18),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                _buildCircularButton(LucideIcons.fileSpreadsheet, Colors.green, "Export Excel", () {
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Excel Exporting...')));
-                }),
-                const SizedBox(width: 8),
-                _buildCircularButton(LucideIcons.printer, Colors.blue, "Print List", () {
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preparing for Print...')));
-                }),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Table Section
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            // Search and Actions Bar
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 15)],
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
               ),
-              child: _isLoading 
-                ? const Center(child: CircularProgressIndicator()) 
-                : lenses.isEmpty 
-                  ? _buildEmptyState()
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            headingRowHeight: 56,
-                            dataRowHeight: 64,
-                            headingRowColor: MaterialStateProperty.all(const Color(0xFFF1F5F9)),
-                            columnSpacing: 24,
-                            columns: [
-                              _buildColumn("SR."),
-                              _buildColumn("TITLE", isSortable: true),
-                              _buildColumn("GROUP"),
-                              _buildColumn("POWER GROUP"),
-                              _buildColumn("PRICE"),
-                              _buildColumn("EYE"),
-                              _buildColumn("SPH"),
-                              _buildColumn("CYL"),
-                              _buildColumn("AXIS"),
-                              _buildColumn("ADD"),
-                              _buildColumn("ACTIONS"),
-                            ],
-                            rows: List.generate(lenses.length, (index) {
-                              final lens = lenses[index];
-                              final pg = lens['currentPowerGroup'];
-                              final isEven = index % 2 == 0;
-                              
-                              final price = pg != null 
-                                ? (pg['salePrice'] ?? 0) 
-                                : ((lens['salePrice'] as Map?)?['default'] ?? 0);
-                              final isPriceUpdated = lens['isPriceUpdated'] == true;
-
-                              final sph = pg != null ? '${pg['sphMin']} - ${pg['sphMax']}' : '${lens['sphMin']} - ${lens['sphMax']}';
-                              final cyl = pg != null ? '${pg['cylMin']} - ${pg['cylMax']}' : '${lens['cylMin']} - ${lens['cylMax']}';
-                              final axis = pg?['axis'] ?? lens['axis'] ?? "-";
-                              final addVal = pg != null ? '${pg['addMin']} - ${pg['addMax']}' : '${lens['addMin']} - ${lens['addMax']}';
-
-                              return DataRow(
-                                color: MaterialStateProperty.all(isEven ? Colors.white : const Color(0xFFF8FAFC)),
-                                cells: [
-                                  DataCell(Text('${index + 1}', style: const TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold))),
-                                  DataCell(Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text('${lens['productName']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                      if (isPriceUpdated) 
-                                        const Text('PRICE UPDATED', style: TextStyle(fontSize: 9, color: Colors.orange, fontWeight: FontWeight.w900)),
-                                    ],
-                                  )),
-                                  DataCell(Text('${lens['groupName']}', style: TextStyle(color: Colors.blueGrey[600], fontSize: 13))),
-                                  DataCell(Text(pg?['label'] ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-                                  DataCell(Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: isPriceUpdated ? Colors.yellow[100] : Colors.blue[50],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text('₹$price', style: TextStyle(fontWeight: FontWeight.bold, color: isPriceUpdated ? Colors.orange[900] : Colors.blue[900])),
-                                  )),
-                                  DataCell(Text((lens['eye'] ?? '').toString().toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                                  DataCell(Text(sph)),
-                                  DataCell(Text(cyl)),
-                                  DataCell(Text(axis.toString())),
-                                  DataCell(Text(addVal)),
-                                  DataCell(Row(
-                                    children: [
-                                      _buildIconButton(
-                                        icon: LucideIcons.pencil, 
-                                        color: Colors.blue, 
-                                        onPressed: () => context.push('/masters/inventorymaster/lensgroupcreation?id=${lens['originalLensId']}'),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _buildIconButton(
-                                        icon: LucideIcons.trash2, 
-                                        color: Colors.red, 
-                                        onPressed: () => _handleDelete(lens['originalLensId']),
-                                      ),
-                                    ],
-                                  )),
-                                ],
-                              );
-                            }),
+              child: Row(
+                children: [
+                  // Floating Label Search Input
+                  Expanded(
+                    flex: 2,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          height: 42,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: (val) => setState(() => _searchText = val),
+                            style: const TextStyle(fontSize: 14),
+                            decoration: const InputDecoration(
+                              hintText: "Search by Name, Group, Power Group...",
+                              hintStyle: TextStyle(color: Color(0xFF94A3B8)),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
                           ),
                         ),
-                      ),
+                        Positioned(
+                          left: 8,
+                          top: -8,
+                          child: Container(
+                            color: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: const Text("Search", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  const SizedBox(width: 16),
+                  
+                  // Action Buttons
+                  Expanded(
+                    flex: 3,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _buildActionButton(
+                          label: "Search",
+                          icon: LucideIcons.search,
+                          bgColor: const Color(0xFF2563EB), // text-white
+                          textColor: Colors.white,
+                          onPressed: () {},
+                        ),
+                        _buildActionButton(
+                          label: "Reset",
+                          icon: LucideIcons.refreshCw,
+                          bgColor: const Color(0xFFF3F4F6), // bg-gray-100
+                          textColor: const Color(0xFF374151), // text-gray-700
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchText = '');
+                          },
+                        ),
+                        _buildActionButton(
+                          label: "Reset Highlights",
+                          icon: LucideIcons.refreshCw,
+                          bgColor: const Color(0xFFFEF9C3), // bg-yellow-100
+                          textColor: const Color(0xFFA16207), // text-yellow-700
+                          onPressed: _resetHighlights,
+                        ),
+                        _buildActionButton(
+                          label: "Add Lens Price",
+                          icon: LucideIcons.plus,
+                          bgColor: const Color(0xFF16A34A), // bg-green-600
+                          textColor: Colors.white,
+                          onPressed: () => context.push('/lenstransaction/lensratemaster'),
+                        ),
+                        _buildIconButton(
+                          icon: LucideIcons.sheet,
+                          bgColor: const Color(0xFFD1FAE5), // emerald-100
+                          iconColor: const Color(0xFF047857), // emerald-700
+                          onPressed: () {},
+                        ),
+                        _buildIconButton(
+                          icon: LucideIcons.printer,
+                          bgColor: const Color(0xFFDBEAFE), // blue-100
+                          iconColor: const Color(0xFF1D4ED8), // blue-700
+                          onPressed: () {},
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+
+            // Table Section
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header Row
+                      Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFFEFF6FF), Color(0xFFF8FAFC)], // from-blue-50 to-slate-50
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            _headerCell("Sr\nNo.", width: 50, center: true),
+                            _headerCell("Title", flex: 3),
+                            _headerCell("Group", flex: 2, center: true),
+                            _headerCell("Power Group", flex: 2, center: true),
+                            _headerCell("Price", flex: 1, center: true),
+                            _headerCell("Eye", flex: 1, center: true),
+                            _headerCell("SPH", flex: 2, center: true),
+                            _headerCell("CYL", flex: 2, center: true),
+                            _headerCell("AXIS", flex: 1, center: true),
+                            _headerCell("ADD", flex: 2, center: true),
+                            _headerCell("Actions", flex: 1, center: true),
+                          ],
+                        ),
+                      ),
+                      
+                      // Body
+                      Expanded(
+                        child: _isLoading 
+                          ? const Center(child: CircularProgressIndicator()) 
+                          : lenses.isEmpty 
+                            ? _buildEmptyState()
+                            : ListView.separated(
+                                padding: EdgeInsets.zero,
+                                itemCount: lenses.length,
+                                separatorBuilder: (ctx, i) => const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+                                itemBuilder: (ctx, index) {
+                                  final lens = lenses[index];
+                                  final pg = lens['currentPowerGroup'];
+                                  
+                                  final price = pg != null ? (pg['salePrice'] ?? 0) : ((lens['salePrice'] as Map?)?['default'] ?? 0);
+                                  final isPriceUpdated = lens['isPriceUpdated'] == true;
+                                  
+                                  final sph = pg != null ? '${pg['sphMin']} to ${pg['sphMax']}' : '${lens['sphMin']} to ${lens['sphMax']}';
+                                  final cyl = pg != null ? '${pg['cylMin']} to ${pg['cylMax']}' : '${lens['cylMin']} to ${lens['cylMax']}';
+                                  final axis = pg?['axis'] ?? lens['axis'] ?? "-";
+                                  final addVal = pg != null ? '${pg['addMin']} to ${pg['addMax']}' : '${lens['addMin']} to ${lens['addMax']}';
+
+                                  return Container(
+                                    color: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        _cellText('${index + 1}', width: 50, center: true),
+                                        Expanded(flex: 3, child: _cellText(lens['productName']?.toString() ?? '-', bold: true)),
+                                        Expanded(flex: 2, child: Center(child: _badge(lens['groupName']?.toString() ?? '-', const Color(0xFFDBEAFE), const Color(0xFF1E40AF)))), // blue-100/blue-800
+                                        Expanded(flex: 2, child: Center(child: _badge(pg?['label']?.toString() ?? '-', const Color(0xFFF3E8FF), const Color(0xFF6B21A8)))), // purple-100/purple-800
+                                        Expanded(
+                                          flex: 1, 
+                                          child: Center(
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                                              decoration: BoxDecoration(
+                                                color: isPriceUpdated ? const Color(0xFFFEF9C3) : Colors.transparent, // yellow-100
+                                                border: isPriceUpdated ? const Border(left: BorderSide(color: Color(0xFFFEF08A)), right: BorderSide(color: Color(0xFFFEF08A))) : null,
+                                              ),
+                                              child: Text('₹$price', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isPriceUpdated ? const Color(0xFF713F12) : const Color(0xFF0F172A))),
+                                            )
+                                          )
+                                        ),
+                                        Expanded(flex: 1, child: Center(child: _eyeBadge((lens['eye']?.toString() ?? '').toUpperCase()))),
+                                        Expanded(flex: 2, child: Center(child: _cellText(sph, fontSize: 11, color: const Color(0xFF64748B)))),
+                                        Expanded(flex: 2, child: Center(child: _cellText(cyl, fontSize: 11, color: const Color(0xFF64748B)))),
+                                        Expanded(flex: 1, child: Center(child: _cellText(axis.toString(), fontSize: 11, color: const Color(0xFF64748B)))),
+                                        Expanded(flex: 2, child: Center(child: _cellText(addVal, fontSize: 11, color: const Color(0xFF64748B)))),
+                                        Expanded(
+                                          flex: 1,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                               _actionIcon(LucideIcons.pencil, const Color(0xFF2563EB), () {
+                                                 final lensId = lens['originalLensId'] ?? lens['_id'] ?? lens['id'];
+                                                 final pgId = lens['originalPowerGroupId'] ?? (lens['currentPowerGroup'] is Map ? (lens['currentPowerGroup']['_id'] ?? lens['currentPowerGroup']['id']) : '');
+                                                 context.push('/lenstransaction/lensratemaster?id=$lensId&powerGroupId=$pgId');
+                                               }),
+                                               const SizedBox(width: 4),
+                                               _isDeleting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : _actionIcon(LucideIcons.trash2, const Color(0xFFDC2626), () {
+                                                 if (_isDeleting) return;
+                                                 _handleDelete(lens['originalLensId'] ?? lens['_id'] ?? lens['id'] ?? '');
+                                               }),
+                                            ],
+                                          )
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _headerCell(String label, {double? width, int? flex, bool center = false}) {
+    final text = Text(
+      label, 
+      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF334155), fontSize: 12),
+      textAlign: center ? TextAlign.center : TextAlign.left,
+    );
+    if (width != null) return SizedBox(width: width, child: text);
+    if (flex != null) return Expanded(flex: flex, child: center ? Center(child: text) : text);
+    return text;
+  }
+
+  Widget _cellText(String text, {double? width, bool bold = false, double fontSize = 13, Color color = const Color(0xFF334155), bool center = false}) {
+    final t = Text(
+      text, 
+      style: TextStyle(fontWeight: bold ? FontWeight.w600 : FontWeight.normal, fontSize: fontSize, color: color),
+      textAlign: center ? TextAlign.center : TextAlign.left,
+      overflow: TextOverflow.ellipsis,
+    );
+    if (width != null) return SizedBox(width: width, child: center ? Center(child: t) : t);
+    return t;
+  }
+
+  Widget _badge(String text, Color bgColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
+      child: Text(text, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  Widget _eyeBadge(String eye) {
+    if (eye.isEmpty) return const SizedBox();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(color: const Color(0xFFFFEDD5), borderRadius: BorderRadius.circular(12)), // orange-100
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(LucideIcons.eye, size: 12, color: Color(0xFF9A3412)), // orange-800
+          const SizedBox(width: 4),
+          Text(eye, style: const TextStyle(color: Color(0xFF9A3412), fontSize: 11, fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 
-  DataColumn _buildColumn(String label, {bool isSortable = false}) {
-    return DataColumn(
-      label: Text(
-        label, 
-        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF475569), fontSize: 12, letterSpacing: 0.5)
+  Widget _actionIcon(IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Icon(icon, size: 16, color: color),
       ),
     );
   }
 
-  Widget _buildHeaderAction({required String label, required IconData icon, required Color color, required VoidCallback onPressed}) {
-    return ElevatedButton.icon(
+  Widget _buildActionButton({required String label, required IconData icon, required Color bgColor, required Color textColor, required VoidCallback onPressed}) {
+    return MaterialButton(
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: color,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      color: bgColor,
+      elevation: 0,
+      focusElevation: 0,
+      hoverElevation: 0,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: textColor),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }
 
-  Widget _buildCircularButton(IconData icon, Color color, String tooltip, VoidCallback onPressed) {
-    return Tooltip(
-      message: tooltip,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: IconButton(
-          icon: Icon(icon, color: color, size: 20),
-          onPressed: onPressed,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIconButton({required IconData icon, required Color color, required VoidCallback onPressed}) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        icon: Icon(icon, size: 16, color: color),
-        onPressed: onPressed,
-      ),
+  Widget _buildIconButton({required IconData icon, required Color bgColor, required Color iconColor, required VoidCallback onPressed}) {
+    return MaterialButton(
+      onPressed: onPressed,
+      color: bgColor,
+      elevation: 0,
+      minWidth: 40,
+      padding: const EdgeInsets.all(12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Icon(icon, size: 16, color: iconColor),
     );
   }
 
@@ -406,17 +499,11 @@ class _LensPriceScreenState extends State<LensPriceScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(LucideIcons.packageSearch, size: 64, color: Colors.blueGrey[200]),
+          const Icon(LucideIcons.eye, size: 48, color: Color(0xFFCBD5E1)),
           const SizedBox(height: 16),
-          Text("No lens prices found", style: TextStyle(fontSize: 18, color: Colors.blueGrey[400], fontWeight: FontWeight.bold)),
+          const Text("No lens prices found", style: TextStyle(fontSize: 18, color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text("Try adjusting your search or add a new lens", style: TextStyle(color: Colors.blueGrey[300])),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => context.push('/masters/inventorymaster/lensgroupcreation'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[600], foregroundColor: Colors.white),
-            child: const Text("Add New Lens"),
-          ),
+          const Text("Try adjusting your search criteria or add a new lens price", style: TextStyle(color: Color(0xFF94A3B8))),
         ],
       ),
     );

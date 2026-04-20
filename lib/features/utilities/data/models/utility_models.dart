@@ -48,8 +48,8 @@ class AppOffer with _$AppOffer {
 class KeyBinding with _$KeyBinding {
   const factory KeyBinding({
     @JsonKey(name: '_id') String? id,
-    required String action,
-    required String keyCombination,
+    required String pageName,
+    required String shortcutKey,
     @Default('Enabled') String status, // 'Enabled' or 'Disabled'
     String? module,
     String? description,

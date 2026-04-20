@@ -4,6 +4,8 @@ import { Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import ReactDOM from "react-dom";
 import { getAllLensPower } from "../controllers/LensGroupCreationController";
+import { getLensPriceByPower } from "../controllers/barcode.controller";
+import { formatPowerValue } from "../utils/amountUtils";
 import {
     createDamageEntry,
     getDamageEntry,
@@ -193,6 +195,33 @@ export default function AddDamageEntry() {
                 const q = parseFloat(field === "qty" ? value : next[idx].qty) || 0;
                 const p = parseFloat(field === "price" ? value : next[idx].price) || 0;
                 next[idx].totalAmt = (q * p).toFixed(2);
+            }
+
+            // -- Price Sync Logic --
+            if (["itemName", "sph", "cyl", "axis", "add"].includes(field)) {
+                const item = next[idx];
+                if (item.itemName && (item.sph !== "" || item.cyl !== "" || item.add !== "")) {
+                    const foundLens = allLens.find(l => l.productName === item.itemName);
+                    const itemId = foundLens?._id || foundLens?.id;
+                    if (itemId) {
+                        getLensPriceByPower(itemId, item.sph, item.cyl, item.axis, item.add)
+                            .then(res => {
+                                if (res && res.found) {
+                                    setItems(current => {
+                                        const c = [...current];
+                                        if (c[idx]) {
+                                            c[idx].price = String(res.salePrice || c[idx].price);
+                                            const q = parseFloat(c[idx].qty) || 0;
+                                            const p = parseFloat(c[idx].price) || 0;
+                                            c[idx].totalAmt = (q * p).toFixed(2);
+                                        }
+                                        return c;
+                                    });
+                                }
+                            })
+                            .catch(err => console.error("Price sync error:", err));
+                    }
+                }
             }
             return next;
         });
@@ -624,7 +653,7 @@ export default function AddDamageEntry() {
                                                 <input
                                                     className={`${cellInput} text-center`}
                                                     value={item.sph}
-                                                    onChange={(e) => updateItem(idx, "sph", e.target.value)}
+                                                    onChange={(e) => updateItem(idx, "sph", e.target.value)} onBlur={(e) => updateItem(idx, "sph", formatPowerValue(e.target.value))} onBlur={(e) => updateItem(idx, "sph", formatPowerValue(e.target.value))}
                                                 />
                                             </td>
                                             {/* CYL */}
@@ -632,7 +661,7 @@ export default function AddDamageEntry() {
                                                 <input
                                                     className={`${cellInput} text-center`}
                                                     value={item.cyl}
-                                                    onChange={(e) => updateItem(idx, "cyl", e.target.value)}
+                                                    onChange={(e) => updateItem(idx, "cyl", e.target.value)} onBlur={(e) => updateItem(idx, "cyl", formatPowerValue(e.target.value))} onBlur={(e) => updateItem(idx, "cyl", formatPowerValue(e.target.value))}
                                                 />
                                             </td>
                                             {/* Axis */}
@@ -648,7 +677,7 @@ export default function AddDamageEntry() {
                                                 <input
                                                     className={`${cellInput} text-center`}
                                                     value={item.add}
-                                                    onChange={(e) => updateItem(idx, "add", e.target.value)}
+                                                    onChange={(e) => updateItem(idx, "add", e.target.value)} onBlur={(e) => updateItem(idx, "add", formatPowerValue(e.target.value))} onBlur={(e) => updateItem(idx, "add", formatPowerValue(e.target.value))}
                                                 />
                                             </td>
                                             {/* Qty */}

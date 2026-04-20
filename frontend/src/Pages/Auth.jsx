@@ -133,8 +133,6 @@ export default function Auth() {
     setResetToken("");
   };
 
-
-
   React.useEffect(() => {
     let timer;
     if (countdown > 0) {

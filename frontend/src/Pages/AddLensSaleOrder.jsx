@@ -40,6 +40,9 @@ import { getFinancialYearSeries } from "../utils/billingUtils";
 import { validateAccountLimits, getValidationErrorMessage } from "../utils/accountLimitValidator";
 import { checkStockAvailability } from "../controllers/lensLocation.controller";
 import { getSuggestions, learnSuggestions, deleteSuggestion } from "../controllers/Suggestion.controller";
+import { getBarcodeDetails, getBarcodeErrorMessage, getLensPriceByPower } from "../controllers/barcode.controller";
+import { formatPowerValue } from "../utils/amountUtils";
+import { handleAutocompleteKeyDown } from "../utils/dropdownKeyboardHandler";
 
 const Header = ({ isReadOnly, id, partyData }) => (
   <div className="bg-white border-b border-slate-200 px-3 py-1 flex items-center justify-between sticky top-0 z-[100] shadow-sm">
@@ -119,6 +122,15 @@ function AddLensSaleOrder() {
     bookedBy: "",
   });
 
+  const qtyRefs = useRef([]);
+
+  const focusOnQtyInput = (rowIndex) => {
+    setTimeout(() => {
+      qtyRefs.current[rowIndex]?.focus();
+      qtyRefs.current[rowIndex]?.select();
+    }, 0);
+  };
+
   // Fetch by ID -> set saleData (mapping effect will run)
   useEffect(() => {
     if (!id) return;
@@ -140,7 +152,7 @@ function AddLensSaleOrder() {
   // Load accounts, taxes, lenses once
   const fetch = async () => {
     try {
-      const res = await getAllAccounts();
+      const res = await getAllAccounts("sale"); // Filter for Sale and Both account types
       setAccounts(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error("getAllAccounts failed:", err);
@@ -295,6 +307,7 @@ function AddLensSaleOrder() {
   const [items, setItems] = useState(
     Array.from({ length: 5 }, (_, i) => ({
       id: i + 1,
+      itemId: "",
       barcode: "",
       itemName: "",
       orderNo: "",
@@ -543,11 +556,12 @@ function AddLensSaleOrder() {
 
   const filteredAccounts =
     partyQuery.length > 0
-      ? accounts.filter((acc) =>
-        String(acc.Name || "")
-          .toLowerCase()
-          .includes(partyQuery.toLowerCase())
-      )
+      ? accounts.filter((acc) => {
+        const name = String(acc.Name || "").toLowerCase();
+        const accountId = String(acc.AccountId || "").toLowerCase();
+        const query = partyQuery.toLowerCase();
+        return name.includes(query) || accountId.includes(query);
+      })
       : accounts.slice(0, 10);
 
   useEffect(() => {
@@ -574,7 +588,7 @@ function AddLensSaleOrder() {
       partyAccount: acc.Name || "",
       contactNumber: acc.MobileNumber || "",
       stateCode: acc.State || "",
-      address: "",
+      address: primaryAddr,
       allAddresses: allAddresses,
       creditLimit: acc.CreditLimit || "",
       creditDays: acc.CreditDays || 0,
@@ -604,6 +618,12 @@ function AddLensSaleOrder() {
     setShowPartyAccSuggestions(false);
     setActiveIndex(-1);
 
+    // Auto-select default tax/bill type for this account
+    const defaultTax = allTaxes.find((tax) => tax.isDefault === true);
+    if (defaultTax) {
+      selectTax(defaultTax);
+    }
+
     // Fetch custom prices for this account
     try {
       const res = await getAccountWisePrices(acc._id, "Sale");
@@ -621,31 +641,16 @@ function AddLensSaleOrder() {
   };
 
   const onPartyInputKeyDown = (e) => {
-    if (!showPartyAccSuggestions) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIndex((prev) => {
-        const next = Math.min(prev + 1, filteredAccounts.length - 1);
-        setTimeout(() => document.getElementById(`party-item-${next}`)?.scrollIntoView({ block: "nearest" }), 0);
-        return next;
-      });
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIndex((prev) => {
-        const next = Math.max(prev - 1, 0);
-        setTimeout(() => document.getElementById(`party-item-${next}`)?.scrollIntoView({ block: "nearest" }), 0);
-        return next;
-      });
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      e.stopPropagation();
-      if (activeIndex >= 0 && activeIndex < filteredAccounts.length) {
-        selectAccount(filteredAccounts[activeIndex]);
-      }
-    } else if (e.key === "Escape") {
-      setShowPartyAccSuggestions(false);
-      setActiveIndex(-1);
-    }
+    // Use the reusable autocomplete keyboard handler
+    handleAutocompleteKeyDown(e, {
+      showSuggestions: showPartyAccSuggestions,
+      activeIndex,
+      filteredOptions: filteredAccounts,
+      setActiveIndex,
+      setShowSuggestions: setShowPartyAccSuggestions,
+      onSelect: selectAccount,
+      shouldPreventDefault: true,
+    });
   };
 
   // tax autocomplete
@@ -772,6 +777,107 @@ function AddLensSaleOrder() {
     return mergedObjList
       .filter((acc) => String(acc.Name || "").toLowerCase().includes(q))
       .slice(0, 10);
+  };
+
+  // Keyboard navigation handlers for table columns
+  const handleTableItemKeyDown = (e, index) => {
+    const options = getFilteredLens(index);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showItemSuggestions[index]) {
+        setShowItemSuggestions(p => ({ ...p, [index]: true }));
+        setActiveItemIndexes(p => ({ ...p, [index]: 0 }));
+      } else {
+        setActiveItemIndexes(p => ({
+          ...p,
+          [index]: Math.min((p[index] || 0) + 1, options.length - 1)
+        }));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveItemIndexes(p => ({
+        ...p,
+        [index]: Math.max((p[index] || 0) - 1, 0)
+      }));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const activeIdx = activeItemIndexes[index] ?? -1;
+      if (activeIdx >= 0 && activeIdx < options.length) {
+        selectLens(options[activeIdx], index);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setShowItemSuggestions(p => ({ ...p, [index]: false }));
+      setActiveItemIndexes(p => ({ ...p, [index]: -1 }));
+    }
+  };
+
+  const handleTableVendorKeyDown = (e, index) => {
+    const options = getFilteredVendors(index);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showVendorSuggestions[index]) {
+        setShowVendorSuggestions(p => ({ ...p, [index]: true }));
+        setActiveVendorIndexes(p => ({ ...p, [index]: 0 }));
+      } else {
+        setActiveVendorIndexes(p => ({
+          ...p,
+          [index]: Math.min((p[index] || 0) + 1, options.length - 1)
+        }));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveVendorIndexes(p => ({
+        ...p,
+        [index]: Math.max((p[index] || 0) - 1, 0)
+      }));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const activeIdx = activeVendorIndexes[index] ?? -1;
+      if (activeIdx >= 0 && activeIdx < options.length) {
+        updateItem(index, "vendor", options[activeIdx].Name);
+        setVendorQueries(p => ({ ...p, [index]: options[activeIdx].Name }));
+        setShowVendorSuggestions(p => ({ ...p, [index]: false }));
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setShowVendorSuggestions(p => ({ ...p, [index]: false }));
+      setActiveVendorIndexes(p => ({ ...p, [index]: -1 }));
+    }
+  };
+
+  const handleTablePartyKeyDown = (e, index) => {
+    const options = getFilteredParties(index);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showPartySuggestions[index]) {
+        setShowPartySuggestions(p => ({ ...p, [index]: true }));
+        setActivePartyIndexes(p => ({ ...p, [index]: 0 }));
+      } else {
+        setActivePartyIndexes(p => ({
+          ...p,
+          [index]: Math.min((p[index] || 0) + 1, options.length - 1)
+        }));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActivePartyIndexes(p => ({
+        ...p,
+        [index]: Math.max((p[index] || 0) - 1, 0)
+      }));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const activeIdx = activePartyIndexes[index] ?? -1;
+      if (activeIdx >= 0 && activeIdx < options.length) {
+        updateItem(index, "partyName", options[activeIdx].Name);
+        setPartyQueries(p => ({ ...p, [index]: options[activeIdx].Name }));
+        setShowPartySuggestions(p => ({ ...p, [index]: false }));
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setShowPartySuggestions(p => ({ ...p, [index]: false }));
+      setActivePartyIndexes(p => ({ ...p, [index]: -1 }));
+    }
   };
 
   // --- HELPER: getSalePriceForCategory(lens, category) ---
@@ -949,6 +1055,42 @@ function AddLensSaleOrder() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Auto-scroll to highlighted suggestion for item dropdown
+  useEffect(() => {
+    Object.keys(activeItemIndexes).forEach((index) => {
+      if (showItemSuggestions[index] && activeItemIndexes[index] >= 0) {
+        setTimeout(() => {
+          const activeEl = document.querySelector(`.item-suggestion-${index}-${activeItemIndexes[index]}`);
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 0);
+      }
+    });
+  }, [activeItemIndexes, showItemSuggestions]);
+
+  // Auto-scroll to highlighted suggestion for vendor dropdown
+  useEffect(() => {
+    Object.keys(activeVendorIndexes).forEach((index) => {
+      if (showVendorSuggestions[index] && activeVendorIndexes[index] >= 0) {
+        setTimeout(() => {
+          const activeEl = document.querySelector(`.vendor-suggestion-${index}-${activeVendorIndexes[index]}`);
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 0);
+      }
+    });
+  }, [activeVendorIndexes, showVendorSuggestions]);
+
+  // Auto-scroll to highlighted suggestion for party dropdown
+  useEffect(() => {
+    Object.keys(activePartyIndexes).forEach((index) => {
+      if (showPartySuggestions[index] && activePartyIndexes[index] >= 0) {
+        setTimeout(() => {
+          const activeEl = document.querySelector(`.party-suggestion-${index}-${activePartyIndexes[index]}`);
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 0);
+      }
+    });
+  }, [activePartyIndexes, showPartySuggestions]);
+
   const deleteItem = (id) => {
     setItems((prev) => {
       const newItems = prev.filter((it) => it.id !== id);
@@ -1124,6 +1266,7 @@ function AddLensSaleOrder() {
 
       const selectedItem = allLens.find((lens) => lens.productName === itemName);
       if (selectedItem) {
+        newItemObj.itemId = selectedItem._id;
         try {
           const offerRes = await getOfferForProduct(selectedItem._id, true);
           const customPriceObj = customPrices[selectedItem._id];
@@ -1169,7 +1312,7 @@ function AddLensSaleOrder() {
       // Validate immediately with the NEW object to avoid state lag
       validateRow(index, newItemObj);
       
-      const { itemName, sph, cyl, add, axis, eye } = newItemObj;
+      const { itemName, sph, cyl, add, axis, eye, itemId } = newItemObj;
       // Only fetch if we have enough info
       if (itemName && (sph !== "" || cyl !== "" || add !== "")) {
         const fetchStock = async () => {
@@ -1200,7 +1343,75 @@ function AddLensSaleOrder() {
           }
         };
         fetchStock();
+
+        // Price Sync Logic: Fetch prices for power-based items
+        // Trigger on itemName OR power changes
+        if (["itemName", "sph", "cyl", "axis", "add"].includes(field)) {
+          const { itemName, sph, cyl, axis, add, itemId } = newItemObj;
+          
+          // If itemId exists, use it; otherwise try to find it from itemName
+          let itemIdToUse = itemId;
+          if (!itemIdToUse && itemName) {
+            const foundLens = allLens.find(lx => lx.productName === itemName || lx.itemName === itemName);
+            itemIdToUse = foundLens?._id || foundLens?.id;
+          }
+
+          if (itemIdToUse && (sph !== "" || cyl !== "" || add !== "")) {
+            getLensPriceByPower(itemIdToUse, sph, cyl, axis, add)
+              .then(priceData => {
+                if (priceData && priceData.found) {
+                  setItems(current => {
+                    const updated = [...current];
+                    if (updated[index]) {
+                      updated[index].salePrice = priceData.salePrice || updated[index].salePrice;
+                      updated[index].purchasePrice = priceData.purchasePrice || updated[index].purchasePrice;
+                      // Recalculate totalAmount with new price
+                      const qty = parseFloat(updated[index].qty) || 0;
+                      const newPrice = parseFloat(updated[index].salePrice) || 0;
+                      const disc = Number(updated[index].discount) || 0;
+                      updated[index].totalAmount = (qty * newPrice - qty * newPrice * (disc / 100)).toFixed(2);
+                    }
+                    return updated;
+                  });
+                }
+              })
+              .catch(err => console.error("Price fetch error:", err));
+          }
+        }
       }
+    }
+  };
+
+  const handleBarcodeBlur = async (barcode, rowIndex) => {
+    if (!barcode || barcode.trim() === "") return;
+    try {
+      const barcodeData = await getBarcodeDetails(barcode);
+      if (barcodeData) {
+        setItems(prev => {
+          const c = [...prev];
+          const row = c[rowIndex];
+          row.itemName = barcodeData.itemName || row.itemName;
+          row.eye = barcodeData.eye || row.eye;
+          row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
+          row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
+          row.axis = barcodeData.axis || row.axis;
+          row.add = barcodeData.add || row.add;
+          row.salePrice = barcodeData.price || row.salePrice;
+          row.avlStk = barcodeData.stock !== undefined ? barcodeData.stock : row.avlStk;
+          
+          const q = parseFloat(row.qty) || 0;
+          const p = parseFloat(row.salePrice) || 0;
+          const d = parseFloat(row.discount) || 0;
+          row.totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+          return c;
+        });
+        toast.success(`Product loaded from barcode`);
+        focusOnQtyInput(rowIndex);
+      } else {
+        toast.error("Product not found");
+      }
+    } catch (error) {
+      toast.error(getBarcodeErrorMessage(error));
     }
   };
 
@@ -1370,12 +1581,12 @@ function AddLensSaleOrder() {
         if (stockCheck.success && !stockCheck.allSufficient) {
           const insufficient = stockCheck.results.filter(r => r.found && !r.sufficient);
           insufficient.forEach(r => {
-            toast.error(
-              `Insufficient stock for "${r.itemName}" (SPH: ${r.sph}, CYL: ${r.cyl}). Available: ${r.availableStock}, Requested: ${r.requestedQty}`,
+            toast.warning(
+              `Insufficient stock for "${r.itemName}" (SPH: ${r.sph}, CYL: ${r.cyl}). Available: ${r.availableStock}, Requested: ${r.requestedQty}. Order will be created with partial stock availability.`,
               { duration: 6000 }
             );
           });
-          return;
+          // Allow save to proceed despite insufficient stock
         }
       } catch (stockErr) {
         console.warn("Stock check failed, proceeding anyway:", stockErr);
@@ -1793,13 +2004,17 @@ function AddLensSaleOrder() {
                  <label className="text-[10px] font-bold text-slate-400 uppercase px-0.5 block mb-1">Party Account</label>
                  <div className="relative group">
                     <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
-                    <input type="text" value={partyQuery} onChange={(e) => { setPartyQuery(e.target.value); setPartyData(p => ({ ...p, partyAccount: e.target.value })); setShowPartyAccSuggestions(true); }} onFocus={() => setShowPartyAccSuggestions(true)} onBlur={() => setTimeout(() => setShowPartyAccSuggestions(false), 200)} className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-slate-700 h-9 uppercase outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all" placeholder="Search Party Account..." disabled={isReadOnly} />
+                    <input type="text" value={partyQuery} onChange={(e) => { setPartyQuery(e.target.value); setPartyData(p => ({ ...p, partyAccount: e.target.value })); setShowPartyAccSuggestions(true); }} onFocus={() => setShowPartyAccSuggestions(true)} onBlur={() => setTimeout(() => setShowPartyAccSuggestions(false), 200)} onKeyDown={onPartyInputKeyDown} className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-slate-700 h-9 uppercase outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all" placeholder="Search Party Account..." disabled={isReadOnly} />
                  </div>
                  {showPartyAccSuggestions && filteredAccounts.length > 0 && (
                    <div style={{position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999, marginTop: '4px'}} className="bg-white border border-slate-200 shadow-2xl rounded-lg max-h-56 overflow-y-auto">
                      {filteredAccounts.map((acc, idx) => (
-                       <div key={acc._id ?? idx} className="px-3 py-2 cursor-pointer hover:bg-blue-50 border-b border-slate-50 last:border-0 transition-colors" onMouseDown={() => selectAccount(acc)}>
-                         <div className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{acc.Name}</div>
+                       <div key={acc._id ?? idx} id={`party-item-${idx}`} className={`px-3 py-2 cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${
+                         idx === activeIndex 
+                           ? 'bg-blue-100 font-bold' 
+                           : 'hover:bg-blue-50'
+                       }`} onMouseDown={() => selectAccount(acc)} onMouseEnter={() => setActiveIndex(idx)} onMouseLeave={() => setActiveIndex(-1)}>
+                         <div className={`text-[11px] font-black uppercase tracking-tight ${idx === activeIndex ? 'text-blue-800' : 'text-slate-700'}`}>{acc.Name} (ID: {acc.AccountId}) - Station: {acc.Stations?.[0] || "-"}</div>
                          <div className="flex justify-between items-center mt-0.5">
                            <span className="text-[9px] font-bold text-slate-400 uppercase">{acc.AccountGroup?.Name || "NO GROUP"}</span>
                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${acc.CurrentBalance?.type === 'Cr' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>₹{parseFloat(acc.CurrentBalance?.amount || 0).toLocaleString()} {acc.CurrentBalance?.type}</span>
@@ -1922,7 +2137,7 @@ function AddLensSaleOrder() {
                         <td className="px-1 py-0 text-center text-[10px] font-bold text-slate-400 bg-slate-50/50 group-hover:bg-transparent">{index + 1}</td>
                         <td className="px-1 py-0">
                           {isEditable(item) ? (
-                            <input type="text" value={item.barcode} onChange={(e) => updateItem(index, "barcode", e.target.value)} className="w-full px-1 py-0 text-xs bg-transparent border border-transparent focus:bg-white focus:border-blue-400 rounded outline-none font-bold text-slate-700 h-7" placeholder="Barcode" />
+                            <input type="text" value={item.barcode} onChange={(e) => updateItem(index, "barcode", e.target.value)} onBlur={(e) => !isReadOnly && handleBarcodeBlur(e.target.value, index)} className="w-full px-1 py-0 text-xs bg-transparent border border-transparent focus:bg-white focus:border-blue-400 rounded outline-none font-bold text-slate-700 h-7" placeholder="Barcode" />
                           ) : (
                             <span className="block px-1 py-0 text-xs font-bold text-slate-600 truncate">{item.barcode || "-"}</span>
                           )}
@@ -1935,12 +2150,15 @@ function AddLensSaleOrder() {
                                 onChange={(e) => { setItemQueries(p => ({ ...p, [index]: e.target.value })); setShowItemSuggestions(p => ({ ...p, [index]: true })); updateItem(index, "itemName", e.target.value); }}
                                 onFocus={() => setShowItemSuggestions(p => ({ ...p, [index]: true }))}
                                 onBlur={() => setTimeout(() => setShowItemSuggestions(p => ({ ...p, [index]: false })), 200)}
+                                onKeyDown={(e) => handleTableItemKeyDown(e, index)}
                                 className={`w-full ${itemQueries[index] ? "pl-1" : "pl-4"} pr-1 py-0 text-xs bg-transparent border border-transparent focus:bg-white focus:border-blue-400 rounded outline-none font-black text-slate-800 h-7 truncate`} placeholder="Item..." />
                               {showItemSuggestions[index] && getFilteredLens(index).length > 0 && (
-                                <div className="absolute top-full left-0 w-72 bg-white rounded-lg shadow-xl border border-slate-200 z-[120]">
+                                <div className="absolute top-full left-0 w-72 bg-white rounded-lg shadow-xl border border-slate-200 z-[120] max-h-56 overflow-y-auto">
                                   {getFilteredLens(index).map((lens, i) => (
-                                    <div key={lens._id ?? i} onMouseDown={() => selectLens(lens, index)} className="px-3 py-1.5 cursor-pointer hover:bg-blue-50 border-b border-slate-50 text-xs font-bold text-slate-700 flex justify-between uppercase">
-                                      <span>{lens.productName}</span><span className="text-blue-500">Stk: {lens.stock}</span>
+                                    <div key={lens._id ?? i} className={`item-suggestion-${index}-${i} px-3 py-1.5 cursor-pointer border-b border-slate-50 text-xs font-bold text-slate-700 flex justify-between uppercase transition-colors ${
+                                      i === activeItemIndexes[index] ? 'bg-blue-100 font-black text-blue-800' : 'hover:bg-blue-50'
+                                    }`} onMouseDown={() => selectLens(lens, index)} onMouseEnter={() => setActiveItemIndexes(p => ({ ...p, [index]: i }))} onMouseLeave={() => setActiveItemIndexes(p => ({ ...p, [index]: -1 }))}>
+                                      <span>{lens.productName}</span><span className={i === activeItemIndexes[index] ? 'text-blue-600 font-black' : 'text-blue-500'}>Stk: {lens.stock}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -1961,22 +2179,24 @@ function AddLensSaleOrder() {
                           <input type="text" value={item.eye} onChange={(e) => updateItem(index, "eye", e.target.value)} className="w-full px-0.5 py-0 text-xs text-center bg-transparent border-b border-dotted border-slate-300 focus:border-blue-500 rounded-none outline-none font-black h-7" placeholder="R/L" />
                         </td>
                         <td className="px-0.5 py-0 bg-blue-50/20">
-                          <input type="text" value={item.sph} onChange={(e) => updateItem(index, "sph", e.target.value)} className="w-full px-0.5 py-0 text-xs text-center bg-transparent border-b border-dotted border-slate-300 focus:border-blue-500 rounded-none outline-none font-black h-7" placeholder="+0.0" />
+                          <input type="text" value={item.sph} onChange={(e) => updateItem(index, "sph", e.target.value)} onBlur={(e) => updateItem(index, "sph", formatPowerValue(e.target.value))} onBlur={(e) => updateItem(index, "sph", formatPowerValue(e.target.value))} className="w-full px-0.5 py-0 text-xs text-center bg-transparent border-b border-dotted border-slate-300 focus:border-blue-500 rounded-none outline-none font-black h-7" placeholder="+0.00" />
                         </td>
                         <td className="px-0.5 py-0 bg-blue-50/20">
-                          <input type="text" value={item.cyl} onChange={(e) => updateItem(index, "cyl", e.target.value)} className="w-full px-0.5 py-0 text-xs text-center bg-transparent border-b border-dotted border-slate-300 focus:border-blue-500 rounded-none outline-none font-black h-7" placeholder="+0.0" />
+                          <input type="text" value={item.cyl} onChange={(e) => updateItem(index, "cyl", e.target.value)} onBlur={(e) => updateItem(index, "cyl", formatPowerValue(e.target.value))} onBlur={(e) => updateItem(index, "cyl", formatPowerValue(e.target.value))} className="w-full px-0.5 py-0 text-xs text-center bg-transparent border-b border-dotted border-slate-300 focus:border-blue-500 rounded-none outline-none font-black h-7" placeholder="+0.00" />
                         </td>
                         <td className="px-0.5 py-0 bg-blue-50/20">
                           <input type="text" value={item.axis} onChange={(e) => updateItem(index, "axis", e.target.value)} className="w-full px-0.5 py-0 text-xs text-center bg-transparent border-b border-dotted border-slate-300 focus:border-blue-500 rounded-none outline-none font-black h-7" placeholder="0" />
                         </td>
                         <td className="px-0.5 py-0 bg-blue-50/20">
-                          <input type="text" value={item.add} onChange={(e) => updateItem(index, "add", e.target.value)} className="w-full px-0.5 py-0 text-xs text-center bg-transparent border-b border-dotted border-slate-300 focus:border-blue-500 rounded-none outline-none font-black h-7" placeholder="+0.0" />
+                          <input type="text" value={item.add} onChange={(e) => updateItem(index, "add", e.target.value)} onBlur={(e) => updateItem(index, "add", formatPowerValue(e.target.value))} onBlur={(e) => updateItem(index, "add", formatPowerValue(e.target.value))} className="w-full px-0.5 py-0 text-xs text-center bg-transparent border-b border-dotted border-slate-300 focus:border-blue-500 rounded-none outline-none font-black h-7" placeholder="+0.00" />
                         </td>
                         <td className="px-1 py-0">
                           <input type="text" value={item.remark} onChange={(e) => updateItem(index, "remark", e.target.value)} className="w-full px-1 py-0 text-xs text-center bg-transparent border border-transparent focus:bg-white focus:border-blue-400 rounded outline-none h-7 uppercase font-bold" placeholder="NOTE" />
                         </td>
                         <td className="px-1 py-0">
-                          <input type="number" min={0} value={item.qty} onChange={(e) => updateItem(index, "qty", Number(e.target.value) || 0)} className="w-full px-1 py-0 text-xs text-right font-black text-slate-700 bg-emerald-50/30 border border-transparent focus:bg-white focus:border-emerald-500 rounded h-7 outline-none" />
+                          <input 
+                            ref={(el) => qtyRefs.current[index] = el}
+                            type="number" min={0} value={item.qty} onChange={(e) => updateItem(index, "qty", Number(e.target.value) || 0)} className="w-full px-1 py-0 text-xs text-right font-black text-slate-700 bg-emerald-50/30 border border-transparent focus:bg-white focus:border-emerald-500 rounded h-7 outline-none" />
                         </td>
                         <td className="px-1 py-0 relative">
                           <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">₹</span>
@@ -1995,11 +2215,14 @@ function AddLensSaleOrder() {
                             onChange={(e) => { setVendorQueries(p => ({ ...p, [index]: e.target.value })); setShowVendorSuggestions(p => ({ ...p, [index]: true })); updateItem(index, "vendor", e.target.value); }}
                             onFocus={() => setShowVendorSuggestions(p => ({ ...p, [index]: true }))}
                             onBlur={() => setTimeout(() => setShowVendorSuggestions(p => ({ ...p, [index]: false })), 200)}
+                            onKeyDown={(e) => handleTableVendorKeyDown(e, index)}
                             className="w-full px-1 py-0 text-xs bg-transparent border border-transparent focus:bg-white focus:border-blue-400 rounded outline-none font-bold text-slate-500 h-7 uppercase truncate" placeholder="Vendor" />
                            {showVendorSuggestions[index] && getFilteredVendors(index).length > 0 && (
-                             <div className="absolute top-full left-0 w-52 bg-white shadow-xl rounded-lg border border-slate-100 z-[120]">
+                             <div className="absolute top-full left-0 w-52 bg-white shadow-xl rounded-lg border border-slate-100 z-[120] max-h-56 overflow-y-auto">
                                {getFilteredVendors(index).map((acc, i) => (
-                                 <div key={acc._id ?? i} onMouseDown={() => { updateItem(index, "vendor", acc.Name); setVendorQueries(p => ({ ...p, [index]: acc.Name })); setShowVendorSuggestions(p => ({ ...p, [index]: false })); }} className="px-3 py-1.5 cursor-pointer hover:bg-slate-50 text-xs font-black uppercase text-slate-600 border-b border-slate-50">{acc.Name}</div>
+                                 <div key={acc._id ?? i} className={`vendor-suggestion-${index}-${i} px-3 py-1.5 cursor-pointer text-xs font-black uppercase text-slate-600 border-b border-slate-50 transition-colors ${
+                                   i === activeVendorIndexes[index] ? 'bg-blue-100 text-blue-800 font-black' : 'hover:bg-slate-50'
+                                 }`} onMouseDown={() => { updateItem(index, "vendor", acc.Name); setVendorQueries(p => ({ ...p, [index]: acc.Name })); setShowVendorSuggestions(p => ({ ...p, [index]: false })); }} onMouseEnter={() => setActiveVendorIndexes(p => ({ ...p, [index]: i }))} onMouseLeave={() => setActiveVendorIndexes(p => ({ ...p, [index]: -1 }))}>{acc.Name}</div>
                                ))}
                              </div>
                            )}
@@ -2009,11 +2232,14 @@ function AddLensSaleOrder() {
                             onChange={(e) => { setPartyQueries(p => ({ ...p, [index]: e.target.value })); setShowPartySuggestions(p => ({ ...p, [index]: true })); updateItem(index, "partyName", e.target.value); }}
                             onFocus={() => setShowPartySuggestions(p => ({ ...p, [index]: true }))}
                             onBlur={() => setTimeout(() => setShowPartySuggestions(p => ({ ...p, [index]: false })), 200)}
+                            onKeyDown={(e) => handleTablePartyKeyDown(e, index)}
                             className="w-full px-1 py-0 text-xs bg-transparent border border-transparent focus:bg-white focus:border-blue-400 rounded outline-none font-black text-slate-500 h-7 uppercase truncate" placeholder="Customer" />
                            {showPartySuggestions[index] && getFilteredParties(index).length > 0 && (
-                             <div className="absolute top-full left-0 w-52 bg-white shadow-xl rounded-lg border border-slate-100 z-[120]">
+                             <div className="absolute top-full left-0 w-52 bg-white shadow-xl rounded-lg border border-slate-100 z-[120] max-h-56 overflow-y-auto">
                                {getFilteredParties(index).map((acc, i) => (
-                                 <div key={acc._id ?? i} onMouseDown={() => { updateItem(index, "partyName", acc.Name); setPartyQueries(p => ({ ...p, [index]: acc.Name })); setShowPartySuggestions(p => ({ ...p, [index]: false })); }} className="px-3 py-1.5 cursor-pointer hover:bg-slate-50 text-xs font-black uppercase text-slate-600 border-b border-slate-50">{acc.Name}</div>
+                                 <div key={acc._id ?? i} className={`party-suggestion-${index}-${i} px-3 py-1.5 cursor-pointer text-xs font-black uppercase text-slate-600 border-b border-slate-50 transition-colors ${
+                                   i === activePartyIndexes[index] ? 'bg-blue-100 text-blue-800 font-black' : 'hover:bg-slate-50'
+                                 }`} onMouseDown={() => { updateItem(index, "partyName", acc.Name); setPartyQueries(p => ({ ...p, [index]: acc.Name })); setShowPartySuggestions(p => ({ ...p, [index]: false })); }} onMouseEnter={() => setActivePartyIndexes(p => ({ ...p, [index]: i }))} onMouseLeave={() => setActivePartyIndexes(p => ({ ...p, [index]: -1 }))}>{acc.Name}</div>
                                ))}
                              </div>
                            )}

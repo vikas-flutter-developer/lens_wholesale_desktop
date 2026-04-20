@@ -19,6 +19,7 @@ import ProductExchange from "../models/ProductExchange.js";
 import DamageEntry from "../models/DamageEntry.js";
 import Account from "../models/Account.js";
 import AccountGroup from "../models/AccountGroup.js";
+import PowerRangeLibrary from "../models/PowerRangeLibrary.js";
 import Item from "../models/Item.js";
 import SaleTarget from "../models/SaleTarget.js";
 import CollectionTarget from "../models/CollectionTarget.js";
@@ -30,16 +31,49 @@ export const getLensStockReport = async (req, res) => {
     const {
       groupName,
       productName,
+      itemIds, // Array of Item IDs
+      powerGroupIds, // Array of PowerRangeLibrary IDs
       barcode,
       boxNo,
-      powerGroups, // Array of { sphMin, sphMax, cylMin, cylMax, addMin, addMax, label }
+      powerGroups: existingPowerGroups, // Array of { sphMin, sphMax, cylMin, cylMax, addMin, addMax, label }
       eye,
-      showQty // 'All', 'Positive', 'Negative', 'Zero'
+      showQty, // 'All', 'Positive', 'Negative', 'Zero'
+      page = 1,
+      limit = 50,
+      sphMin, sphMax, cylMin, cylMax, addMin, addMax, axis,
+      orderByAdd = false
     } = req.body;
 
     const companyId = req.user?.companyId;
-
     let pipeline = [];
+
+    // 1) Determine name-based matching for items
+    let targetProductNames = [];
+    if (itemIds && Array.isArray(itemIds) && itemIds.length > 0) {
+      // Find item names from IDs
+      const items = await Item.find({ _id: { $in: itemIds } }).select('itemName');
+      targetProductNames = items.map(it => it.itemName);
+    } else if (productName) {
+      targetProductNames = [productName];
+    }
+
+    // 2) Determine power group ranges
+    let activePowerGroups = existingPowerGroups || [];
+    if (powerGroupIds && Array.isArray(powerGroupIds) && powerGroupIds.length > 0) {
+      const libraryRanges = await PowerRangeLibrary.find({ _id: { $in: powerGroupIds } });
+      activePowerGroups = [
+        ...activePowerGroups,
+        ...libraryRanges.map(lr => ({
+          sphMin: lr.sphMin,
+          sphMax: lr.sphMax,
+          cylMin: lr.cylMin,
+          cylMax: lr.cylMax,
+          addMin: lr.addMin,
+          addMax: lr.addMax,
+          label: lr.label
+        }))
+      ];
+    }
 
     // Filter LensGroups first if possible
     let matchConditions = [{ companyId: null }];
@@ -50,7 +84,10 @@ export const getLensStockReport = async (req, res) => {
     let lensGroupMatch = { $or: matchConditions };
 
     if (groupName) lensGroupMatch.groupName = { $regex: groupName, $options: 'i' };
-    if (productName) lensGroupMatch.productName = { $regex: productName, $options: 'i' };
+    
+    if (targetProductNames.length > 0) {
+      lensGroupMatch.productName = { $in: targetProductNames };
+    }
 
     pipeline.push({ $match: lensGroupMatch });
 
@@ -77,10 +114,27 @@ export const getLensStockReport = async (req, res) => {
         sPrice: { $ifNull: ["$addGroups.combinations.sPrice", "$salePrice.default"] },
         initStock: "$addGroups.combinations.initStock",
         totalSoldQty: "$addGroups.combinations.totalSoldQty",
-        currentStock: { $subtract: ["$addGroups.combinations.initStock", "$addGroups.combinations.totalSoldQty"] },
+        currentStock: { 
+          $subtract: [
+            { $ifNull: ["$addGroups.combinations.initStock", 0] }, 
+            { $ifNull: ["$addGroups.combinations.totalSoldQty", 0] }
+          ] 
+        },
         isVerified: { $ifNull: ["$addGroups.combinations.isVerified", false] },
         lastVerifiedDate: "$addGroups.combinations.lastVerifiedDate",
         verifiedQty: "$addGroups.combinations.verifiedQty"
+      }
+    });
+
+    // Add Field: excess_qty
+    pipeline.push({
+      $addFields: {
+        excess_qty: { 
+          $subtract: [
+            "$currentStock", 
+            { $ifNull: ["$alertQty", 0] }
+          ] 
+        }
       }
     });
 
@@ -94,26 +148,36 @@ export const getLensStockReport = async (req, res) => {
     // Eye filter
     if (eye && eye !== 'All') andConditions.push({ eye });
 
+    // Direct Power filters (deprecated in UI but kept for API compatibility)
+    if (sphMin !== undefined && sphMin !== '') andConditions.push({ sph: { $gte: parseFloat(sphMin) } });
+    if (sphMax !== undefined && sphMax !== '') andConditions.push({ sph: { $lte: parseFloat(sphMax) } });
+    if (cylMin !== undefined && cylMin !== '') andConditions.push({ cyl: { $gte: parseFloat(cylMin) } });
+    if (cylMax !== undefined && cylMax !== '') andConditions.push({ cyl: { $lte: parseFloat(cylMax) } });
+    if (addMin !== undefined && addMin !== '') andConditions.push({ addValue: { $gte: parseFloat(addMin) } });
+    if (addMax !== undefined && addMax !== '') andConditions.push({ addValue: { $lte: parseFloat(addMax) } });
+    if (axis !== undefined && axis !== '') andConditions.push({ axis: parseFloat(axis) });
+
     // Show Qty filter
     if (showQty === 'Positive') andConditions.push({ currentStock: { $gt: 0 } });
     else if (showQty === 'Negative') andConditions.push({ currentStock: { $lt: 0 } });
     else if (showQty === 'Zero') andConditions.push({ currentStock: 0 });
 
-    // Power Groups filter — each group defines a range; row must match at least one
-    if (powerGroups && Array.isArray(powerGroups) && powerGroups.length > 0) {
-      const pgConditions = powerGroups.map(pg => {
+    // Power Groups filter 
+    if (activePowerGroups && Array.isArray(activePowerGroups) && activePowerGroups.length > 0) {
+      const pgConditions = activePowerGroups.map(pg => {
         const cond = {};
-        const sphMin = parseFloat(pg.sphMin);
-        const sphMax = parseFloat(pg.sphMax);
-        const cylMin = parseFloat(pg.cylMin);
-        const cylMax = parseFloat(pg.cylMax);
-        const addMin = parseFloat(pg.addMin);
-        const addMax = parseFloat(pg.addMax);
-
-        if (!isNaN(sphMin) && !isNaN(sphMax)) cond.sph = { $gte: sphMin, $lte: sphMax };
-        if (!isNaN(cylMin) && !isNaN(cylMax)) cond.cyl = { $gte: cylMin, $lte: cylMax };
-        if (!isNaN(addMin) && !isNaN(addMax)) cond.addValue = { $gte: addMin, $lte: addMax };
-
+        const sMin = parseFloat(pg.sphMin);
+        const sMax = parseFloat(pg.sphMax);
+        const cMin = parseFloat(pg.cylMin);
+        const cMax = parseFloat(pg.cylMax);
+        const aMin = parseFloat(pg.addMin);
+        const aMax = parseFloat(pg.addMax);
+        
+        // Match only if the specific dimension is provided in the power group
+        if (!isNaN(sMin) && !isNaN(sMax)) cond.sph = { $gte: sMin, $lte: sMax };
+        if (!isNaN(cMin) && !isNaN(cMax)) cond.cyl = { $gte: cMin, $lte: cMax };
+        if (!isNaN(aMin) && !isNaN(aMax)) cond.addValue = { $gte: aMin, $lte: aMax };
+        
         return cond;
       });
       andConditions.push({ $or: pgConditions });
@@ -123,14 +187,55 @@ export const getLensStockReport = async (req, res) => {
       pipeline.push({ $match: andConditions.length === 1 ? andConditions[0] : { $and: andConditions } });
     }
 
-    const reportData = await LensGroup.aggregate(pipeline);
+    // Server-side sorting
+    if (orderByAdd) {
+        pipeline.push({ $sort: { addValue: 1, productName: 1, sph: 1, cyl: 1 } });
+    } else {
+        pipeline.push({ $sort: { productName: 1, sph: 1, cyl: 1, addValue: 1 } });
+    }
 
-    res.status(200).json({ success: true, data: reportData });
+    // Pagination and Totals
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 50;
+    const skip = (pageNum - 1) * limitNum;
+
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: "total" }],
+        totals: [
+          {
+            $group: {
+              _id: null,
+              stockTotal: { $sum: "$currentStock" },
+              purValueTotal: { $sum: { $multiply: ["$currentStock", "$pPrice"] } },
+              saleValueTotal: { $sum: { $multiply: ["$currentStock", "$sPrice"] } }
+            }
+          }
+        ],
+        data: [{ $skip: skip }, { $limit: limitNum }]
+      }
+    });
+
+    const result = await LensGroup.aggregate(pipeline);
+    
+    const total = result[0]?.metadata[0]?.total || 0;
+    const reportData = result[0]?.data || [];
+    const mainTotals = result[0]?.totals[0] || { stockTotal: 0, purValueTotal: 0, saleValueTotal: 0 };
+
+    res.status(200).json({ 
+      success: true, 
+      data: reportData,
+      total: total,
+      page: pageNum,
+      limit: limitNum,
+      totals: mainTotals
+    });
   } catch (error) {
     console.error("Error generating lens stock report:", error);
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
+
 
 export const getItemStockSummaryReport = async (req, res) => {
   try {
@@ -281,6 +386,75 @@ export const getItemStockSummaryReport = async (req, res) => {
       liveProfit: liveProfitMap[item.productName] || 0
     }));
 
+    // --- NEW: Calculate Turnaround (Yearly) ---
+    const yearAgo = new Date();
+    yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+
+    const periodFilter = { 'billData.date': { $gte: yearAgo }, status: { $ne: 'Cancelled' } };
+    if (companyId) periodFilter.companyId = new mongoose.Types.ObjectId(companyId);
+
+    const statsPipeline = [
+      { $match: periodFilter },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.itemName",
+          totalQty: { $sum: { $ifNull: ["$items.qty", 0] } }
+        }
+      }
+    ];
+
+    const [salesYear, challansYear, rxSalesYear, purYear, purChallansYear, rxPurYear] = await Promise.all([
+      LensSale.aggregate(statsPipeline),
+      LensSaleChallan.aggregate(statsPipeline),
+      RxSale.aggregate(statsPipeline),
+      LensPurchase.aggregate(statsPipeline),
+      LensPurchaseChallan.aggregate(statsPipeline),
+      RxPurchase.aggregate(statsPipeline)
+    ]);
+
+    const yearlySalesMap = {};
+    const yearlyPurMap = {};
+
+    const mergeToMap = (results, map) => {
+      results.forEach(r => {
+        if (r._id) map[r._id] = (map[r._id] || 0) + r.totalQty;
+      });
+    };
+
+    mergeToMap(salesYear, yearlySalesMap);
+    mergeToMap(challansYear, yearlySalesMap);
+    mergeToMap(rxSalesYear, yearlySalesMap);
+
+    mergeToMap(purYear, yearlyPurMap);
+    mergeToMap(purChallansYear, yearlyPurMap);
+    mergeToMap(rxPurYear, yearlyPurMap);
+
+    data = data.map(item => {
+      const soldLastYear = yearlySalesMap[item.productName] || 0;
+      const purLastYear = yearlyPurMap[item.productName] || 0;
+      const currentStock = item.totalStockQty || 0;
+      
+      // Opening Stock = Current - Purchases + Sales
+      const openingStock = currentStock - purLastYear + soldLastYear;
+      const avgStock = (openingStock + currentStock) / 2;
+      
+      let turnover = 0;
+      // Use avgStock if > 0, otherwise fallback to currentStock, then avoid divide by zero
+      const denominator = avgStock > 0 ? avgStock : (currentStock > 0 ? currentStock : 1);
+      
+      if (soldLastYear > 0 && (avgStock > 0 || currentStock > 0)) {
+        turnover = soldLastYear / (avgStock > 0 ? avgStock : currentStock);
+      } else {
+        turnover = 0;
+      }
+
+      return {
+        ...item,
+        turnover: parseFloat(turnover.toFixed(2))
+      };
+    });
+
     res.status(200).json({ success: true, data });
   } catch (error) {
     console.error("Error generating item stock summary report:", error);
@@ -375,6 +549,22 @@ export const getPartyWiseItemReport = async (req, res) => {
             // Future: filter by LensGroup groupName if needed
           }
 
+          // Task 1: Fix Remark (prefer item-level remark, fallback to doc-level)
+          const actualRemark = item.remark || doc.remark || doc.remarks || '';
+
+          // Task 3: Vendor Name (for Purchase types)
+          const vendorName = (itemTransTypeLocal.includes('Purchase')) ? (doc.partyData?.partyAccount || '') : '';
+
+          // Task 4: DC ID (Delivery Challan / Document ID)
+          let dcId = '';
+          if (itemTransTypeLocal.includes('Sale')) {
+              dcId = doc.dcId || doc.dc_id || doc.invoice_no || doc.sourceChallanId || doc.billData?.billNo || '';
+          } else if (itemTransTypeLocal.includes('Purchase')) {
+              dcId = doc.bill_no || doc.dcId || doc.dc_id || doc.sourceChallanId || doc.billData?.billNo || '';
+          } else if (itemTransTypeLocal.includes('Transfer')) {
+              dcId = doc.transfer_id || '';
+          }
+
           allItems.push({
              transType: itemTransTypeLocal,
              vchSeries: doc.billData?.billSeries || doc.billSeries || seriesPrefix,
@@ -397,7 +587,9 @@ export const getPartyWiseItemReport = async (req, res) => {
              totalPrice: item.totalAmount || item.totalAmt || (item.qty * (item.sellPrice || item.salePrice || item.purchasePrice || item.price || 0)),
              purchasePrice: item.purchasePrice || 0,
              combinationId: item.combinationId || '',
-             remark: doc.remark || doc.remarks || '',
+             remark: actualRemark,
+             vendorName: vendorName,
+             dc_id: dcId || '',
              docId: doc._id,
           });
         });
@@ -3864,5 +4056,91 @@ export const getSalesGrowthComparisonReport = async (req, res) => {
   } catch (error) {
     console.error('Error generating sales growth comparison report:', error);
     res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+export const getDashboardPulse = async (req, res) => {
+  try {
+    const companyId = req.user?.companyId;
+    const companyFilter = companyId 
+      ? { companyId: new mongoose.Types.ObjectId(companyId) } 
+      : { $or: [{ companyId: null }, { companyId: { $exists: false } }] };
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const dateFilter = {
+      'billData.date': { $gte: startOfMonth, $lte: endOfMonth },
+      status: { $ne: 'Cancelled' }
+    };
+
+    // 1. Sales This Month
+    const salesPipeline = [
+      { $match: { ...companyFilter, ...dateFilter } },
+      { $group: { _id: null, total: { $sum: "$netAmount" } } }
+    ];
+
+    const [lensSalesSum, lensChallansSum, rxSalesSum] = await Promise.all([
+      LensSale.aggregate(salesPipeline),
+      LensSaleChallan.aggregate(salesPipeline),
+      RxSale.aggregate(salesPipeline)
+    ]);
+
+    const salesThisMonth = (lensSalesSum[0]?.total || 0) + 
+                          (lensChallansSum[0]?.total || 0) + 
+                          (rxSalesSum[0]?.total || 0);
+
+    // 2. Total Outstanding (Reuse logic from outstanding.controller.js)
+    // Receivable models: LensSale, LensSaleChallan (if not invoiced), LensSaleOrder
+    const outstandingMatch = { ...companyFilter, status: { $ne: 'Cancelled' } };
+    
+    const outstandingFields = {
+      $addFields: {
+        outstanding: { $subtract: [{ $ifNull: ["$netAmount", 0] }, { $ifNull: ["$paidAmount", 0] }] }
+      }
+    };
+    
+    const outstandingSum = { $group: { _id: null, total: { $sum: "$outstanding" } } };
+
+    const [osSales, osChallans, osOrders] = await Promise.all([
+      LensSale.aggregate([
+        { $match: outstandingMatch },
+        outstandingFields,
+        { $match: { outstanding: { $gt: 0 } } },
+        outstandingSum
+      ]),
+      LensSaleChallan.aggregate([
+        { $match: { ...outstandingMatch, isInvoiced: { $ne: true } } },
+        outstandingFields,
+        { $match: { outstanding: { $gt: 0 } } },
+        outstandingSum
+      ]),
+      LensSaleOrder.aggregate([
+        { $match: outstandingMatch },
+        outstandingFields,
+        { $match: { outstanding: { $gt: 0 } } },
+        outstandingSum
+      ])
+    ]);
+
+    const totalOutstanding = (osSales[0]?.total || 0) + 
+                            (osChallans[0]?.total || 0) + 
+                            (osOrders[0]?.total || 0);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        salesThisMonth: Number(salesThisMonth.toFixed(2)),
+        totalOutstanding: Number(totalOutstanding.toFixed(2))
+      }
+    });
+
+  } catch (error) {
+    console.error("Dashboard Pulse Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch dashboard pulse"
+    });
   }
 };

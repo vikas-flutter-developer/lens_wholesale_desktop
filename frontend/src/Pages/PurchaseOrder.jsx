@@ -67,6 +67,7 @@ import StatusDropdown from "../Components/StatusDropdown";
 import { getAllLensPower } from "../controllers/LensGroupCreationController";
 import { getAllItems } from "../controllers/itemcontroller";
 import { roundAmount } from "../utils/amountUtils";
+import { numberToWords } from "../utils/numberToWords";
 function PurchaseOrder() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -536,7 +537,7 @@ function PurchaseOrder() {
     searchText: "",
   });
 
-  const [selectedStatuses, setSelectedStatuses] = useState(["Pending", "In Progress", "Done", "Cancelled", "On Approval"]);
+  const [selectedStatuses, setSelectedStatuses] = useState(["Pending", "In Progress", "Done", "On Approval"]);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const statusFilterRef = useRef(null);
 
@@ -562,7 +563,7 @@ function PurchaseOrder() {
       dateFrom: "",
       dateTo: "",
     });
-    setSelectedStatuses(["Pending", "In Progress", "Done", "Cancelled", "On Approval"]);
+    setSelectedStatuses(["Pending", "In Progress", "Done", "On Approval"]);
   };
 
   const filteredOrders = useMemo(() => {
@@ -733,263 +734,186 @@ function PurchaseOrder() {
   };
 
   // Print functions
-  const generateNormalPrint = (invoice) => {
-    const itemsHTML = (invoice.items || [])
+  // Universal Professional Print Generator for all Purchase Orders
+  const generateProfessionalPrint = (order, title = "PURCHASE ORDER") => {
+    const formatDate = (dateStr) => {
+      if (!dateStr) return "-";
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    };
+
+    const items = order?.items || [];
+    const itemRows = items
       .map(
-        (item, i) => `
-  < tr >
-        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${i + 1}</td>
-        <td style="border: 1px solid #ddd; padding: 8px;">${item.itemName || "-"}</td>
-        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.qty || 0}</td>
-        <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatPrice(item.purchasePrice || 0)}</td>
-        <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${item.discount || 0}</td>
-        <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatPrice(item.totalAmount || 0)}</td>
-      </tr >
-  `
+        (it, idx) => `<tr>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${idx + 1}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;font-weight:bold">${it.itemName || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.orderNo || order.billData?.billNo || order.billNo || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.eye || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.sph ?? "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.cyl ?? "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.axis ?? "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.add ?? "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:center;font-weight:bold">${it.qty || 0}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:right">&#8377;${roundAmount(it.purchasePrice || 0)}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:right">${it.discount || 0}%</td>
+          <td style="border:1px solid #94a3b8;padding:4px;text-align:right;font-weight:bold">&#8377;${roundAmount(it.totalAmount || 0)}</td>
+        </tr>`
       )
       .join("");
 
-    const printWindow = window.open("", "", "height=900,width=800");
-    printWindow.document.write(`
-  < html >
-        <head>
-          <title>Purchase Order ${invoice.billData?.billSeries || ""}-${invoice.billData?.billNo || ""}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 20px; }
-            .header h1 { margin: 0; font-size: 24px; }
-            .header p { margin: 5px 0; }
-            .details { margin: 20px 0; }
-            .details-row { display: flex; justify-content: space-between; margin: 8px 0; }
-            .details-label { font-weight: bold; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th { background-color: #f0f0f0; border: 1px solid #ddd; padding: 10px; text-align: center; font-weight: bold; }
-            .total-row { background-color: #f9f9f9; font-weight: bold; }
-            .footer { margin-top: 30px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>PURCHASE ORDER</h1>
-            <p>Bill Series: ${invoice.billData?.billSeries || ""} | Bill No: ${invoice.billData?.billNo || ""}</p>
-            <p>Date: ${formatToDDMMYYYY(invoice.billData?.date)}</p>
-          </div>
+    const emptyRows = Array.from({ length: Math.max(0, 5 - items.length) })
+      .map(() => `<tr>
+          ${Array(12).fill('<td style="border:1px solid #94a3b8;padding:4px;height:24px"></td>').join('')}
+        </tr>`)
+      .join("");
 
-          <div class="details">
-            <div class="details-row">
-              <div><span class="details-label">Party Name:</span> ${invoice.partyData?.partyAccount || "-"}</div>
-              <div><span class="details-label">Status:</span> ${invoice.status}</div>
+    const totalQty = items.reduce((sum, it) => sum + (Number(it.qty) || 0), 0);
+    const prevBal = order?.partyData?.prevBalance || order?.partyData?.CurrentBalance?.amount || 0;
+    const netPayable = (order?.dueAmount || 0) + prevBal;
+
+    const html = `<!DOCTYPE html>
+      <html>
+      <head>
+        <title>${title} - ${order.billData?.billSeries || ""}-${order.billData?.billNo || ""}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+          body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; color: #1e293b; background: white; }
+          .header { display: flex; align-items: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 20px; }
+          .logo { width: 120px; }
+          .title { flex: 1; text-align: center; font-size: 28px; font-weight: 900; letter-spacing: -0.025em; margin: 0; }
+          .info-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; margin-bottom: 20px; font-size: 12px; }
+          .party-details div, .bill-info div { display: flex; margin-bottom: 4px; }
+          .label { font-weight: 700; width: 100px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
+          th { background: #f1f5f9; border: 1px solid #94a3b8; padding: 6px; text-transform: uppercase; }
+          .summary-section { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; margin-top: 10px; }
+          .summary-table { width: 100%; border-left: 1px solid #e2e8f0; padding-left: 20px; font-size: 13px; }
+          .summary-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+          .net-pay { font-size: 18px; font-weight: 900; border-top: 2px solid #475569; padding-top: 8px; margin-top: 12px; }
+          .signatures { display: flex; justify-content: space-between; margin-top: 60px; padding: 0 40px; }
+          .sig-box { text-align: center; }
+          .sig-line { width: 150px; border-top: 1px solid #475569; margin-bottom: 4px; }
+          .sig-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+          @media print { margin: 0; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <img src="/sadguru_logo.svg" class="logo" />
+          <h1 class="title">${title}</h1>
+          <div style="width:120px"></div>
+        </div>
+
+        <div class="info-grid">
+          <div class="party-details">
+            <div><span class="label">Party Name</span><span>: ${order?.partyData?.partyAccount || "-"}</span></div>
+            <div><span class="label">Address</span><span>: ${order?.partyData?.address || "-"}</span></div>
+            <div><span class="label">State</span><span>: ${order?.partyData?.stateCode || "-"}</span></div>
+            <div><span class="label">Phone</span><span>: ${order?.partyData?.contactNumber || "-"}</span></div>
+          </div>
+          <div class="bill-info" style="margin-left: auto">
+            <div style="justify-content: flex-end"><span class="label">Bill Series</span><span style="width:120px">: ${order?.billData?.billSeries || "-"}</span></div>
+            <div style="justify-content: flex-end"><span class="label">Bill No</span><span style="width:120px">: ${order?.billData?.billNo || "-"}</span></div>
+            <div style="justify-content: flex-end"><span class="label">Date</span><span style="width:120px">: ${formatDate(order?.billData?.date)}</span></div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>SR</th><th>Item Name</th><th>Order No</th><th>Eye</th><th>Sph</th><th>Cyl</th><th>Axis</th><th>Add</th><th>Qty</th><th>Price</th><th>Disc</th><th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+            ${emptyRows}
+            <tr style="background:#f8fafc;font-weight:700">
+              <td colspan="2" style="border:1px solid #94a3b8;padding:6px;text-align:center;text-transform:uppercase;letter-spacing:2px">Total</td>
+              <td colspan="6" style="border:1px solid #94a3b8;padding:6px"></td>
+              <td style="border:1px solid #94a3b8;padding:6px;text-align:center">${totalQty}</td>
+              <td colspan="2" style="border:1px solid #94a3b8;padding:6px"></td>
+              <td style="border:1px solid #94a3b8;padding:6px;text-align:right">&#8377;${roundAmount(order?.subtotal || 0)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="summary-section">
+          <div style="display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <p style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin:0">Total Invoice value ( In Words ) :</p>
+              <p style="font-size:14px;font-weight:900;font-style:italic;margin:4px 0">${numberToWords(order?.netAmount || 0)}</p>
+            </div>
+            <div style="border-top:1px solid #e2e8f0;padding-top:10px">
+               <p style="font-size:10px;font-weight:700;margin:0">Terms & Condition</p>
+              <p style="font-size:10px;color:#64748b;font-style:italic;margin:4px 0;line-height:1.2">
+                We declare that this invoice shows the actual price of the goods described<br/>
+                and that all particulars are true and correct.
+              </p>
             </div>
           </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Sr.</th>
-                <th>Item Name</th>
-                <th>Qty</th>
-                <th>Purchase Price</th>
-                <th>Discount</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHTML}
-              <tr class="total-row">
-                <td colspan="5" style="text-align: right; border: 1px solid #ddd; padding: 8px;">Net Amount:</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatPrice(invoice.netAmount)}</td>
-              </tr>
-              <tr class="total-row">
-                <td colspan="5" style="text-align: right; border: 1px solid #ddd; padding: 8px;">Paid Amount:</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatPrice(invoice.paidAmount)}</td>
-              </tr>
-              <tr class="total-row">
-                <td colspan="5" style="text-align: right; border: 1px solid #ddd; padding: 8px;">Due Amount:</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatPrice(invoice.dueAmount)}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="footer">
-            <p>${invoice.remark || ""}</p>
-            <p style="margin-top: 20px; color: #666;">This is a computer-generated purchase order</p>
+          <div class="summary-table">
+            <div class="summary-row"><span style="font-weight:700">Total Amount</span><span>&#8377;${roundAmount(order?.netAmount || 0)}</span></div>
+            <div class="summary-row"><span style="font-weight:700">Paid Amt</span><span>&#8377;${roundAmount(order?.paidAmount || 0)}</span></div>
+            <div class="summary-row" style="color:#dc2626;font-weight:900;border-bottom:1px solid #e2e8f0;padding-bottom:4px">
+              <span style="font-weight:700">Due Amt</span><span>&#8377;${roundAmount(order?.dueAmount || 0)}</span>
+            </div>
+            <div class="summary-row" style="padding-top:4px"><span style="font-weight:700">Prev.Bal</span><span>&#8377;${roundAmount(prevBal)}</span></div>
+            <div class="summary-row net-pay"><span>Net Payable</span><span>&#8377;${roundAmount(netPayable)}</span></div>
           </div>
-        </body>
-      </html >
-  `);
+        </div>
+
+        <div class="signatures">
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            <span class="sig-label">Customer Sign</span>
+          </div>
+          <div class="sig-box">
+             <p style="font-size:11px;font-weight:900;margin-bottom:40px">For, Sadguru Opticals</p>
+            <div class="sig-line" style="width:180px"></div>
+            <span class="sig-label">Authorized Signatory</span>
+          </div>
+        </div>
+      </body>
+      </html>`;
+    const printWindow = window.open("", "", "height=900,width=800");
+    printWindow.document.write(html);
     printWindow.document.close();
     setTimeout(() => {
       printWindow.print();
-    }, 250);
+    }, 400);
   };
 
-  const generateBarcodePrint = (order) => {
-    printBarcodeStickers(order, allLenses, allItems, true);
-  };
-
-  const generateCardPrint = (invoice) => {
-    printAuthenticityCard(invoice, allLenses, allItems);
+  const generateNormalPrint = (order) => {
+    let title = "PURCHASE ORDER";
+    if (viewType === "rx") title = "RX PURCHASE ORDER";
+    else if (viewType === "contact") title = "CONTACT LENS PURCHASE ORDER";
+    generateProfessionalPrint(order, title);
   };
 
   // Rx Purchase Order Print
   const generateRxPrint = (order) => {
-    if (!order) {
-      toast.error('No order selected for printing');
+    generateProfessionalPrint(order, "RX PURCHASE ORDER");
+  };
+
+  // Barcode Print
+  const generateBarcodePrint = (order) => {
+    const items = order?.items || [];
+    if (items.length === 0) {
+      toast.error("No items to print barcodes for");
       return;
     }
+    // Pass the full order object so the utility can access partyData, billData, items etc.
+    printBarcodeStickers(order, allLenses, allItems, true);
+  };
 
-    const taxesHTML = (order.taxes || [])
-      .filter(t => Number(t.amount) > 0 || Number(t.percentage) > 0)
-      .map(t => `
-  < tr >
-          <td style="text-align: right; padding: 6px 12px; border-bottom: 1px solid #eee; font-size: 12px;">${t.taxName || 'Tax'} (${t.percentage || 0}%)</td>
-          <td style="text-align: right; padding: 6px 12px; border-bottom: 1px solid #eee; font-size: 12px; font-weight: 600;">${formatPrice(t.amount)}</td>
-        </tr >
-  `).join('');
-
-    const itemsHTML = (order.items || [])
-      .map((item, i) => `
-  < tr style = "${i % 2 === 0 ? 'background:#fafbfc;' : ''}" >
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center; font-size: 12px;">${i + 1}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; font-weight: 600;">${item.itemName || '-'}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center; font-size: 12px;">${item.eye || '-'}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center; font-size: 12px;">${item.sph ?? '-'}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center; font-size: 12px;">${item.cyl ?? '-'}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center; font-size: 12px;">${item.axis ?? '-'}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center; font-size: 12px;">${item.add ?? '-'}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center; font-size: 12px;">${item.dia || '-'}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center; font-size: 12px;">${item.qty || 0}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right; font-size: 12px;">${formatPrice(item.purchasePrice || 0)}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right; font-size: 12px;">${formatPrice(item.discount || 0)}</td>
-          <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: right; font-size: 12px; font-weight: 700;">${formatPrice(item.totalAmount || 0)}</td>
-        </tr >
-  `).join('');
-
-    const printWindow = window.open('', '', 'height=900,width=900');
-    printWindow.document.write(`
-  < html >
-        <head>
-          <title>Rx Purchase Order ${order.billData?.billSeries || ''}-${order.billData?.billNo || ''}</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20mm 15mm; color: #1e293b; font-size: 12px; }
-            @media print {
-              @page { size: A4; margin: 15mm; }
-              body { padding: 0; }
-              .no-print { display: none !important; }
-            }
-            .header { text-align: center; border-bottom: 3px solid #1e40af; padding-bottom: 15px; margin-bottom: 20px; }
-            .header h1 { font-size: 22px; color: #1e40af; margin-bottom: 4px; letter-spacing: 2px; text-transform: uppercase; }
-            .header .subtitle { font-size: 11px; color: #64748b; letter-spacing: 1px; }
-            .order-badge { display: inline-block; background: #1e40af; color: white; padding: 4px 16px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 1px; margin-top: 8px; }
-            .info-grid { display: flex; justify-content: space-between; margin: 15px 0; gap: 20px; }
-            .info-box { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; }
-            .info-box h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #64748b; margin-bottom: 8px; font-weight: 700; }
-            .info-box p { font-size: 12px; margin: 3px 0; color: #334155; }
-            .info-box p strong { color: #1e293b; }
-            table.items { width: 100%; border-collapse: collapse; margin: 15px 0; }
-            table.items th { background: #1e40af; color: white; padding: 8px; text-align: center; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #1e40af; }
-            .totals-section { display: flex; justify-content: flex-end; margin-top: 15px; }
-            .totals-table { width: 280px; }
-            .totals-table td { padding: 6px 12px; font-size: 12px; }
-            .totals-table .grand-total td { border-top: 2px solid #1e40af; font-size: 14px; font-weight: 800; color: #1e40af; padding-top: 10px; }
-            .remark-box { margin-top: 15px; padding: 10px 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; font-size: 11px; color: #92400e; }
-            .footer { margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; }
-            .signature-box { text-align: center; width: 200px; }
-            .signature-line { border-top: 1px solid #94a3b8; margin-top: 40px; padding-top: 5px; font-size: 10px; color: #64748b; }
-            .print-note { text-align: center; margin-top: 30px; font-size: 9px; color: #94a3b8; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Rx Purchase Order</h1>
-            <p class="subtitle">Prescription Purchase Order</p>
-            <div class="order-badge">ORDER: ${order.billData?.billSeries || ''}-${order.billData?.billNo || ''}</div>
-          </div>
-
-          <div class="info-grid">
-            <div class="info-box">
-              <h3>Order Details</h3>
-              <p><strong>Bill Series:</strong> ${order.billData?.billSeries || '-'}</p>
-              <p><strong>Bill No:</strong> ${order.billData?.billNo || '-'}</p>
-              <p><strong>Date:</strong> ${formatToDDMMYYYY(order.billData?.date)}</p>
-              <p><strong>Bill Type:</strong> ${order.billData?.billType || '-'}</p>
-              <p><strong>Godown:</strong> ${order.billData?.godown || '-'}</p>
-              <p><strong>Booked By:</strong> ${order.billData?.bookedBy || '-'}</p>
-            </div>
-            <div class="info-box">
-              <h3>Supplier Details</h3>
-              <p><strong>Party Name:</strong> ${order.partyData?.partyAccount || '-'}</p>
-              <p><strong>Address:</strong> ${order.partyData?.address || '-'}</p>
-              <p><strong>Contact:</strong> ${order.partyData?.contactNumber || '-'}</p>
-              <p><strong>State:</strong> ${order.partyData?.stateCode || '-'}</p>
-              <p><strong>Status:</strong> ${order.status || '-'}</p>
-            </div>
-          </div>
-
-          <table class="items">
-            <thead>
-              <tr>
-                <th style="width:30px">Sr</th>
-                <th>Item Name</th>
-                <th style="width:40px">Eye</th>
-                <th style="width:50px">SPH</th>
-                <th style="width:50px">CYL</th>
-                <th style="width:50px">Axis</th>
-                <th style="width:50px">ADD</th>
-                <th style="width:50px">DIA</th>
-                <th style="width:40px">Qty</th>
-                <th style="width:75px">Rate</th>
-                <th style="width:60px">Disc</th>
-                <th style="width:80px">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHTML}
-            </tbody>
-          </table>
-
-          <div class="totals-section">
-            <table class="totals-table">
-              <tr>
-                <td style="text-align: right;">Subtotal:</td>
-                <td style="text-align: right; font-weight: 600;">${formatPrice(order.subtotal || order.grossAmount || 0)}</td>
-              </tr>
-              ${taxesHTML}
-              <tr class="grand-total">
-                <td style="text-align: right;">Net Amount:</td>
-                <td style="text-align: right;">${formatPrice(order.netAmount || 0)}</td>
-              </tr>
-              <tr>
-                <td style="text-align: right; font-size: 12px;">Paid Amount:</td>
-                <td style="text-align: right; font-size: 12px; font-weight: 600; color: #16a34a;">${formatPrice(order.paidAmount || 0)}</td>
-              </tr>
-              <tr>
-                <td style="text-align: right; font-size: 12px;">Due Amount:</td>
-                <td style="text-align: right; font-size: 12px; font-weight: 700; color: ${Number(order.dueAmount || 0) > 0 ? '#dc2626' : '#64748b'};">${formatPrice(order.dueAmount || 0)}</td>
-              </tr>
-            </table>
-          </div>
-
-          ${order.remark ? `<div class="remark-box"><strong>Remark:</strong> ${order.remark}</div>` : ''}
-
-          <div class="footer">
-            <div class="signature-box">
-              <div class="signature-line">Prepared By</div>
-            </div>
-            <div class="signature-box">
-              <div class="signature-line">Authorized Signatory</div>
-            </div>
-          </div>
-
-          <p class="print-note">This is a computer-generated Rx Purchase Order.</p>
-        </body>
-      </html >
-  `);
-    printWindow.document.close();
-    setTimeout(() => {
-      printWindow.print();
-    }, 300);
+  // Card Print
+  const generateCardPrint = (order) => {
+    printAuthenticityCard(order);
   };
 
   // Print ALL orders from the table
@@ -1934,6 +1858,7 @@ function PurchaseOrder() {
           isOpen={matrixModal.isOpen}
           onClose={() => setMatrixModal(prev => ({ ...prev, isOpen: false }))}
           title={`Items Matrix - Order #${PurchaseOrders.find(o => o._id === matrixModal.orderId)?.billData?.billNo || PurchaseOrders.find(o => o._id === matrixModal.orderId)?.billNo || ''}`}
+          pdfTitle={matrixModal.viewType === 'lens' ? 'Purchase Order' : matrixModal.viewType === 'rx' ? 'Rx Purchase Order' : 'Contact Lens Purchase Order'}
           data={matrixModal.items}
           columns={getMatrixColumns()}
           onSave={handleMatrixSave}

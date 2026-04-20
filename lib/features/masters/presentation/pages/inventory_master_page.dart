@@ -33,19 +33,71 @@ class _InventoryMasterPageState extends State<InventoryMasterPage> with SingleTi
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Inventory & Lens Master', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold)),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF2563EB),
-          unselectedLabelColor: const Color(0xFF64748B),
-          indicatorColor: const Color(0xFF2563EB),
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(icon: Icon(LucideIcons.layers), text: 'Item Groups'),
-            Tab(icon: Icon(LucideIcons.package), text: 'Item Master'),
-            Tab(icon: Icon(LucideIcons.grid), text: 'Lens Groups'),
+        toolbarHeight: 110,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                const Icon(LucideIcons.plusCircle, color: Color(0xFF2563EB), size: 32),
+                const SizedBox(width: 12),
+                const Text(
+                  'Inventory Master Creation',
+                  style: TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 26,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.only(left: 44.0, top: 2),
+              child: Text(
+                'Consolidated management for Groups, Items and Lens Specifications',
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.normal),
+              ),
+            ),
           ],
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 32.0),
+            child: Container(
+              height: 44,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                labelColor: const Color(0xFF2563EB),
+                unselectedLabelColor: const Color(0xFF64748B),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                indicator: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2)),
+                  ],
+                ),
+                labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                tabs: const [
+                  Tab(child: Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.boxes, size: 14), SizedBox(width: 8), Text('Item Group')]))),
+                  Tab(child: Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.package, size: 14), SizedBox(width: 8), Text('Item Master')]))),
+                  Tab(child: Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.eye, size: 14), SizedBox(width: 8), Text('Lens Group')]))),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       body: TabBarView(
         controller: _tabController,

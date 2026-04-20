@@ -1,5 +1,5 @@
 import express from 'express';
-import { getLensStockReport, getItemStockSummaryReport, getPartyWiseItemReport, getLensMovementReport, getDayBookReport, getCashBankBookReport, getBankAccounts, getProfitAndLossReport, getParentGroups, getProfitAndLossAccountReport, getTransactionSummaryReport, getTransactionDetailReport, getSaleSummaryFormatReport, getBalanceSheetReport, getCollectionReport, getSaleItemGroupWiseReport, getCustomerAnalysisReport, getPowerMovementReport, getBankVerificationTransactions, getSaleReturnRatioReport, saveSaleTarget, getSaleTargetReport, getPartyTargetHistory, getCancelledOrderRatioReport, getOrderToChallanTimeReport, saveCollectionTarget, getCollectionTargetReport, getCollectionTargetHistory, getCustomerItemSalesReport, getSalesGrowthComparisonReport } from '../controllers/reports.controller.js';
+import { getLensStockReport, getItemStockSummaryReport, getPartyWiseItemReport, getLensMovementReport, getDayBookReport, getCashBankBookReport, getBankAccounts, getProfitAndLossReport, getParentGroups, getProfitAndLossAccountReport, getTransactionSummaryReport, getTransactionDetailReport, getSaleSummaryFormatReport, getBalanceSheetReport, getCollectionReport, getSaleItemGroupWiseReport, getCustomerAnalysisReport, getPowerMovementReport, getBankVerificationTransactions, getSaleReturnRatioReport, saveSaleTarget, getSaleTargetReport, getPartyTargetHistory, getCancelledOrderRatioReport, getOrderToChallanTimeReport, saveCollectionTarget, getCollectionTargetReport, getCollectionTargetHistory, getCustomerItemSalesReport, getSalesGrowthComparisonReport, getDashboardPulse } from '../controllers/reports.controller.js';
 
 
 
@@ -45,6 +45,8 @@ router.post('/customer-item-sales', authMiddleware, getCustomerItemSalesReport);
 
 
 router.post('/salesgrowth', authMiddleware, getSalesGrowthComparisonReport);
+
+router.get('/dashboard-pulse', authMiddleware, getDashboardPulse);
 
 export default router;
 

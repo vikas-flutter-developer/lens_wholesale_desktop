@@ -55,15 +55,15 @@ class _AddPurchaseInvoicePageState extends State<AddPurchaseInvoicePage> {
     setState(() {
       _items = [
         PurchaseItem(
-          itemName: item.productName,
+          itemName: item.productName ?? 'N/A',
           qty: (reqQty > 0 ? reqQty : 1).toInt(),
           barcode: item.barcode ?? '',
           // Lens specific fields
-          sph: item.lensInfo?.sph ?? '',
-          cyl: item.lensInfo?.cyl ?? '',
+          sph: item.lensInfo?.sph?.toString() ?? '',
+          cyl: item.lensInfo?.cyl?.toString() ?? '',
           eye: item.lensInfo?.eye ?? '',
-          axis: item.lensInfo?.axis ?? '',
-          add: item.lensInfo?.add ?? '',
+          axis: item.lensInfo?.axis?.toString() ?? '',
+          add: item.lensInfo?.add?.toString() ?? '',
         )
       ];
     });

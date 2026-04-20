@@ -15,6 +15,7 @@ router.get('/companies', SuperAdminController.getAllCompanies);
 router.post('/companies', SuperAdminController.createCompany);
 router.put('/companies/:id', SuperAdminController.updateCompany);
 router.delete('/companies/:id', SuperAdminController.deleteCompany);
+router.patch('/companies/:id/toggle-block', SuperAdminController.toggleBlockCompany);
 
 // User management
 router.get('/users', SuperAdminController.getAllUsers);

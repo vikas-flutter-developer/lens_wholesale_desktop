@@ -193,6 +193,7 @@ export default function ItemStockSummaryReport() {
             'Total Purchase Value': r.totalPurchaseValue,
             'Total Selling Value':  r.totalSellingValue,
             'Expected Profit':   r.expectedProfit,
+            'Turnaround (Yearly)': `${r.turnover}x`,
             'Combinations':      r.combinationCount,
             'Stock Status':      r.totalStockQty < 0 ? 'Negative' : r.totalStockQty === 0 ? 'Zero' : r.totalStockQty <= 10 ? 'Low' : r.totalStockQty <= 50 ? 'Medium' : 'High',
         }));
@@ -220,6 +221,7 @@ export default function ItemStockSummaryReport() {
                 <td style="padding:7px 10px;text-align:right;font-weight:700;color:${(r.expectedProfit||0)>=0?'#059669':'#dc2626'};">
                     ${fmt(r.expectedProfit)}
                 </td>
+                <td style="padding:7px 10px;text-align:center;">${r.turnover}x</td>
             </tr>
         `).join('');
         win.document.write(`
@@ -240,7 +242,7 @@ export default function ItemStockSummaryReport() {
                     <tr>
                         <th>SR</th><th>Item Name</th><th>Group</th><th>Stock Qty</th>
                         <th>Avg P.Price</th><th>Avg S.Price</th>
-                        <th>Total Pur. Value</th><th>Total Sale Value</th><th>Expected Profit</th>
+                        <th>Total Pur. Value</th><th>Total Sale Value</th><th>Expected Profit</th><th>Turnaround</th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
@@ -252,6 +254,7 @@ export default function ItemStockSummaryReport() {
                         <td style="text-align:right;">₹${fmt(totals.purValue)}</td>
                         <td style="text-align:right;">₹${fmt(totals.saleValue)}</td>
                         <td style="text-align:right;">₹${fmt(totals.profit)}</td>
+                        <td style="background:#1e3a8a;"></td>
                     </tr>
                 </tfoot>
             </table>
@@ -438,6 +441,7 @@ export default function ItemStockSummaryReport() {
                                         <th className="px-4 py-3 text-right"><SortBtn col="totalPurchaseValue" label="Pur. Value" /></th>
                                         <th className="px-4 py-3 text-right"><SortBtn col="totalSellingValue" label="Sale Value" /></th>
                                         <th className="px-4 py-3 text-right"><SortBtn col="expectedProfit" label="Profit" /></th>
+                                        <th className="px-4 py-3 text-center"><SortBtn col="turnover" label="Turnaround" /></th>
                                         <th className="px-4 py-3 text-center">Status</th>
                                     </tr>
                                 </thead>
@@ -486,6 +490,15 @@ export default function ItemStockSummaryReport() {
                                                     <td className="px-4 py-3 text-right text-indigo-700 font-semibold tabular-nums">₹{fmt(row.totalSellingValue)}</td>
                                                     <td className={`px-4 py-3 text-right font-bold tabular-nums ${profitColor}`}>₹{fmt(row.expectedProfit)}</td>
                                                     <td className="px-4 py-3 text-center">
+                                                        <span className={`px-2 py-1 rounded-lg text-xs font-black shadow-sm ${
+                                                            row.turnover >= 5 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                                                            row.turnover >= 2 ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                                                            'bg-rose-100 text-rose-700 border border-rose-200'
+                                                        }`}>
+                                                            {row.turnover}x
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
                                                         <StockBadge qty={row.totalStockQty} />
                                                     </td>
                                                 </tr>
@@ -499,6 +512,7 @@ export default function ItemStockSummaryReport() {
                                                                     { label: 'Avg Pur. Price', value: `₹${fmt(row.avgPurchasePrice)}`, icon: IndianRupee, color: 'bg-slate-100 text-slate-700' },
                                                                     { label: 'Avg Sale Price', value: `₹${fmt(row.avgSellingPrice)}`, icon: IndianRupee, color: 'bg-blue-100 text-blue-700' },
                                                                     { label: 'Profit Margin', value: row.totalSellingValue > 0 ? `${((row.expectedProfit / row.totalSellingValue) * 100).toFixed(1)}%` : '0%', icon: TrendingUp, color: 'bg-emerald-100 text-emerald-700' },
+                                                                    { label: 'Turnaround', value: `${row.turnover}x`, icon: RotateCcw, color: 'bg-indigo-100 text-indigo-700' },
                                                                 ].map(({ label, value, icon: Icon, color }) => (
                                                                     <div key={label} className={`rounded-xl px-4 py-3 flex items-center gap-3 ${color}`}>
                                                                         <Icon className="w-4 h-4 flex-shrink-0" />
@@ -526,6 +540,7 @@ export default function ItemStockSummaryReport() {
                                             <td className="px-4 py-3 text-right">₹{fmt(totals.purValue)}</td>
                                             <td className="px-4 py-3 text-right">₹{fmt(totals.saleValue)}</td>
                                             <td className="px-4 py-3 text-right text-emerald-300">₹{fmt(totals.profit)}</td>
+                                            <td></td>
                                             <td></td>
                                         </tr>
                                     </tfoot>
@@ -594,25 +609,48 @@ export default function ItemStockSummaryReport() {
                                 const topP = [...reportData].sort((a, b) => (b[profitKey] || 0) - (a[profitKey] || 0)).slice(0, 5);
                                 const maxP = Math.max(...topP.map(r => r[profitKey] || 0), 1);
                                 
-                                return topP.length === 0 || topP.every(r => (r[profitKey] || 0) === 0)
-                                    ? <p className="text-slate-400 text-center py-10">No data — {searched ? 'No recorded profit' : 'click Search first'}</p>
-                                    : topP.map((r, i) => {
-                                        const val = r[profitKey] || 0;
-                                        if (val === 0) return null; // hide zeros if some other items have profit
-                                        return (
-                                        <div key={i} className="mb-4 last:mb-0">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="text-sm font-semibold text-slate-700 truncate max-w-[240px]">{r.productName}</span>
-                                                <span className={`text-sm font-black ml-2 ${colorClass}`}>₹{fmt(val)}</span>
-                                            </div>
-                                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full bg-gradient-to-r ${gradientClass} transition-all duration-700`}
-                                                    style={{ width: `${maxP > 0 ? (val / maxP) * 100 : 0}%` }}
-                                                />
-                                            </div>
+                                return (
+                                    <div className="space-y-4">
+                                        <div className="min-h-[120px]">
+                                            {topP.length === 0 || topP.every(r => (r[profitKey] || 0) === 0)
+                                                ? <p className="text-slate-400 text-center py-10">No data — {searched ? 'No recorded profit' : 'click Search first'}</p>
+                                                : topP.map((r, i) => {
+                                                    const val = r[profitKey] || 0;
+                                                    if (val === 0) return null; // hide zeros if some other items have profit
+                                                    return (
+                                                        <div key={i} className="mb-4 last:mb-0">
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className="text-sm font-semibold text-slate-700 truncate max-w-[240px]">{r.productName}</span>
+                                                                <span className={`text-sm font-black ml-2 ${colorClass}`}>₹{fmt(val)}</span>
+                                                            </div>
+                                                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className={`h-full rounded-full bg-gradient-to-r ${gradientClass} transition-all duration-700`}
+                                                                    style={{ width: `${maxP > 0 ? (val / maxP) * 100 : 0}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            }
                                         </div>
-                                    )});
+
+                                        {/* Total for the Top 5 */}
+                                        {topP.length > 0 && !topP.every(r => (r[profitKey] || 0) === 0) && (
+                                            <div className={`mt-6 pt-5 border-t-2 border-dashed ${profitView === 'live' ? 'border-emerald-100' : 'border-indigo-100'} flex items-center justify-between`}>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Total {profitView === 'live' ? 'Live' : 'Overall'} Profit</span>
+                                                    <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase opacity-60">(Sum of top 5 items)</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className={`text-xl font-black tabular-nums transition-colors duration-300 ${colorClass}`}>
+                                                        ₹{fmt(topP.reduce((sum, r) => sum + (r[profitKey] || 0), 0))}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
                             })()}
                         </div>
 

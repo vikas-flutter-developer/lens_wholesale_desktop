@@ -6,6 +6,7 @@ import Account from "../models/Account.js";
 import mongoose from "mongoose";
 import { deriveOrderStatus } from "../utils/statusManager.js";
 import { validateAccountLimitsHelper } from "../utils/accountValidator.js";
+import { validateBarcodes } from "./barcode.controller.js";
 
 const addRxSaleOrder = async (req, res) => {
     try {
@@ -51,6 +52,18 @@ const addRxSaleOrder = async (req, res) => {
                 success: false,
                 message: "At least one sale order item is required",
             });
+        }
+
+        // Validate barcode uniqueness
+        const barcodesToCheck = items.map(it => it.barcode).filter(b => b && String(b).trim() !== "");
+        if (barcodesToCheck.length > 0) {
+            const isUnique = await validateBarcodes(barcodesToCheck);
+            if (!isUnique) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Duplicate barcode detected. Some barcodes are already in use.",
+                });
+            }
         }
         const subtotal = items.reduce(
             (sum, it) => sum + (Number(it.totalAmount) || 0),
@@ -250,6 +263,31 @@ const editRxSaleOrder = async (req, res) => {
             customer: item.customer || "",
             itemStatus: item.itemStatus || "Pending",
         }));
+
+        // Validate barcode uniqueness
+        const incomingBarcodes = incomingItems.map(it => it.barcode).filter(b => b && String(b).trim() !== "");
+        // Check for duplicates within the request itself
+        const uniqueIncoming = new Set(incomingBarcodes);
+        if (incomingBarcodes.length !== uniqueIncoming.size) {
+            return res.status(400).json({
+                success: false,
+                message: "Duplicate barcodes provided in the same request.",
+            });
+        }
+
+        // Check against database (excluding barcodes already in this order)
+        const existingBarcodes = new Set(existing.items.map(it => it.barcode).filter(b => b && String(b).trim() !== ""));
+        const brandNewBarcodes = incomingBarcodes.filter(b => !existingBarcodes.has(b));
+
+        if (brandNewBarcodes.length > 0) {
+            const isUnique = await validateBarcodes(brandNewBarcodes);
+            if (!isUnique) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Duplicate barcode detected. Some barcodes are already in use in other orders/sales.",
+                });
+            }
+        }
 
         const subtotal = incomingItems.reduce(
             (s, it) => s + (Number(it.totalAmount) || 0),
@@ -668,28 +706,6 @@ const createRxChallan = async (req, res) => {
             selectedItemIds: data.selectedItemIds?.length,
         });
 
-        // --- Purchase Validation (Workflow Restriction) ---
-        if (data.sourceSaleId) {
-            const sourceOrder = await RxSaleOrder.findById(data.sourceSaleId);
-            if (sourceOrder && sourceOrder.status !== "Done") {
-                const unpurchasedItems = [];
-                for (const selectedId of selectedItemIds) {
-                    const originalItem = sourceOrder.items.id(selectedId);
-                    if (originalItem && !originalItem.isPurchased && (originalItem.itemStatus || "Pending").toLowerCase() === "pending") {
-                        unpurchasedItems.push(originalItem.itemName || selectedId);
-                    }
-                }
-
-                if (unpurchasedItems.length > 0) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Please complete purchase before creating challan.",
-                        details: `Unpurchased items: ${unpurchasedItems.join(", ")}`
-                    });
-                }
-            }
-        }
-
         const items = (data.items || [])
             .filter((item) => selectedItemIds.includes(String(item._id)))
             .map((item) => ({
@@ -772,15 +788,9 @@ const createRxChallan = async (req, res) => {
                     const oldStock = Number(matched.initStock || 0);
                     const qty = Number(it.qty || 0);
                     if (oldStock < qty) {
-                        return res.status(400).json({
-                            success: false,
-                            message: `Insufficient stock for item "${it.itemName}". Available: ${oldStock}, Required: ${qty}`,
-                            itemName: it.itemName,
-                            available: oldStock,
-                            required: qty
-                        });
+                        console.warn(`⚠️ Insufficient stock for item "${it.itemName}". Available: ${oldStock}, Required: ${qty}. Unable to fulfill entire order.`);
                     }
-                    matched.initStock = oldStock - qty;
+                    matched.initStock = Math.max(0, oldStock - qty);
                     await parent.save();
                     console.log(`✅ Stock reduced for item: ${it.itemName}, Remaining: ${matched.initStock}`);
                 } catch (err) {

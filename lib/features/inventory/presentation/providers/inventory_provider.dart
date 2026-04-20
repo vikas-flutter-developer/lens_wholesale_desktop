@@ -1,12 +1,9 @@
 import 'package:flutter/foundation.dart';
-import '../../data/models/barcode_model.dart';
 import '../../data/models/damage_entry_model.dart';
-import '../../data/services/barcode_service.dart';
 import '../../data/services/inventory_service.dart';
 import '../../../../core/network/api_client.dart';
 
 class InventoryProvider extends ChangeNotifier {
-  final BarcodeService _barcodeService = BarcodeService();
   final InventoryService _inventoryService = InventoryService();
 
   List<Map<String, dynamic>> _stockReport = [];
@@ -46,50 +43,6 @@ class InventoryProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-  }
-
-  Future<BarcodeModel?> lookupBarcode(String barcode) async {
-    try {
-      return await _barcodeService.getBarcodeData(barcode);
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-      return null;
-    }
-  }
-
-  Future<Map<String, dynamic>?> checkDeliveryQR(String barcode) async {
-    return await _barcodeService.checkDeliveryQR(barcode);
-  }
-
-  Future<void> saveBarcode(BarcodeModel model) async {
-    try {
-      await _barcodeService.saveBarcodeData(model);
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<void> bulkSaveBarcodes(List<Map<String, dynamic>> scans) async {
-    try {
-      await _barcodeService.bulkSaveBarcodeData(scans);
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<bool> checkBarcodeExists(String barcode) async {
-    final response = await apiClient.dio.post('/lens/checkBarcodeExists', data: {'barcode': barcode});
-    return response.data['exists'] == true;
-  }
-
-  Future<String> generateUniqueBarcode(String prefix) async {
-    final response = await apiClient.dio.post('/lens/generateUniqueBarcode', data: {'prefix': prefix});
-    return response.data['barcode'] ?? '';
   }
 
   Future<void> saveLensLocationStock(List<Map<String, dynamic>> stocks) async {

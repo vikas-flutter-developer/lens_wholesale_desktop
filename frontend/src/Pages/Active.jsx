@@ -230,7 +230,7 @@ function RevenueTab() {
           error={errorMap.summary}
         />
         <KpiCard
-          title="Memo DC Revenue"
+          title="Sale Challan Revenue"
           value={summary ? formatINR(summary.memoRevenue) : "—"}
           sub={summary ? `${summary.monthlyRevenue > 0 ? ((summary.memoRevenue/summary.monthlyRevenue)*100).toFixed(1) : 0}% of total` : ""}
           icon={Activity}
@@ -238,7 +238,7 @@ function RevenueTab() {
           error={errorMap.summary}
         />
         <KpiCard
-          title="Invoice DC Revenue"
+          title="Invoice Revenue"
           value={summary ? formatINR(summary.invoiceDcRevenue) : "—"}
           sub={summary ? `${summary.monthlyRevenue > 0 ? ((summary.invoiceDcRevenue/summary.monthlyRevenue)*100).toFixed(1) : 0}% of total` : ""}
           icon={BarChart2}
@@ -261,7 +261,7 @@ function RevenueTab() {
         {/* Revenue Trend Chart */}
         <div style={cardStyle}>
           <div style={{ marginBottom:16 }}>
-            <div style={{ color:"#fff", fontWeight:700, fontSize:15 }}>Revenue Trend — Memo vs Invoice vs B2B</div>
+            <div style={{ color:"#fff", fontWeight:700, fontSize:15 }}>Revenue Trend — Sale Challan vs Invoice vs B2B</div>
             <div style={{ color:"#8a8fa8", fontSize:12, marginTop:2 }}>Last 6 months</div>
           </div>
 
@@ -1193,10 +1193,6 @@ export default function Active() {
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
         <div>
-          <h1 style={{ margin:0, fontSize:22, fontWeight:800, color:"#fff", letterSpacing:"-0.3px" }}>
-            <span style={{ color: COLORS.memo }}>Positiv</span>ERP
-            <span style={{ color:"#8a8fa8", fontWeight:400, fontSize:18 }}> — Wholesale AI Analytics</span>
-          </h1>
           <p style={{ margin:"4px 0 0", fontSize:12, color:"#8a8fa8" }}>
             Powered by AI · Real-time data · {new Date().toLocaleString("en-IN", { month:"long", year:"numeric" })}
           </p>

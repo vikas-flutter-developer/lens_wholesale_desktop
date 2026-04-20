@@ -11,15 +11,16 @@ _$ItemMasterModelImpl _$$ItemMasterModelImplFromJson(
 ) => _$ItemMasterModelImpl(
   id: json['_id'] as String?,
   itemName: json['itemName'] as String? ?? '',
+  vendorItemName: json['vendorItemName'] as String? ?? '',
   billItemName: json['billItemName'] as String? ?? '',
   alias: json['alias'] as String? ?? '',
   printName: json['printName'] as String? ?? '',
   groupName: json['groupName'] as String? ?? '',
   unit: json['unit'] as String? ?? '',
-  allUnit: json['allUnit'] as String? ?? '',
+  allUnit: json['altUnit'] as String? ?? '',
   description: json['description'] as String? ?? '',
   taxSetting: json['taxSetting'] as String? ?? 'N',
-  openingStock: (json['openingStock'] as num?)?.toDouble(),
+  openingStock: (json['openingStockQty'] as num?)?.toDouble(),
   openingStockValue: (json['openingStockValue'] as num?)?.toDouble(),
   purchasePrice: (json['purchasePrice'] as num?)?.toDouble(),
   saleProfit: (json['saleProfit'] as num?)?.toDouble(),
@@ -30,21 +31,17 @@ _$ItemMasterModelImpl _$$ItemMasterModelImplFromJson(
   minSalePrice: (json['minSalePrice'] as num?)?.toDouble(),
   hsnCode: json['hsnCode'] == null ? '' : _parseString(json['hsnCode']),
   barcode: json['barcode'] == null ? '' : _parseString(json['barcode']),
-  stockable: json['stockable'] as String? ?? '',
+  stockable: json['stockable'] as bool? ?? false,
   godown: json['godown'] as String? ?? '',
-  loyaltyPoints: json['loyaltyPoints'] == null
-      ? ''
-      : _parseString(json['loyaltyPoints']),
-  refAmn: json['refAmn'] == null ? '' : _parseString(json['refAmn']),
-  refAmntIndia: json['refAmntIndia'] == null
-      ? ''
-      : _parseString(json['refAmntIndia']),
+  loyaltyPoints: (json['loyaltyPoints'] as num?)?.toDouble(),
+  refAmn: (json['refAmn'] as num?)?.toDouble(),
+  refAmntIndia: (json['refAmntIndia'] as num?)?.toDouble(),
   forLensProduct: json['forLensProduct'] as bool? ?? false,
   sellStockLevel: json['sellStockLevel'] == null
       ? ''
       : _parseString(json['sellStockLevel']),
   batchWiseDetails: json['batchWiseDetails'] as String? ?? '',
-  taxCategory: json['taxCategory'] as String? ?? '',
+  taxCategory: json['TaxCategory'] as String? ?? '',
   createdAt: _parseString(json['createdAt']),
   updatedAt: _parseString(json['updatedAt']),
 );
@@ -54,15 +51,16 @@ Map<String, dynamic> _$$ItemMasterModelImplToJson(
 ) => <String, dynamic>{
   '_id': instance.id,
   'itemName': instance.itemName,
+  'vendorItemName': instance.vendorItemName,
   'billItemName': instance.billItemName,
   'alias': instance.alias,
   'printName': instance.printName,
   'groupName': instance.groupName,
   'unit': instance.unit,
-  'allUnit': instance.allUnit,
+  'altUnit': instance.allUnit,
   'description': instance.description,
   'taxSetting': instance.taxSetting,
-  'openingStock': instance.openingStock,
+  'openingStockQty': instance.openingStock,
   'openingStockValue': instance.openingStockValue,
   'purchasePrice': instance.purchasePrice,
   'saleProfit': instance.saleProfit,
@@ -81,7 +79,7 @@ Map<String, dynamic> _$$ItemMasterModelImplToJson(
   'forLensProduct': instance.forLensProduct,
   'sellStockLevel': instance.sellStockLevel,
   'batchWiseDetails': instance.batchWiseDetails,
-  'taxCategory': instance.taxCategory,
+  'TaxCategory': instance.taxCategory,
   'createdAt': instance.createdAt,
   'updatedAt': instance.updatedAt,
 };

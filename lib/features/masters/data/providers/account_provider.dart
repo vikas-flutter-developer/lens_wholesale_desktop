@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/network/api_client.dart';
 import '../models/account_model.dart';
 
@@ -10,8 +11,6 @@ class AccountProvider with ChangeNotifier {
   List<AccountModel> get accounts => _accounts;
   bool get isLoading => _isLoading;
   String? get error => _error;
-
-  final ApiClient _apiClient = ApiClient(); // Factory returns singleton
   
   Future<void> fetchAllAccounts({String? type}) async {
     _isLoading = true;
@@ -59,6 +58,7 @@ class AccountProvider with ChangeNotifier {
 
   Future<bool> addAccount(AccountModel account) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
 
     try {
@@ -66,9 +66,15 @@ class AccountProvider with ChangeNotifier {
       if (response.data['success'] == true) {
         await fetchAllAccounts();
         return true;
+      } else {
+        _error = response.data['message'] ?? "Failed to add account";
       }
     } catch (e) {
-      _error = e.toString();
+      if (e is DioException) {
+        _error = e.response?.data['message'] ?? e.message;
+      } else {
+        _error = e.toString();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -78,6 +84,7 @@ class AccountProvider with ChangeNotifier {
 
   Future<bool> updateAccount(String id, AccountModel account) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
 
     try {
@@ -85,9 +92,15 @@ class AccountProvider with ChangeNotifier {
       if (response.data['success'] == true) {
         await fetchAllAccounts();
         return true;
+      } else {
+        _error = response.data['message'] ?? "Failed to update account";
       }
     } catch (e) {
-      _error = e.toString();
+      if (e is DioException) {
+        _error = e.response?.data['message'] ?? e.message;
+      } else {
+        _error = e.toString();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

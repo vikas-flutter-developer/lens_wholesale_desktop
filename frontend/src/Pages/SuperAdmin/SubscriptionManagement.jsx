@@ -50,13 +50,42 @@ const SubscriptionManagement = () => {
         }
     };
 
+    const handleToggleBlock = async (companyId, currentStatus) => {
+        if (!window.confirm(`Are you sure you want to ${currentStatus ? 'Unblock' : 'Block'} this company?`)) return;
+        try {
+            await ApiClient.patch(`/super-admin/companies/${companyId}/toggle-block`);
+            toast.success(`Company ${currentStatus ? 'unblocked' : 'blocked'} successfully`);
+            fetchData();
+        } catch (error) {
+            toast.error("Failed to toggle block status");
+        }
+    };
+
+    const calculateDetailedStatus = (company) => {
+        if (company.isBlocked) return 'blocked';
+        
+        const today = new Date();
+        const expiryDate = new Date(company.planExpiryDate);
+        if (!company.planExpiryDate) return 'trial';
+
+        const graceEndDate = company.gracePeriodEndDate ? new Date(company.gracePeriodEndDate) : new Date(expiryDate);
+        if (!company.gracePeriodEndDate) {
+            graceEndDate.setDate(graceEndDate.getDate() + 7);
+        }
+
+        if (today <= expiryDate) return 'active';
+        if (today > expiryDate && today <= graceEndDate) return 'grace_period';
+        return 'expired';
+    };
+
     const getStatusColor = (status) => {
         switch (status) {
-            case 'active': return 'bg-emerald-100 text-emerald-700';
-            case 'trial': return 'bg-blue-100 text-blue-700';
-            case 'expired': return 'bg-rose-100 text-rose-700';
-            case 'suspended': return 'bg-slate-100 text-slate-700';
-            default: return 'bg-slate-100 text-slate-700';
+            case 'active': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+            case 'grace_period': return 'bg-amber-100 text-amber-700 border-amber-200';
+            case 'expired': return 'bg-rose-100 text-rose-700 border-rose-200';
+            case 'blocked': return 'bg-slate-900 text-white border-slate-900';
+            case 'trial': return 'bg-blue-100 text-blue-700 border-blue-200';
+            default: return 'bg-slate-100 text-slate-700 border-slate-200';
         }
     };
 
@@ -100,7 +129,9 @@ const SubscriptionManagement = () => {
                         <tbody className="divide-y divide-slate-50">
                             {loading ? (
                                 <tr><td colSpan="5" className="text-center py-10 text-slate-400">Loading subscriptions...</td></tr>
-                            ) : filteredCompanies.map(company => (
+                            ) : filteredCompanies.map(company => {
+                                const status = calculateDetailedStatus(company);
+                                return (
                                 <tr key={company._id} className="hover:bg-slate-50 transition-colors group">
                                     <td className="px-4 py-4">
                                         <div className="flex items-center gap-3">
@@ -120,8 +151,8 @@ const SubscriptionManagement = () => {
                                         </div>
                                     </td>
                                     <td className="px-4 py-4">
-                                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusColor(company.subscriptionStatus)}`}>
-                                            {company.subscriptionStatus}
+                                        <span className={`px-2.5 py-1 rounded-full text-[10px] border font-black uppercase tracking-wider ${getStatusColor(status)}`}>
+                                            {status.replace('_', ' ')}
                                         </span>
                                     </td>
                                     <td className="px-4 py-4">
@@ -129,22 +160,31 @@ const SubscriptionManagement = () => {
                                             <p className={`text-sm font-medium ${new Date(company.planExpiryDate) < new Date() ? 'text-rose-500' : 'text-slate-600'}`}>
                                                 {company.planExpiryDate ? new Date(company.planExpiryDate).toLocaleDateString() : '--/--/----'}
                                             </p>
-                                            {company.gracePeriodEndDate && new Date() > new Date(company.planExpiryDate) && new Date() <= new Date(company.gracePeriodEndDate) && (
+                                            {status === 'grace_period' && (
                                                 <span className="text-[10px] text-amber-500 font-bold">GRACE PERIOD</span>
                                             )}
                                         </div>
                                     </td>
                                     <td className="px-4 py-4 text-right">
-                                        <button 
-                                            onClick={() => { setSelectedCompany(company); setIsModalOpen(true); }}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-xs font-bold transition-all border border-indigo-100"
-                                        >
-                                            <CreditCard size={14} />
-                                            Manage Subscription
-                                        </button>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button 
+                                                onClick={() => handleToggleBlock(company._id, company.isBlocked)}
+                                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${company.isBlocked ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100'}`}
+                                            >
+                                                {company.isBlocked ? 'Unblock' : 'Block'}
+                                            </button>
+                                            <button 
+                                                onClick={() => { setSelectedCompany(company); setIsModalOpen(true); }}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-xs font-bold transition-all border border-indigo-100"
+                                            >
+                                                <CreditCard size={14} />
+                                                Manage
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

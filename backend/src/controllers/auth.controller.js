@@ -5,34 +5,47 @@ import { validationResult } from 'express-validator';
 import config from '../config/env.js';
 import { sendOTPEmail } from '../utils/emailService.js';
 import crypto from 'crypto';
+import Account from '../models/Account.js';
 
 const JWT_SECRET = config.JWT_SECRET;
 
 export const login = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({ success: false, errors: errors.array() });
   }
 
   try {
-    const { email, password } = req.body;
-    console.log("Login attempt:", { email, role: req.body.role });
+    const { email, mobileNumber, password, identifier } = req.body;
+    console.log("Login attempt:", { identifier, email, mobileNumber, role: req.body.role });
     console.log("JWT_SECRET available:", !!JWT_SECRET);
 
-    const user = await User.findOne({ email }).populate('companyId');
+    let user;
+    const loginId = identifier || email || mobileNumber;
+
+    if (!loginId) {
+       return res.status(400).json({ success: false, message: "Email or Mobile Number is required" });
+    }
+
+    if (loginId.includes('@')) {
+      user = await User.findOne({ email: loginId.toLowerCase() }).populate('companyId');
+    } else {
+      user = await User.findOne({ mobileNumber: loginId }).populate('companyId');
+    }
+
     if (!user) {
-      return res.status(400).json({ message: "Invalid email or password" });
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
     // Role validation (handling Super Admin display name)
     const requestedRole = req.body.role?.toLowerCase().replace(' ', '_');
     if (user.role !== requestedRole) {
-       return res.status(400).json({ message: `Access denied. You are not registered as ${req.body.role}` });
+       return res.status(400).json({ success: false, message: `Access denied. You are not registered as ${req.body.role}` });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid email or password" });
+      return res.status(400).json({ success: false, message: "Invalid email or password" });
     }
 
     user.lastLogin = new Date();
@@ -46,6 +59,31 @@ export const login = async (req, res) => {
       role: user.role,
       companyId: user.companyId?._id,
     };
+
+    // Subscription Check (Excluding Super Admin)
+    if (user.role !== 'super_admin' && user.companyId) {
+      if (user.companyId.isBlocked) {
+        return res.status(403).json({
+          success: false,
+          message: "Your account has been blocked by admin."
+        });
+      }
+
+      const today = new Date();
+      const expiryDate = new Date(user.companyId.planExpiryDate);
+      
+      const graceEndDate = user.companyId.gracePeriodEndDate ? new Date(user.companyId.gracePeriodEndDate) : new Date(expiryDate);
+      if (!user.companyId.gracePeriodEndDate) {
+          graceEndDate.setDate(graceEndDate.getDate() + 7);
+      }
+
+      if (today > graceEndDate) {
+        return res.status(403).json({
+          success: false,
+          message: "Your plan has expired. Please renew your subscription."
+        });
+      }
+    }
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
 
@@ -78,14 +116,14 @@ export const login = async (req, res) => {
     });
   } catch (err) {
     console.error("Login bug:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
 
 export const createUser = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({ success: false, errors: errors.array() });
   }
 
   try {
@@ -93,7 +131,7 @@ export const createUser = async (req, res) => {
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "Email already in use" });
+      return res.status(400).json({ success: false, message: "Email already in use" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -109,6 +147,7 @@ export const createUser = async (req, res) => {
     await user.save();
 
     res.status(201).json({
+      success: true,
       message: "User created successfully",
       user: {
         id: user._id,
@@ -120,7 +159,7 @@ export const createUser = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -129,10 +168,10 @@ export const getUserData = async (req, res) => {
     const response = await User.find()
       .select("name email lastLogin _id role companyId")
       .sort({ lastLogin: -1 });
-    res.json({ response })
+    res.json({ success: true, response })
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -141,26 +180,26 @@ export const changePassword = async (req, res) => {
 
   try {
     if (!newPassword) {
-      return res.status(400).json({ message: "New password is required" });
+      return res.status(400).json({ success: false, message: "New password is required" });
     }
     if (newPassword.length < 6) {
-      return res.status(400).json({ message: "New password should be at least 6 characters long" });
+      return res.status(400).json({ success: false, message: "New password should be at least 6 characters long" });
     }
     const user = await User.findById(id);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
     const isSamePassword = await bcrypt.compare(newPassword, user.password);
     if (isSamePassword) {
-      return res.status(400).json({ message: "New password cannot be the same as the old password" });
+      return res.status(400).json({ success: false, message: "New password cannot be the same as the old password" });
     }
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
     await user.save();
-    res.status(200).json({ message: "Password updated successfully" });
+    res.status(200).json({ success: true, message: "Password updated successfully" });
   } catch (err) {
     console.error("Error updating password:", err);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
@@ -169,7 +208,7 @@ export const forgotPassword = async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: "Email not registered in the system." });
+      return res.status(404).json({ success: false, message: "Email not registered in the system." });
     }
 
     // Generate 6-digit OTP
@@ -180,13 +219,13 @@ export const forgotPassword = async (req, res) => {
 
     const emailResult = await sendOTPEmail(user.email, otp);
     if (!emailResult.success) {
-      return res.status(500).json({ message: "Error sending email. Please try again later." });
+      return res.status(500).json({ success: false, message: "Error sending email. Please try again later." });
     }
 
-    res.json({ message: "OTP sent to your registered email ID." });
+    res.json({ success: true, message: "OTP sent to your registered email ID." });
   } catch (err) {
     console.error("Forgot password error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -200,16 +239,16 @@ export const verifyOTP = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid or expired OTP. Please try again." });
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP. Please try again." });
     }
 
     // Return a short-lived token for password reset
     const resetToken = jwt.sign({ id: user._id, type: 'reset' }, JWT_SECRET, { expiresIn: '10m' });
     
-    res.json({ message: "OTP verified successfully.", resetToken });
+    res.json({ success: true, message: "OTP verified successfully.", resetToken });
   } catch (err) {
     console.error("Verify OTP error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -218,12 +257,12 @@ export const resetPassword = async (req, res) => {
   try {
     const decoded = jwt.verify(resetToken, JWT_SECRET);
     if (decoded.type !== 'reset') {
-      return res.status(400).json({ message: "Invalid reset token" });
+      return res.status(400).json({ success: false, message: "Invalid reset token" });
     }
 
     const user = await User.findById(decoded.id);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -234,10 +273,10 @@ export const resetPassword = async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    res.json({ message: "Password updated successfully." });
+    res.json({ success: true, message: "Password updated successfully." });
   } catch (err) {
     console.error("Reset password error:", err);
-    res.status(401).json({ message: "Token expired or invalid. Please request a new OTP." });
+    res.status(401).json({ success: false, message: "Token expired or invalid. Please request a new OTP." });
   }
 };
 
@@ -249,7 +288,62 @@ export const logout = (req, res) => {
     sameSite: 'strict'
   });
 
-  res.status(200).json({ message: 'Logged out successfully' });
+  res.status(200).json({ success: true, message: 'Logged out successfully' });
+};
+
+export const onboardCustomer = async (req, res) => {
+  try {
+    const { mobileNumber, password, confirmPassword } = req.body;
+    if (!mobileNumber || !password || !confirmPassword) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ success: false, message: "Passwords do not match" });
+    }
+
+    const account = await Account.findOne({ MobileNumber: mobileNumber });
+    if (!account) {
+      return res.status(404).json({ success: false, message: "No ERP account found with this mobile number" });
+    }
+
+    const existingUser = await User.findOne({ 
+      $or: [{ mobileNumber }, { email: `${mobileNumber}@customer.com` }] 
+    });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: "This customer is already onboarded" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({
+      name: account.Name,
+      email: `${mobileNumber}@customer.com`,
+      mobileNumber,
+      password: hashedPassword,
+      role: "customer",
+      accountId: account._id,
+      companyId: account.companyId,
+    });
+
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Customer onboarded successfully",
+      user: { id: user._id, name: user.name, role: user.role }
+    });
+  } catch (err) {
+    console.error("onboardCustomer error:", err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
+  }
+};
+
+export const checkSubscription = async (req, res) => {
+  try {
+    // Middleware already handled the check, if we are here, it's valid or super_admin
+    res.json({ success: true, message: "Subscription is active" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
 };
 export default {
   login,
@@ -259,5 +353,7 @@ export default {
   changePassword,
   forgotPassword,
   verifyOTP,
-  resetPassword
+  resetPassword,
+  onboardCustomer,
+  checkSubscription
 };

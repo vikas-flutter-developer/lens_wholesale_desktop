@@ -11,7 +11,6 @@ import {
   recalculateDocStatus
 } from "../utils/statusManager.js";
 import {
-  validateStockAvailability,
   deductStock,
   restoreStock,
   adjustStockForEdit
@@ -117,21 +116,10 @@ const addLensSaleOrder = async (req, res) => {
     const savedOrder = await newOrder.save();
 
     // ── Stock Deduction ──────────────────────────────────────────────────────────
-    // Validate and deduct stock. Non-blocking: log but don't fail the order if
-    // a stock record is missing.
+    // Deduct stock without blocking. Non-blocking: will deduct what's available,
+    // allowing orders to be created even if stock is insufficient.
     try {
       const companyId = req.user?.companyId || null;
-      const stockValidation = await validateStockAvailability(itemsWithStatus, companyId);
-      if (!stockValidation.valid) {
-        // Roll back saved order and inform the client
-        await LensSaleOrder.findByIdAndDelete(savedOrder._id);
-        const messages = stockValidation.errors.map(e => e.message).join(" | ");
-        return res.status(400).json({
-          success: false,
-          message: "Insufficient stock: " + messages,
-          stockErrors: stockValidation.errors,
-        });
-      }
       await deductStock(itemsWithStatus, companyId);
     } catch (stockErr) {
       console.error("[Stock] Deduction error (non-fatal):", stockErr.message);

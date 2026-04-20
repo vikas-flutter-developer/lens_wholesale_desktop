@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
     Search,
     RotateCcw,
@@ -10,32 +10,157 @@ import {
     Package,
     Table,
     PieChart,
+    Check,
+    X,
 } from 'lucide-react';
 import { getLensStockReport } from '../controllers/Reports.controller';
 import { getAllGroups } from '../controllers/groupcontroller';
 import { getAllItems } from '../controllers/itemcontroller';
+import { getPowerRangeLibrary } from '../controllers/LensGroupCreationController';
 import toast from 'react-hot-toast';
+
+// Custom Multi-Select Dropdown Component
+const MultiSelectDropdown = ({ options, selectedValues, onChange, label, placeholder, loading }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = useMemo(() => {
+        if (!searchTerm) return options;
+        return options.filter(opt =>
+            opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [options, searchTerm]);
+
+    const handleToggle = (value) => {
+        const newSelected = selectedValues.includes(value)
+            ? selectedValues.filter(v => v !== value)
+            : [...selectedValues, value];
+        onChange(newSelected);
+    };
+
+    const handleSelectAll = (e) => {
+        e.stopPropagation();
+        if (selectedValues.length === options.length) {
+            onChange([]);
+        } else {
+            onChange(options.map(opt => opt.value));
+        }
+    };
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">{label}</label>
+            <div
+                onClick={() => !loading && setIsOpen(!isOpen)}
+                className={`w-full px-3 py-2 border rounded-lg flex items-center justify-between cursor-pointer transition text-sm min-h-[40px] ${isOpen ? 'ring-2 ring-blue-500 border-blue-500' : 'border-slate-300 bg-white hover:border-blue-400'
+                    } ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
+            >
+                <div className="flex flex-wrap gap-1 max-w-[90%] overflow-hidden overflow-ellipsis whitespace-nowrap">
+                    {selectedValues.length === 0 ? (
+                        <span className="text-slate-400">{loading ? 'Loading...' : placeholder}</span>
+                    ) : selectedValues.length === options.length ? (
+                        <span className="text-blue-600 font-semibold italic">All Selected</span>
+                    ) : (
+                        <span className="text-blue-700 font-medium">
+                            {selectedValues.length} {selectedValues.length === 1 ? 'item' : 'items'} selected
+                        </span>
+                    )}
+                </div>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+
+            {isOpen && (
+                <div className="absolute z-[100] mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="p-2 border-b border-slate-100 bg-slate-50 space-y-2">
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-9 pr-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="Search..."
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between px-1">
+                            <button
+                                onClick={handleSelectAll}
+                                className="text-[10px] uppercase tracking-wider font-bold text-blue-600 hover:text-blue-800 transition"
+                            >
+                                {selectedValues.length === options.length ? 'Unselect All' : 'Select All'}
+                            </button>
+                            <span className="text-[10px] text-slate-400 font-medium">{filteredOptions.length} options</span>
+                        </div>
+                    </div>
+                    <div className="max-h-[250px] overflow-y-auto py-1 custom-scrollbar">
+                        {filteredOptions.length === 0 ? (
+                            <div className="px-4 py-3 text-sm text-slate-400 italic text-center">No matches found</div>
+                        ) : (
+                            filteredOptions.map((opt) => (
+                                <div
+                                    key={opt.value}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggle(opt.value);
+                                    }}
+                                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer flex items-center justify-between group transition-colors"
+                                >
+                                    <span className={`text-sm ${selectedValues.includes(opt.value) ? 'text-blue-700 font-semibold' : 'text-slate-600'}`}>
+                                        {opt.label}
+                                    </span>
+                                    {selectedValues.includes(opt.value) ? (
+                                        <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
+                                            <Check className="w-3 h-3 text-white" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-4 h-4 border border-slate-300 rounded group-hover:border-blue-400 transition" />
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export default function LensStockReport() {
     const [reportData, setReportData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [groups, setGroups] = useState([]);
     const [items, setItems] = useState([]);
+    const [libraryRanges, setLibraryRanges] = useState([]);
+    const [loadingLibrary, setLoadingLibrary] = useState(false);
+
     const [activeTab, setActiveTab] = useState('summary'); // 'summary', 'detail', 'eye'
     const [viewMode, setViewMode] = useState('report'); // 'report', 'analysis'
+    const [pagination, setPagination] = useState({
+        total: 0,
+        currentPage: 1,
+        limit: 50,
+        totals: { stockTotal: 0, purValueTotal: 0, saleValueTotal: 0 }
+    });
 
     const [filters, setFilters] = useState({
         groupName: '',
         productName: '',
+        itemIds: [], // New Multi-select
+        powerGroupIds: [], // New Multi-select
         barcode: '',
         boxNo: '',
-        sphMin: '',
-        sphMax: '',
-        cylMin: '',
-        cylMax: '',
-        axis: '',
-        addMin: '',
-        addMax: '',
         eye: 'All',
         showQty: 'All',
         orderByAdd: false,
@@ -47,20 +172,42 @@ export default function LensStockReport() {
         handleSearch(); // Initial fetch
     }, []);
 
+    // Task 4: Fetch library ranges when groupName changes
+    useEffect(() => {
+        if (filters.groupName) {
+            fetchLibrary(filters.groupName);
+        } else {
+            setLibraryRanges([]);
+            handleFilterChange('powerGroupIds', []);
+        }
+    }, [filters.groupName]);
+
+    const fetchLibrary = async (gName) => {
+        try {
+            setLoadingLibrary(true);
+            const res = await getPowerRangeLibrary(gName);
+            if (res && Array.isArray(res)) {
+                setLibraryRanges(res);
+            } else if (res && res.success && Array.isArray(res.data)) {
+                setLibraryRanges(res.data);
+            } else {
+                setLibraryRanges([]);
+            }
+        } catch (error) {
+            console.error('Error fetching library:', error);
+            setLibraryRanges([]);
+        } finally {
+            setLoadingLibrary(false);
+        }
+    };
+
     const fetchInitialData = async () => {
         try {
-            console.log('🔄 Fetching groups and items...');
-
             const groupRes = await getAllGroups();
-            console.log('📦 Groups Response:', groupRes);
             const groupsList = groupRes.groups || groupRes.data?.groups || [];
             setGroups(groupsList);
 
             const itemRes = await getAllItems();
-            console.log('📦 Items Response:', itemRes);
-            console.log('📦 Response Type:', typeof itemRes, 'Is Array:', Array.isArray(itemRes));
-
-            // Handle multiple response formats
             let itemsList = [];
             if (itemRes.items && Array.isArray(itemRes.items)) {
                 itemsList = itemRes.items;
@@ -72,26 +219,9 @@ export default function LensStockReport() {
                 itemsList = itemRes;
             }
 
-            console.log('✅ Items Processed:', itemsList.length, 'items');
-            if (itemsList.length > 0) {
-                console.log('📋 Sample Item:', itemsList[0]);
-                console.log('📋 Item Keys:', Object.keys(itemsList[0]));
-            } else {
-                console.warn('⚠️ NO ITEMS RECEIVED FROM API');
-                // Add test items for debugging
-                console.log('📝 Adding test items for dropdown debugging...');
-                itemsList = [
-                    { _id: 'test1', itemName: 'Test Item 1', groupName: 'Test Group A' },
-                    { _id: 'test2', itemName: 'Test Item 2', groupName: 'Test Group B' },
-                    { _id: 'test3', itemName: 'Test Item 3', groupName: 'Test Group A' }
-                ];
-            }
-
             setItems(itemsList);
         } catch (error) {
-            console.error('❌ Error fetching initial data:', error);
-            console.error('Error Details:', error.message, error.response?.data);
-            toast.error('Failed to load items and groups');
+            toast.error('Failed to load initial data');
             setItems([]);
         }
     };
@@ -100,19 +230,20 @@ export default function LensStockReport() {
         setFilters(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleSearch = async () => {
+    const handleSearch = async (page = 1, limit = pagination.limit) => {
         try {
             setLoading(true);
-            const res = await getLensStockReport(filters);
+            // Task 6: Pass itemIds and powerGroupIds in payload
+            const res = await getLensStockReport({ ...filters, page, limit });
             if (res.success) {
-                let data = res.data;
-
-                // Apply manual sorting if "Order by Add" is checked
-                if (filters.orderByAdd) {
-                    data.sort((a, b) => (parseFloat(a.addValue) || 0) - (parseFloat(b.addValue) || 0));
-                }
-
-                setReportData(data);
+                setReportData(res.data);
+                setPagination(prev => ({
+                    ...prev,
+                    total: res.total || res.data.length,
+                    currentPage: res.page || page,
+                    limit: res.limit || limit,
+                    totals: res.totals || prev.totals
+                }));
             }
         } catch (error) {
             toast.error('Failed to fetch report data');
@@ -125,46 +256,46 @@ export default function LensStockReport() {
         setFilters({
             groupName: '',
             productName: '',
+            itemIds: [],
+            powerGroupIds: [],
             barcode: '',
             boxNo: '',
-            sphMin: '',
-            sphMax: '',
-            cylMin: '',
-            cylMax: '',
-            axis: '',
-            addMin: '',
-            addMax: '',
             eye: 'All',
             showQty: 'All',
             orderByAdd: false,
             showEye: true
         });
-        // Optional: trigger search after reset
-        // handleSearch();
+        setLibraryRanges([]);
     };
 
     const handleExport = () => {
         toast.success('Exporting to Excel...');
-        // Implementation for excel export would go here
     };
 
     const handlePrint = () => {
         window.print();
     };
 
+    // Item options for multi-select
+    const itemOptions = useMemo(() => {
+        return items.map(item => ({
+            label: item.itemName || item.name,
+            value: item._id || item.id,
+            group: item.groupName || item.group || ''
+        }));
+    }, [items]);
+
+    // Power Group options
+    const powerGroupOptions = useMemo(() => {
+        return libraryRanges.map(pg => ({
+            label: pg.label || `SPH(${pg.sphMin},${pg.sphMax}) | CYL(${pg.cylMin},${pg.cylMax}) | ADD(${pg.addMin},${pg.addMax})`,
+            value: pg._id
+        }));
+    }, [libraryRanges]);
+
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-6 print:p-0">
             <div className="max-w-[1600px] mx-auto">
-                {/* Debug Alert */}
-                {items.length === 0 && (
-                    <div className="mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-                        <p className="text-sm text-yellow-800">
-                            <span className="font-bold">⚠️ Items Not Loaded:</span> Check browser console (F12) for API response details.
-                            Items count: {items.length}
-                        </p>
-                    </div>
-                )}
-
                 {/* Header */}
                 <div className="mb-6 flex flex-col md:flex-row items-center justify-between gap-4 print:hidden bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl px-6 py-4 shadow-md">
                     <div>
@@ -219,7 +350,7 @@ export default function LensStockReport() {
 
                 {/* Filters Grid */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6 print:hidden">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 items-end">
                         {/* Group Name */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Group Name</label>
@@ -232,50 +363,38 @@ export default function LensStockReport() {
                             />
                         </div>
 
-                        {/* Product Name - Item Name Dropdown */}
-                        <div className="lg:col-span-2 relative">
-                            <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">
-                                Item Name {items?.length ? `(${items.length})` : '(loading)'}
-                            </label>
-                            <select
-                                value={filters.productName}
-                                onChange={(e) => {
-                                    const selectedValue = e.target.value;
-                                    console.log('✅ Selected:', selectedValue);
-                                    handleFilterChange('productName', selectedValue);
-
-                                    if (selectedValue && items?.length > 0) {
-                                        const found = items.find(item => (item.itemName || item.name) === selectedValue);
-                                        if (found) {
-                                            const groupName = found.groupName || found.group || '';
-                                            console.log('✅ Found item, setting group to:', groupName);
-                                            handleFilterChange('groupName', groupName);
-                                            toast.success('✓ Item selected, group auto-filled!');
+                        {/* Task 1: Multi-Select Item Name */}
+                        <div className="lg:col-span-2">
+                            <MultiSelectDropdown
+                                label={`Item Name ${items?.length ? `(${items.length})` : ''}`}
+                                options={itemOptions}
+                                selectedValues={filters.itemIds}
+                                onChange={(val) => {
+                                    handleFilterChange('itemIds', val);
+                                    // Auto-fill group if only one item selected and group matches
+                                    if (val.length === 1) {
+                                        const selectedId = val[0];
+                                        const item = itemOptions.find(opt => opt.value === selectedId);
+                                        if (item && item.group && !filters.groupName) {
+                                            handleFilterChange('groupName', item.group);
                                         }
                                     }
                                 }}
-                                style={{
-                                    appearance: 'auto',
-                                    WebkitAppearance: 'menulist',
-                                    MozAppearance: 'menulist'
-                                }}
-                                className="w-full px-3 py-2.5 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition text-sm bg-white cursor-pointer font-medium text-slate-700 hover:bg-slate-50 hover:border-blue-500"
-                            >
-                                <option value="">-- Select Item --</option>
-                                <option value="Test Item 1">Test Item 1</option>
-                                <option value="Test Item 2">Test Item 2</option>
-                                <option value="Test Item 3">Test Item 3</option>
-                                {items?.length > 0 && items.map((item) => (
-                                    <option key={item._id || item.id} value={item.itemName || item.name}>
-                                        {item.itemName || item.name}
-                                    </option>
-                                ))}
-                            </select>
-                            {items?.length === 0 && (
-                                <div className="text-xs text-orange-600 mt-1 font-semibold bg-orange-50 p-2 rounded border border-orange-200">
-                                    ⚠️ No items available - check backend API
-                                </div>
-                            )}
+                                placeholder="-- Select Items --"
+                                loading={items.length === 0}
+                            />
+                        </div>
+
+                        {/* Task 3 & 4: Power Group Filter */}
+                        <div className="lg:col-span-2">
+                            <MultiSelectDropdown
+                                label="Power Group"
+                                options={powerGroupOptions}
+                                selectedValues={filters.powerGroupIds}
+                                onChange={(val) => handleFilterChange('powerGroupIds', val)}
+                                placeholder={filters.groupName ? "-- Select Power Groups --" : "Select Group first..."}
+                                loading={loadingLibrary}
+                            />
                         </div>
 
                         {/* Box No */}
@@ -308,84 +427,13 @@ export default function LensStockReport() {
                             <select
                                 value={filters.showQty}
                                 onChange={(e) => handleFilterChange('showQty', e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm bg-white"
                             >
-                                <option value="All">All</option>
-                                <option value="Positive">Positive</option>
-                                <option value="Negative">Negative</option>
-                                <option value="Zero">Zero</option>
+                                <option value="All">All Items</option>
+                                <option value="Positive">Positive (&gt;0)</option>
+                                <option value="Negative">Negative (&lt;0)</option>
+                                <option value="Zero">Zero (=0)</option>
                             </select>
-                        </div>
-
-                        {/* SPH Range */}
-                        <div className="flex gap-2 lg:col-span-2">
-                            <div className="flex-1">
-                                <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">From SPH</label>
-                                <input
-                                    type="number"
-                                    step="0.25"
-                                    value={filters.sphMin}
-                                    onChange={(e) => handleFilterChange('sphMin', e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
-                                />
-                            </div>
-                            <div className="flex-1">
-                                <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">To SPH</label>
-                                <input
-                                    type="number"
-                                    step="0.25"
-                                    value={filters.sphMax}
-                                    onChange={(e) => handleFilterChange('sphMax', e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
-                                />
-                            </div>
-                        </div>
-
-                        {/* CYL Range */}
-                        <div className="flex gap-2 lg:col-span-2">
-                            <div className="flex-1">
-                                <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">From CYL</label>
-                                <input
-                                    type="number"
-                                    step="0.25"
-                                    value={filters.cylMin}
-                                    onChange={(e) => handleFilterChange('cylMin', e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
-                                />
-                            </div>
-                            <div className="flex-1">
-                                <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">To CYL</label>
-                                <input
-                                    type="number"
-                                    step="0.25"
-                                    value={filters.cylMax}
-                                    onChange={(e) => handleFilterChange('cylMax', e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Axis */}
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Axis</label>
-                            <input
-                                type="number"
-                                value={filters.axis}
-                                onChange={(e) => handleFilterChange('axis', e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
-                            />
-                        </div>
-
-                        {/* ADD */}
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">ADD</label>
-                            <input
-                                type="number"
-                                step="0.25"
-                                value={filters.addMin}
-                                onChange={(e) => handleFilterChange('addMin', e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
-                            />
                         </div>
 
                         {/* EYE */}
@@ -394,7 +442,7 @@ export default function LensStockReport() {
                             <select
                                 value={filters.eye}
                                 onChange={(e) => handleFilterChange('eye', e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm bg-white"
                             >
                                 <option value="All">All</option>
                                 <option value="R">Right</option>
@@ -403,7 +451,7 @@ export default function LensStockReport() {
                         </div>
 
                         {/* Checkboxes */}
-                        <div className="flex items-center gap-6 xl:col-span-2">
+                        <div className="flex items-center gap-4 xl:col-span-2 py-2">
                             <label className="flex items-center gap-2 cursor-pointer group">
                                 <input
                                     type="checkbox"
@@ -425,18 +473,19 @@ export default function LensStockReport() {
                         </div>
 
                         {/* Buttons */}
-                        <div className="flex items-end gap-2 lg:col-span-1 xl:col-span-1">
+                        <div className="flex gap-2 lg:col-span-2 xl:col-span-1">
                             <button
-                                onClick={handleSearch}
+                                onClick={() => handleSearch(1)}
                                 disabled={loading}
-                                className="flex-1 bg-blue-600 text-white rounded-lg py-2 font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-md disabled:bg-blue-400"
+                                className="flex-1 bg-blue-600 text-white rounded-lg py-2.5 font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-lg disabled:bg-blue-400 active:scale-95"
                             >
-                                {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Search className="w-4 h-4" />}
+                                {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Search className="w-5 h-5" />}
                                 Search
                             </button>
                             <button
                                 onClick={handleReset}
-                                className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition border border-slate-300"
+                                className="p-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition border border-slate-300 shadow-sm active:scale-90"
+                                title="Reset Filters"
                             >
                                 <RotateCcw className="w-5 h-5" />
                             </button>
@@ -446,8 +495,8 @@ export default function LensStockReport() {
 
                 {/* Results Table */}
                 {viewMode === 'report' && (
-                    <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-none  print:shadow-none print:border-none">
-                        <div className="">
+                    <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden print:shadow-none print:border-none">
+                        <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left border-collapse">
                                 <thead className="sticky top-0 z-10">
                                     <tr className="bg-blue-600 text-white text-xs uppercase tracking-wider font-bold">
@@ -457,7 +506,7 @@ export default function LensStockReport() {
                                         <th colSpan="5" className="px-4 py-2 border-r border-blue-500 text-center border-b border-blue-500">Lense Configuration</th>
                                         <th rowSpan="2" className="px-4 py-3 border-r border-blue-500 text-center">B.Code</th>
                                         <th rowSpan="2" className="px-4 py-3 border-r border-blue-500 text-center">Verified</th>
-                                        <th colSpan="4" className="px-4 py-2 border-r border-blue-500 text-center border-b border-blue-500">Quantity</th>
+                                        <th colSpan="5" className="px-4 py-2 border-r border-blue-500 text-center border-b border-blue-500">Quantity</th>
                                         <th colSpan="2" className="px-4 py-2 border-r border-blue-500 text-center border-b border-blue-500">Price</th>
                                         <th colSpan="2" className="px-4 py-2 text-center border-b border-blue-500">Amount</th>
                                     </tr>
@@ -468,6 +517,7 @@ export default function LensStockReport() {
                                         <th className="px-2 py-1 border-r border-blue-400 text-center">ADD</th>
                                         <th className="px-2 py-1 border-r border-blue-400 text-center">EYE</th>
                                         <th className="px-2 py-1 border-r border-blue-400 text-center">Alert</th>
+                                        <th className="px-2 py-1 border-r border-blue-400 text-center">Excess Qty</th>
                                         <th className="px-2 py-1 border-r border-blue-400 text-center">Stock</th>
                                         <th className="px-2 py-1 border-r border-blue-400 text-center">Min</th>
                                         <th className="px-2 py-1 border-r border-blue-400 text-center">Max</th>
@@ -515,6 +565,9 @@ export default function LensStockReport() {
                                                     )}
                                                 </td>
                                                 <td className="px-2 py-2 border-r border-slate-100 text-center text-red-600 font-bold">{row.alertQty || 0}</td>
+                                                <td className={`px-2 py-2 border-r border-slate-100 text-center font-bold ${row.excess_qty > 0 ? 'text-green-600' : row.excess_qty < 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                                                    {row.excess_qty || 0}
+                                                </td>
                                                 <td className={`px-2 py-2 border-r border-slate-100 text-center font-bold text-lg ${row.currentStock > 0 ? 'text-green-600' : 'text-slate-400'}`}>
                                                     {row.currentStock}
                                                 </td>
@@ -532,22 +585,101 @@ export default function LensStockReport() {
                                         ))
                                     )}
                                 </tbody>
-                                <tfoot className="sticky bottom-0  bg-zinc-50 text-black font-bold">
-                                    <tr>
-                                        <td colSpan="12" className="px-4 py-2 text-right uppercase tracking-widest text-xs">Grand Total</td>
-                                        <td className="px-2 py-2 text-center text-yellow-400">
-                                            {reportData.reduce((sum, r) => sum + (parseInt(r.currentStock) || 0), 0)}
+                                <tfoot className="sticky bottom-0 bg-zinc-50 text-black font-bold">
+                                    <tr className="border-t-2 border-blue-200">
+                                        <td colSpan="13" className="px-4 py-3 text-right uppercase tracking-widest text-[10px] text-slate-500">Grand Total</td>
+                                        <td className="px-2 py-3 text-center text-blue-700 text-base">
+                                            {pagination.totals.stockTotal || reportData.reduce((sum, r) => sum + (parseInt(r.currentStock) || 0), 0)}
                                         </td>
-                                        <td colSpan="3" className="px-2 py-2"></td>
-                                        <td className="px-2 py-2 text-right text-emerald-400">
-                                            {reportData.reduce((sum, r) => sum + ((parseFloat(r.currentStock) || 0) * (parseFloat(r.pPrice) || 0)), 0).toFixed(2)}
+                                        <td colSpan="3" className="px-2 py-3"></td>
+                                        <td className="px-2 py-3 text-right text-emerald-600">
+                                            ₹{pagination.totals.purValueTotal?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || reportData.reduce((sum, r) => sum + ((parseFloat(r.currentStock) || 0) * (parseFloat(r.pPrice) || 0)), 0).toFixed(2)}
                                         </td>
-                                        <td className="px-2 py-2 text-right text-blue-300">
-                                            {reportData.reduce((sum, r) => sum + ((parseFloat(r.currentStock) || 0) * (parseFloat(r.sPrice) || 0)), 0).toFixed(2)}
+                                        <td className="px-2 py-3 text-right text-blue-600">
+                                            ₹{pagination.totals.saleValueTotal?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || reportData.reduce((sum, r) => sum + ((parseFloat(r.currentStock) || 0) * (parseFloat(r.sPrice) || 0)), 0).toFixed(2)}
                                         </td>
                                     </tr>
                                 </tfoot>
                             </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* Pagination Controls */}
+                {viewMode === 'report' && reportData.length > 0 && (
+                    <div className="mt-4 flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200 print:hidden">
+                        <div className="text-sm text-slate-500">
+                            Showing <span className="font-semibold text-slate-800">{(pagination.currentPage - 1) * pagination.limit + 1}</span> to <span className="font-semibold text-slate-800">{Math.min(pagination.currentPage * pagination.limit, pagination.total)}</span> of <span className="font-semibold text-slate-800">{pagination.total}</span> records
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handleSearch(pagination.currentPage - 1)}
+                                disabled={pagination.currentPage === 1 || loading}
+                                className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition shadow-sm"
+                            >
+                                <span className="sr-only">Previous</span>
+                                &larr;
+                            </button>
+
+                            <div className="flex items-center gap-1">
+                                {(() => {
+                                    const totalPages = Math.ceil(pagination.total / pagination.limit);
+                                    const current = pagination.currentPage;
+                                    let pages = [];
+
+                                    if (totalPages <= 7) {
+                                        pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+                                    } else {
+                                        if (current <= 4) {
+                                            pages = [1, 2, 3, 4, 5, '...', totalPages];
+                                        } else if (current >= totalPages - 3) {
+                                            pages = [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+                                        } else {
+                                            pages = [1, '...', current - 1, current, current + 1, '...', totalPages];
+                                        }
+                                    }
+
+                                    return pages.map((p, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => typeof p === 'number' && handleSearch(p)}
+                                            disabled={typeof p !== 'number' || loading}
+                                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-medium transition shadow-sm ${pagination.currentPage === p
+                                                    ? 'bg-blue-600 text-white border-blue-600'
+                                                    : p === '...'
+                                                        ? 'text-slate-400 cursor-default'
+                                                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                                                }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    ));
+                                })()}
+                            </div>
+
+                            <button
+                                onClick={() => handleSearch(pagination.currentPage + 1)}
+                                disabled={pagination.currentPage >= Math.ceil(pagination.total / pagination.limit) || loading}
+                                className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition shadow-sm"
+                            >
+                                <span className="sr-only">Next</span>
+                                &rarr;
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm text-slate-500">Rows:</span>
+                            <select
+                                value={pagination.limit}
+                                onChange={(e) => handleSearch(1, parseInt(e.target.value))}
+                                className="bg-white border border-slate-200 text-slate-600 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1.5 shadow-sm outline-none cursor-pointer"
+                            >
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
                         </div>
                     </div>
                 )}
@@ -617,7 +749,7 @@ export default function LensStockReport() {
 
                                                         return (
                                                             <tr key={`cyl-${cyl}`} className="hover:bg-emerald-50 transition-colors">
-                                                                <td className="px-3 py-2 border border-slate-200 font-bold bg-emerald-50">
+                                                                <td className="px-3 py-2 border border-slate-200 font-bold bg-emerald-50 text-slate-700">
                                                                     {parseFloat(cyl).toFixed(2)}
                                                                 </td>
                                                                 {sphValues.map(sph => {
@@ -632,7 +764,7 @@ export default function LensStockReport() {
                                                                         </td>
                                                                     );
                                                                 })}
-                                                                <td className="px-3 py-2 border border-slate-200 font-bold bg-emerald-700 text-white">
+                                                                <td className="px-3 py-2 border border-slate-200 font-bold bg-emerald-700 text-white shadow-inner">
                                                                     {cylTotal}
                                                                 </td>
                                                             </tr>
@@ -666,13 +798,13 @@ export default function LensStockReport() {
                                             <table className="w-full text-sm border-collapse">
                                                 <thead className="sticky top-0 z-10 bg-blue-600 text-white">
                                                     <tr>
-                                                        <th className="px-4 py-2 border border-blue-500 text-left font-bold">Eye</th>
-                                                        <th className="px-4 py-2 border border-blue-500 text-center font-bold">Total Items</th>
-                                                        <th className="px-4 py-2 border border-blue-500 text-center font-bold">Total Quantity</th>
-                                                        <th className="px-4 py-2 border border-blue-500 text-right font-bold">Total Value (Sale)</th>
+                                                        <th className="px-4 py-3 border border-blue-500 text-left font-bold">Eye</th>
+                                                        <th className="px-4 py-3 border border-blue-500 text-center font-bold">Total Items</th>
+                                                        <th className="px-4 py-3 border border-blue-500 text-center font-bold">Total Quantity</th>
+                                                        <th className="px-4 py-3 border border-blue-500 text-right font-bold">Total Value (Sale)</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-slate-200">
+                                                <tbody className="divide-y divide-slate-200 italic font-medium">
                                                     {['R', 'L', '—'].map(eye => {
                                                         const eyeData = reportData.filter(r => (r.eye || '—') === eye);
                                                         if (eyeData.length === 0) return null;
@@ -687,16 +819,16 @@ export default function LensStockReport() {
                                                                 <td className="px-4 py-2 border border-slate-200 text-center text-slate-700">{eyeData.length}</td>
                                                                 <td className="px-4 py-2 border border-slate-200 text-center font-bold text-green-700">{totalQty}</td>
                                                                 <td className="px-4 py-2 border border-slate-200 text-right font-semibold text-blue-700 bg-blue-50">
-                                                                    ₹{totalValue.toFixed(2)}
+                                                                    ₹{totalValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                                                 </td>
                                                             </tr>
                                                         );
                                                     })}
                                                     <tr className="bg-blue-800 text-white font-bold sticky bottom-0">
-                                                        <td colSpan="2" className="px-4 py-2 border border-blue-500 text-right">Grand Total</td>
-                                                        <td className="px-4 py-2 border border-blue-500 text-center">{reportData.reduce((sum, r) => sum + (parseInt(r.currentStock) || 0), 0)}</td>
-                                                        <td className="px-4 py-2 border border-blue-500 text-right">
-                                                            ₹{reportData.reduce((sum, r) => sum + ((parseFloat(r.currentStock) || 0) * (parseFloat(r.sPrice) || 0)), 0).toFixed(2)}
+                                                        <td colSpan="2" className="px-4 py-2 border border-blue-500 text-right uppercase tracking-widest text-xs">Grand Total</td>
+                                                        <td className="px-4 py-2 border border-blue-500 text-center text-lg">{reportData.reduce((sum, r) => sum + (parseInt(r.currentStock) || 0), 0)}</td>
+                                                        <td className="px-4 py-2 border border-blue-500 text-right text-lg">
+                                                            ₹{reportData.reduce((sum, r) => sum + ((parseFloat(r.currentStock) || 0) * (parseFloat(r.sPrice) || 0)), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                                         </td>
                                                     </tr>
                                                 </tbody>
@@ -710,14 +842,14 @@ export default function LensStockReport() {
                                             <table className="w-full text-sm border-collapse">
                                                 <thead className="sticky top-0 z-10 bg-purple-600 text-white">
                                                     <tr>
-                                                        <th className="px-4 py-2 border border-purple-500 text-left font-bold">Group Name</th>
-                                                        <th className="px-4 py-2 border border-purple-500 text-center font-bold">Items</th>
-                                                        <th className="px-4 py-2 border border-purple-500 text-center font-bold">Total Qty</th>
-                                                        <th className="px-4 py-2 border border-purple-500 text-right font-bold">Pur Value</th>
-                                                        <th className="px-4 py-2 border border-purple-500 text-right font-bold">Sale Value</th>
+                                                        <th className="px-4 py-3 border border-purple-500 text-left font-bold">Group Name</th>
+                                                        <th className="px-4 py-3 border border-purple-500 text-center font-bold">Items</th>
+                                                        <th className="px-4 py-3 border border-purple-500 text-center font-bold">Total Qty</th>
+                                                        <th className="px-4 py-3 border border-purple-500 text-right font-bold">Pur Value</th>
+                                                        <th className="px-4 py-3 border border-purple-500 text-right font-bold">Sale Value</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-slate-200">
+                                                <tbody className="divide-y divide-slate-200 italic font-medium">
                                                     {[...new Set(reportData.map(r => r.groupName))].sort().map(groupName => {
                                                         const groupData = reportData.filter(r => r.groupName === groupName);
                                                         const totalQty = groupData.reduce((sum, r) => sum + (parseInt(r.currentStock) || 0), 0);
@@ -729,19 +861,19 @@ export default function LensStockReport() {
                                                                 <td className="px-4 py-2 border border-slate-200 font-semibold text-slate-700">{groupName}</td>
                                                                 <td className="px-4 py-2 border border-slate-200 text-center text-slate-700">{groupData.length}</td>
                                                                 <td className="px-4 py-2 border border-slate-200 text-center font-bold text-green-700">{totalQty}</td>
-                                                                <td className="px-4 py-2 border border-slate-200 text-right font-semibold text-slate-700">₹{purValue.toFixed(2)}</td>
-                                                                <td className="px-4 py-2 border border-slate-200 text-right font-semibold text-purple-700 bg-purple-50">₹{saleValue.toFixed(2)}</td>
+                                                                <td className="px-4 py-2 border border-slate-200 text-right font-semibold text-slate-700">₹{purValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                                                                <td className="px-4 py-2 border border-slate-200 text-right font-semibold text-purple-700 bg-purple-50">₹{saleValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                                                             </tr>
                                                         );
                                                     })}
                                                     <tr className="bg-purple-800 text-white font-bold sticky bottom-0">
-                                                        <td colSpan="2" className="px-4 py-2 border border-purple-500 text-right">Total</td>
-                                                        <td className="px-4 py-2 border border-purple-500 text-center">{reportData.reduce((sum, r) => sum + (parseInt(r.currentStock) || 0), 0)}</td>
-                                                        <td className="px-4 py-2 border border-purple-500 text-right">
-                                                            ₹{reportData.reduce((sum, r) => sum + ((parseFloat(r.currentStock) || 0) * (parseFloat(r.pPrice) || 0)), 0).toFixed(2)}
+                                                        <td colSpan="2" className="px-4 py-2 border border-purple-500 text-right uppercase tracking-widest text-xs">Total</td>
+                                                        <td className="px-4 py-2 border border-purple-500 text-center text-lg">{reportData.reduce((sum, r) => sum + (parseInt(r.currentStock) || 0), 0)}</td>
+                                                        <td className="px-4 py-2 border border-purple-500 text-right text-lg">
+                                                            ₹{reportData.reduce((sum, r) => sum + ((parseFloat(r.currentStock) || 0) * (parseFloat(r.pPrice) || 0)), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                                         </td>
-                                                        <td className="px-4 py-2 border border-purple-500 text-right">
-                                                            ₹{reportData.reduce((sum, r) => sum + ((parseFloat(r.currentStock) || 0) * (parseFloat(r.sPrice) || 0)), 0).toFixed(2)}
+                                                        <td className="px-4 py-2 border border-purple-500 text-right text-lg">
+                                                            ₹{reportData.reduce((sum, r) => sum + ((parseFloat(r.currentStock) || 0) * (parseFloat(r.sPrice) || 0)), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                                         </td>
                                                     </tr>
                                                 </tbody>

@@ -312,6 +312,7 @@ function AddItemMaster({ hideHeader = false, onSaveSuccess }) {
       'Alias': item.alias || '-',
       'Purchase Price': item.purchasePrice || 0,
       'Selling Price': item.salePrice || 0,
+      'MRP': item.mrpPrice || 0,
       'Purchase Discount (%)': item.purchaseDiscount || 0
     }));
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -336,6 +337,7 @@ function AddItemMaster({ hideHeader = false, onSaveSuccess }) {
         <td>${item.unit || '-'}</td>
         <td style="text-align: right;">₹${item.purchasePrice || 0}</td>
         <td style="text-align: right;">₹${item.salePrice || 0}</td>
+        <td style="text-align: right;">₹${item.mrpPrice || 0}</td>
         <td style="text-align: right;">${item.purchaseDiscount || 0}%</td>
       </tr>
     `).join('');
@@ -370,6 +372,7 @@ function AddItemMaster({ hideHeader = false, onSaveSuccess }) {
                 <th>Unit</th>
                 <th style="text-align: right;">P. Price</th>
                 <th style="text-align: right;">S. Price</th>
+                <th style="text-align: right;">MRP</th>
                 <th style="text-align: right;">P. Disc%</th>
               </tr>
             </thead>
@@ -626,6 +629,26 @@ function AddItemMaster({ hideHeader = false, onSaveSuccess }) {
                     />
                   </div>
 
+                  {/* MRP */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">MRP</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.mrpPrice}
+                      onChange={(e) => handleInputChange('mrpPrice', e.target.value)}
+                      onBlur={() => {
+                        if (editingId) {
+                          updateItem(editingId, { mrpPrice: formData.mrpPrice }).then(() => {
+                            toast.success('MRP auto-saved', { duration: 1000, position: 'bottom-right' });
+                          }).catch(err => console.error(err));
+                        }
+                      }}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all outline-none font-medium shadow-sm"
+                      placeholder="0.00"
+                    />
+                  </div>
+
                 </div>
               </div>
             </div>
@@ -741,6 +764,7 @@ function AddItemMaster({ hideHeader = false, onSaveSuccess }) {
                     <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Unit</th>
                     <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">P. Price</th>
                     <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">S. Price</th>
+                    <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">MRP</th>
                     <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">P. Disc %</th>
                     <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
                   </tr>
@@ -795,6 +819,9 @@ function AddItemMaster({ hideHeader = false, onSaveSuccess }) {
                         </td>
                         <td className="px-6 py-5 text-right">
                           <span className="text-sm font-bold text-blue-600">₹{item.salePrice || 0}</span>
+                        </td>
+                        <td className="px-6 py-5 text-right">
+                          <span className="text-sm font-bold text-emerald-600">₹{item.mrpPrice || 0}</span>
                         </td>
                         <td className="px-6 py-5 text-right">
                           <span className="text-sm font-bold text-amber-600">{item.purchaseDiscount || 0}%</span>

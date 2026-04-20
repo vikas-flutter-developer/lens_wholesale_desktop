@@ -30,6 +30,8 @@ import {
 import { getAccountWisePrices } from "../controllers/AccountWisePriceController";
 import { validateAccountLimits, getValidationErrorMessage } from "../utils/accountLimitValidator";
 import { getSuggestions, learnSuggestions, deleteSuggestion } from "../controllers/Suggestion.controller";
+import { getBarcodeDetails, getBarcodeErrorMessage, getLensPriceByPower } from "../controllers/barcode.controller";
+import { formatPowerValue } from "../utils/amountUtils";
 import { Toaster, toast } from "react-hot-toast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useContext } from "react";
@@ -83,6 +85,14 @@ function AddContactLensSaleOrder() {
     const [activeIndex, setActiveIndex] = useState(-1);
     const containerRef = useRef(null);
     const tableRef = useRef(null);
+    const qtyRefs = useRef([]);
+
+    const focusOnQtyInput = (rowIndex) => {
+        setTimeout(() => {
+            qtyRefs.current[rowIndex]?.focus();
+            qtyRefs.current[rowIndex]?.select();
+        }, 0);
+    };
 
     const safeDate = (d) => {
         try {
@@ -282,7 +292,7 @@ function AddContactLensSaleOrder() {
     }, [id]);
 
     const fetch = async () => {
-        const res = await getAllAccounts();
+        const res = await getAllAccounts("sale"); // Filter for Sale and Both account types
         setAccounts(Array.isArray(res) ? res : []);
     };
     const fetchTax = async () => {
@@ -383,7 +393,11 @@ function AddContactLensSaleOrder() {
 
     const query = (partyData.partyAccount || "").trim();
     const filteredAccounts = query.length > 0
-        ? accounts.filter(acc => String(acc.Name || "").toLowerCase().includes(query.toLowerCase()))
+        ? accounts.filter(acc => {
+          const name = String(acc.Name || "").toLowerCase();
+          const accountId = String(acc.AccountId || "").toLowerCase();
+          return name.includes(query.toLowerCase()) || accountId.includes(query.toLowerCase());
+        })
         : accounts.slice(0, 10);
 
     const [taxQuery, setTaxQuery] = useState("");
@@ -397,6 +411,7 @@ function AddContactLensSaleOrder() {
 
     const [vendorQueries, setVendorQueries] = useState({});
     const [showVendorSuggestions, setShowVendorSuggestions] = useState({});
+    const [activeVendorIndexes, setActiveVendorIndexes] = useState({});
 
     useEffect(() => {
         if (!orderData && user) {
@@ -475,7 +490,7 @@ function AddContactLensSaleOrder() {
             partyAccount: acc.Name || "",
             contactNumber: acc.MobileNumber || "",
             stateCode: acc.State || "",
-            address: "",
+            address: primaryAddr,
             allAddresses: allAddresses,
             creditLimit: acc.CreditLimit || "",
             CurrentBalance: acc.CurrentBalance || { amount: 0, type: "Dr" },
@@ -484,6 +499,12 @@ function AddContactLensSaleOrder() {
         const nextBillNo = await getNextBillNumberForContactLensSaleOrder(acc.Name || "");
         setBillData(prev => ({ ...prev, billNo: String(nextBillNo) }));
         setShowSuggestions(false);
+
+        // Auto-select default tax/bill type for this account
+        const defaultTax = allTaxes.find((tax) => tax.isDefault === true);
+        if (defaultTax) {
+            selectTax(defaultTax);
+        }
 
         // Fetch custom prices for this account
         try {
@@ -539,6 +560,128 @@ function AddContactLensSaleOrder() {
         setShowVendorSuggestions((prev) => ({ ...prev, [index]: false }));
     };
 
+    const handleTableItemKeyDown = (e, index) => {
+        const options = getFilteredLens(index);
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (!showItemSuggestions[index]) {
+                setShowItemSuggestions(p => ({ ...p, [index]: true }));
+                setActiveItemIndexes(p => ({ ...p, [index]: 0 }));
+            } else {
+                setActiveItemIndexes(p => ({
+                    ...p,
+                    [index]: Math.min((p[index] || 0) + 1, options.length - 1)
+                }));
+            }
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveItemIndexes(p => ({
+                ...p,
+                [index]: Math.max((p[index] || 0) - 1, 0)
+            }));
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            const activeIdx = activeItemIndexes[index] ?? -1;
+            if (activeIdx >= 0 && activeIdx < options.length) {
+                selectLens(options[activeIdx], index);
+            }
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            setShowItemSuggestions(p => ({ ...p, [index]: false }));
+            setActiveItemIndexes(p => ({ ...p, [index]: -1 }));
+        }
+    };
+
+    const onPartyInputKeyDown = (e) => {
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (!showSuggestions) {
+                setShowSuggestions(true);
+                setActiveIndex(0);
+            } else {
+                setActiveIndex(prev => Math.min(prev + 1, filteredAccounts.length - 1));
+            }
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveIndex(prev => Math.max(prev - 1, 0));
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (activeIndex >= 0 && activeIndex < filteredAccounts.length) {
+                selectAccount(filteredAccounts[activeIndex]);
+            }
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            setShowSuggestions(false);
+            setActiveIndex(-1);
+        }
+    };
+
+    const handleTableVendorKeyDown = (e, index) => {
+        const options = getFilteredVendors(index);
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (!showVendorSuggestions[index]) {
+                setShowVendorSuggestions(p => ({ ...p, [index]: true }));
+                setActiveVendorIndexes(p => ({ ...p, [index]: 0 }));
+            } else {
+                setActiveVendorIndexes(p => ({
+                    ...p,
+                    [index]: Math.min((p[index] || 0) + 1, options.length - 1)
+                }));
+            }
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveVendorIndexes(p => ({
+                ...p,
+                [index]: Math.max((p[index] || 0) - 1, 0)
+            }));
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            const activeIdx = activeVendorIndexes[index] ?? -1;
+            if (activeIdx >= 0 && activeIdx < options.length) {
+                selectVendor(options[activeIdx], index);
+            }
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            setShowVendorSuggestions(p => ({ ...p, [index]: false }));
+            setActiveVendorIndexes(p => ({ ...p, [index]: -1 }));
+        }
+    };
+
+    // Auto-scroll to highlighted suggestion for item dropdown
+    useEffect(() => {
+        Object.keys(activeItemIndexes).forEach((index) => {
+            if (showItemSuggestions[index] && activeItemIndexes[index] >= 0) {
+                setTimeout(() => {
+                    const activeEl = document.querySelector(`#item-suggestion-contact-sale-${index}-${activeItemIndexes[index]}`);
+                    if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                }, 0);
+            }
+        });
+    }, [activeItemIndexes, showItemSuggestions]);
+
+    // Auto-scroll to highlighted suggestion for vendor dropdown
+    useEffect(() => {
+        Object.keys(activeVendorIndexes).forEach((index) => {
+            if (showVendorSuggestions[index] && activeVendorIndexes[index] >= 0) {
+                setTimeout(() => {
+                    const activeEl = document.querySelector(`.vendor-suggestion-contact-sale-${index}-${activeVendorIndexes[index]}`);
+                    if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                }, 0);
+            }
+        });
+    }, [activeVendorIndexes, showVendorSuggestions]);
+
+    // Auto-scroll to highlighted suggestion for party account dropdown
+    useEffect(() => {
+        if (showSuggestions && activeIndex >= 0) {
+            setTimeout(() => {
+                const activeEl = document.querySelector(`#party-item-contact-sale-${activeIndex}`);
+                if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            }, 0);
+        }
+    }, [activeIndex, showSuggestions]);
+
     const showTaxDetailsSuggestionsForIdx = (idx) => setShowTaxDetailsSuggestions(prev => ({ ...prev, [idx]: true }));
     const hideTaxDetailsSuggestionsForIdx = (idx) => setTimeout(() => setShowTaxDetailsSuggestions(prev => ({ ...prev, [idx]: false })), 200);
 
@@ -572,11 +715,11 @@ function AddContactLensSaleOrder() {
             const discountAmount = qty * price * (disc / 100);
             copy[index].totalAmount = (qty * price - discountAmount).toFixed(2);
 
-            // --- REAL-TIME STOCK & BARCODE REFRESH ---
+            // --- REAL-TIME STOCK, BARCODE & PRICE REFRESH ---
             const powerFields = ["itemName", "sph", "cyl", "add", "axis", "eye"];
             if (powerFields.includes(field)) {
                 // Validate only if we have itemName and at least one power field
-                const { itemName, sph, cyl, add, axis, eye } = copy[index];
+                const { itemName, sph, cyl, add, axis, eye, itemId } = copy[index];
                 if (itemName && (sph !== "" || cyl !== "" || add !== "")) {
                     const fetchStock = async () => {
                         try {
@@ -601,6 +744,32 @@ function AddContactLensSaleOrder() {
                         }
                     };
                     fetchStock();
+
+                    // Price Sync Logic (for manual selection)
+                    const foundLens = allLens.find(lx => lx.productName === itemName || lx.itemName === itemName);
+                    const itemIdToUse = itemId || foundLens?._id || foundLens?.id;
+                    
+                    if (itemIdToUse) {
+                        getLensPriceByPower(itemIdToUse, sph, cyl, axis, add)
+                            .then(priceData => {
+                                if (priceData && priceData.found) {
+                                    setItems(current => {
+                                        const updated = [...current];
+                                        if (updated[index]) {
+                                            updated[index].salePrice = priceData.salePrice || updated[index].salePrice;
+                                            updated[index].purchasePrice = priceData.purchasePrice || updated[index].purchasePrice;
+                                            // Recalculate totalAmount
+                                            const q = parseFloat(updated[index].qty) || 0;
+                                            const p = parseFloat(updated[index].salePrice) || 0;
+                                            const d = Number(updated[index].discount) || 0;
+                                            updated[index].totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+                                        }
+                                        return updated;
+                                    });
+                                }
+                            })
+                            .catch(err => console.error("Price fetch error:", err));
+                    }
                 }
             }
 
@@ -608,76 +777,45 @@ function AddContactLensSaleOrder() {
         });
     };
 
+    const handleBarcodeBlur = async (barcode, rowIndex) => {
+      if (!barcode || barcode.trim() === "") return;
+      try {
+        const barcodeData = await getBarcodeDetails(barcode);
+        if (barcodeData) {
+          setItems(prev => {
+            const c = [...prev];
+            const row = c[rowIndex];
+            row.itemName = barcodeData.itemName || row.itemName;
+            row.eye = barcodeData.eye || row.eye;
+            row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
+            row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
+            row.axis = barcodeData.axis || row.axis;
+            row.add = barcodeData.add || row.add;
+            row.salePrice = barcodeData.price || row.salePrice;
+            const q = parseFloat(row.qty) || 0;
+            const p = parseFloat(row.salePrice) || 0;
+            const d = parseFloat(row.discount) || 0;
+            row.totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+            return c;
+          });
+          toast.success(`Product loaded from barcode`);
+          focusOnQtyInput(rowIndex);
+        } else {
+          toast.error("Product not found");
+        }
+      } catch (error) {
+        toast.error(getBarcodeErrorMessage(error));
+      }
+    };
+
     const selectLens = (lens, index) => {
-        const customPriceObj = customPrices[lens._id];
-        let computedPrice = getSalePriceForCategory(lens, category);
-        let discount = 0;
-
-        if (customPriceObj) {
-            if (customPriceObj.percentage > 0) {
-                discount = customPriceObj.percentage;
-            } else if (customPriceObj.customPrice > 0) {
-                computedPrice = customPriceObj.customPrice;
-            }
-        }
-
-        // Find first combination to auto-populate power values
-        let firstComb = null;
-        if (lens.addGroups && lens.addGroups.length > 0) {
-            const ag = lens.addGroups[0];
-            if (ag.combinations && ag.combinations.length > 0) {
-                firstComb = ag.combinations[0];
-            }
-        }
-
         setItems(prev => {
             const copy = [...prev];
             copy[index] = {
                 ...copy[index],
                 itemName: lens.productName,
-                billItemName: lens.billItemName || "",
-                vendorItemName: lens.vendorItemName || "",
-                salePrice: computedPrice,
-                mrp: lens.mrp || 0,
-                eye: firstComb ? firstComb.eye || "" : "",
-                sph: firstComb ? firstComb.sph || "" : "",
-                cyl: firstComb ? firstComb.cyl || "" : "",
-                axis: firstComb ? firstComb.axis || "0" : "0",
-                add: (lens.addGroups && lens.addGroups.length > 0) ? lens.addGroups[0].addValue || "" : "",
-                qty: 1,
-                discount: discount,
-                combinationId: firstComb ? firstComb._id : "",
-                totalAmount: (1 * computedPrice * (1 - discount / 100)).toFixed(2)
+                eye: lens.eye || ""
             };
-
-            // --- REAL-TIME STOCK & BARCODE REFRESH ---
-            const { itemName, sph, cyl, add, axis, eye } = copy[index];
-            if (itemName && (sph !== "" || cyl !== "" || add !== "")) {
-                const fetchStock = async () => {
-                    try {
-                        const stockRes = await getCombinationStock({
-                            productName: itemName,
-                            sph, cyl, add, axis, eye
-                        });
-                        if (stockRes.success) {
-                            setItems(prevItems => {
-                                const itemsCopy = [...prevItems];
-                                if (itemsCopy[index]) {
-                                    itemsCopy[index] = { 
-                                        ...itemsCopy[index], 
-                                        barcode: stockRes.barcode || itemsCopy[index].barcode || "" 
-                                    };
-                                }
-                                return itemsCopy;
-                            });
-                        }
-                    } catch (err) {
-                        console.error("Stock refresh error:", err);
-                    }
-                };
-                fetchStock();
-            }
-
             return copy;
         });
 
@@ -907,7 +1045,7 @@ function AddContactLensSaleOrder() {
                         <div className="p-3 grid grid-cols-3 gap-3">
                             {[
                                 { label: "Series", value: billData.billSeries, key: "billSeries", placeholder: "Series" },
-                                { label: "Order No", value: billData.billNo, key: "billNo", placeholder: "Order #" },
+                                { label: "Bill No", value: billData.billNo, key: "billNo", placeholder: "Bill #" },
                                 { label: "Date", value: safeDate(billData.date), key: "date", type: "date" }
                             ].map((field) => (
                                 <div key={field.key}>
@@ -1006,17 +1144,19 @@ function AddContactLensSaleOrder() {
                                             setShowSuggestions(true);
                                         }}
                                         onFocus={() => setShowSuggestions(true)}
+                                        onKeyDown={onPartyInputKeyDown}
                                         className="w-full pl-9 pr-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-200 outline-none transition-all disabled:opacity-50"
                                     />
                                     {showSuggestions && filteredAccounts.length > 0 && (
-                                        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-lg z-[1000] overflow-hidden max-h-48 overflow-y-auto">
+                                        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-lg z-[1000] overflow-hidden max-h-56 overflow-y-auto">
                                             {filteredAccounts.map((acc, idx) => (
                                                 <div
                                                     key={idx}
+                                                    id={`party-item-contact-sale-${idx}`}
                                                     onMouseDown={() => selectAccount(acc)}
                                                     className={`px-3 py-2 text-xs font-bold uppercase transition-colors cursor-pointer border-b border-slate-50 last:border-0 ${activeIndex === idx ? "bg-purple-600 text-white" : "hover:bg-purple-50 text-slate-700"}`}
                                                 >
-                                                    {acc.Name}
+                                                    {acc.Name} (ID: {acc.AccountId}) - Station: {acc.Stations?.[0] || "-"}
                                                 </div>
                                             ))}
                                         </div>
@@ -1143,6 +1283,7 @@ function AddContactLensSaleOrder() {
                                                     value={it.barcode}
                                                     disabled={isReadOnly}
                                                     onChange={e => updateItem(idx, "barcode", e.target.value)}
+                                                    onBlur={e => !isReadOnly && handleBarcodeBlur(e.target.value, idx)}
                                                     placeholder="Scan..."
                                                 />
                                             </td>
@@ -1160,16 +1301,21 @@ function AddContactLensSaleOrder() {
                                                             updateItem(idx, "itemName", val);
                                                         }}
                                                         onFocus={() => setShowItemSuggestions(prev => ({ ...prev, [idx]: true }))}
+                                                        onKeyDown={(e) => handleTableItemKeyDown(e, idx)}
                                                         placeholder="Search Item..."
                                                     />
                                                     {showItemSuggestions[idx] && getFilteredLens(idx).length > 0 && (
-                                                        <div className="absolute top-full left-0 w-80 mt-1 bg-white border border-slate-200 shadow-2xl rounded-xl z-[1001] overflow-hidden max-h-60 overflow-y-auto">
+                                                        <div className="absolute top-full left-0 w-80 mt-1 bg-white border border-slate-200 shadow-2xl rounded-xl z-[1001] overflow-hidden max-h-56 overflow-y-auto">
                                                             {getFilteredLens(idx).map((lens, i) => (
                                                                 <div
                                                                     key={i}
+                                                                    id={`item-suggestion-contact-sale-${idx}-${i}`}
+                                                                    className={`px-3 py-2 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group/item transition-colors ${
+                                                                      i === activeItemIndexes[idx] ? 'bg-blue-100 font-black text-blue-800' : 'hover:bg-blue-50 text-slate-600'
+                                                                    }`}
                                                                     onMouseDown={() => selectLens(lens, idx)}
-                                                                    className="px-3 py-2 border-b border-slate-50 last:border-0 hover:bg-blue-50 cursor-pointer flex justify-between items-center group/item"
-                                                                >
+                                                                    onMouseEnter={() => setActiveItemIndexes(p => ({ ...p, [idx]: i }))}
+                                                                    onMouseLeave={() => setActiveItemIndexes(p => ({ ...p, [idx]: -1 }))}>
                                                                     <div className="flex flex-col">
                                                                         <span className="text-[13px] font-black text-slate-800 uppercase leading-none">{lens.productName}</span>
                                                                         <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5 tracking-tighter">Stock: {lens.stock || 0} | MRP: {lens.mrp || 0}</span>
@@ -1193,14 +1339,26 @@ function AddContactLensSaleOrder() {
 
                                             {["eye", "sph", "cyl", "axis", "add"].map(field => (
                                                 <td key={field} className="p-1 bg-blue-50/20">
-                                                    <input
-                                                        type="text"
-                                                        value={it[field] || ""}
-                                                        disabled={isReadOnly}
-                                                        onChange={e => updateItem(idx, field, e.target.value)}
-                                                        className="w-full px-1 py-1.5 text-[11px] font-black text-blue-700 bg-transparent text-center border-b border-dashed border-blue-200 focus:border-blue-500 focus:bg-white outline-none"
-                                                        placeholder={field.toUpperCase()}
-                                                    />
+                                                    {["sph", "cyl", "add"].includes(field) ? (
+                                                        <input
+                                                            type="text"
+                                                            value={it[field] || ""}
+                                                            disabled={isReadOnly}
+                                                            onChange={e => updateItem(idx, field, e.target.value)}
+                                                            onBlur={e => updateItem(idx, field, formatPowerValue(e.target.value))}
+                                                            className="w-full px-1 py-1.5 text-[11px] font-black text-blue-700 bg-transparent text-center border-b border-dashed border-blue-200 focus:border-blue-500 focus:bg-white outline-none"
+                                                            placeholder={field === "axis" ? "0" : "+0.00"}
+                                                        />
+                                                    ) : (
+                                                        <input
+                                                            type="text"
+                                                            value={it[field] || ""}
+                                                            disabled={isReadOnly}
+                                                            onChange={e => updateItem(idx, field, e.target.value)}
+                                                            className="w-full px-1 py-1.5 text-[11px] font-black text-blue-700 bg-transparent text-center border-b border-dashed border-blue-200 focus:border-blue-500 focus:bg-white outline-none"
+                                                            placeholder={field.toUpperCase()}
+                                                        />
+                                                    )}
                                                 </td>
                                             ))}
 
@@ -1216,6 +1374,7 @@ function AddContactLensSaleOrder() {
 
                                             <td className="p-1">
                                                 <input
+                                                    ref={(el) => (qtyRefs.current[idx] = el)}
                                                     type="number"
                                                     className="w-full px-1 py-1.5 text-[11px] font-black text-slate-800 bg-emerald-50/40 text-center border border-transparent focus:border-emerald-500 focus:bg-white rounded-md outline-none"
                                                     value={it.qty || ""}
@@ -1264,17 +1423,21 @@ function AddContactLensSaleOrder() {
                                                             updateItem(idx, "vendor", val);
                                                         }}
                                                         onFocus={() => setShowVendorSuggestions(p => ({ ...p, [idx]: true }))}
+                                                        onKeyDown={(e) => handleTableVendorKeyDown(e, idx)}
                                                         placeholder="Vendor..."
                                                     />
                                                     {showVendorSuggestions[idx] && (
-                                                        <div className="absolute top-full right-0 w-64 mt-1 bg-white border border-slate-200 shadow-2xl rounded-xl z-[1001] overflow-hidden max-h-48 overflow-y-auto">
+                                                        <div className="absolute top-full right-0 w-64 mt-1 bg-white border border-slate-200 shadow-2xl rounded-xl z-[1001] overflow-hidden max-h-56 overflow-y-auto">
                                                             {getFilteredVendors(idx).map((v, i) => (
                                                                 <div
                                                                     key={i}
+                                                                    className={`vendor-suggestion-contact-sale-${idx}-${i} px-3 py-2 border-b border-slate-50 last:border-0 cursor-pointer flex flex-col group/v transition-colors ${
+                                                                      i === activeVendorIndexes[idx] ? 'bg-blue-100 font-black text-blue-800' : 'hover:bg-purple-50 text-slate-700'
+                                                                    }`}
                                                                     onMouseDown={() => selectVendor(v, idx)}
-                                                                    className="px-3 py-2 border-b border-slate-50 last:border-0 hover:bg-purple-50 cursor-pointer flex flex-col group/v"
-                                                                >
-                                                                    <span className="text-[10px] font-black text-slate-700 uppercase leading-none">{v.Name}</span>
+                                                                    onMouseEnter={() => setActiveVendorIndexes(p => ({ ...p, [idx]: i }))}
+                                                                    onMouseLeave={() => setActiveVendorIndexes(p => ({ ...p, [idx]: -1 }))}>
+                                                                    <span className="text-[10px] font-black uppercase leading-none">{v.Name}</span>
                                                                 </div>
                                                             ))}
                                                         </div>

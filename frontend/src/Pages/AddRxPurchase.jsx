@@ -35,6 +35,8 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { AuthContext } from "../AuthContext";
 import { getAccountWisePrices } from "../controllers/AccountWisePriceController";
 import { getFinancialYearSeries } from "../utils/billingUtils";
+import { getBarcodeDetails, getBarcodeErrorMessage, getLensPriceByPower } from "../controllers/barcode.controller";
+import { roundAmount, formatPowerValue } from "../utils/amountUtils";
 import { Mail } from "lucide-react";
 
 const Header = () => (
@@ -124,7 +126,7 @@ function AddRxPurchase() {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await getAllAccounts();
+        const res = await getAllAccounts("purchase"); // Filter for Purchase and Both account types
         setAccounts(Array.isArray(res) ? res : []);
       } catch (err) {
         console.error("getAllAccounts failed:", err);
@@ -232,6 +234,14 @@ function AddRxPurchase() {
 
   // Handle location state pre-filling (from SaleOrder)
   const initializedRef = useRef(false);
+  const qtyRefs = useRef([]);
+
+  const focusOnQtyInput = (rowIndex) => {
+    setTimeout(() => {
+      qtyRefs.current[rowIndex]?.focus();
+      qtyRefs.current[rowIndex]?.select();
+    }, 0);
+  };
   useEffect(() => {
     if (initializedRef.current || !location.state?.items?.length || !allLens?.length) return;
 
@@ -356,6 +366,7 @@ function AddRxPurchase() {
   const [items, setItems] = useState([
     {
       id: 1,
+      itemId: "",
       barcode: "",
       itemName: "",
       unit: "",
@@ -520,11 +531,11 @@ function AddRxPurchase() {
   const query = (partyData.partyAccount || "").trim();
   const filteredAccounts =
     query.length > 0
-      ? accounts.filter((acc) =>
-        String(acc.Name || "")
-          .toLowerCase()
-          .includes(query.toLowerCase())
-      )
+      ? accounts.filter((acc) => {
+        const name = String(acc.Name || "").toLowerCase();
+        const accountId = String(acc.AccountId || "").toLowerCase();
+        return name.includes(query.toLowerCase()) || accountId.includes(query.toLowerCase());
+      })
       : accounts.slice(0, 10);
 
   useEffect(() => {
@@ -723,6 +734,11 @@ function AddRxPurchase() {
   const [showItemSuggestions, setShowItemSuggestions] = useState({}); // { [rowIndex]: boolean }
   const [activeItemIndexes, setActiveItemIndexes] = useState({}); // { [rowIndex]: number }
 
+  // Vendors autocomplete per-row
+  const [vendorQueries, setVendorQueries] = useState({});
+  const [showVendorSuggestions, setShowVendorSuggestions] = useState({});
+  const [activeVendorIndexes, setActiveVendorIndexes] = useState({});
+
   // --- HELPER: getPriceForItem(itemOrLens) ---
   const getPriceForItem = (item) => {
     if (!item) return { purchase: 0, sale: 0 };
@@ -762,6 +778,7 @@ function AddRxPurchase() {
       const prices = getPriceForItem(lens);
       copy[index] = {
         ...copy[index],
+        itemId: lens._id,
         itemName: lens.productName || "",
         salePrice: prices.sale,
         purchasePrice: prices.purchase,
@@ -824,6 +841,30 @@ function AddRxPurchase() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  // Auto-scroll to highlighted suggestion for item dropdown
+  useEffect(() => {
+    Object.keys(activeItemIndexes).forEach((index) => {
+      if (showItemSuggestions[index] && activeItemIndexes[index] >= 0) {
+        setTimeout(() => {
+          const activeEl = document.querySelector(`.item-suggestion-purchase-rx-${index}-${activeItemIndexes[index]}`);
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 0);
+      }
+    });
+  }, [activeItemIndexes, showItemSuggestions]);
+
+  // Auto-scroll to highlighted suggestion for vendor dropdown
+  useEffect(() => {
+    Object.keys(activeVendorIndexes).forEach((index) => {
+      if (showVendorSuggestions[index] && activeVendorIndexes[index] >= 0) {
+        setTimeout(() => {
+          const activeEl = document.querySelector(`.vendor-suggestion-purchase-rx-${index}-${activeVendorIndexes[index]}`);
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 0);
+      }
+    });
+  }, [activeVendorIndexes, showVendorSuggestions]);
 
   const deleteItem = (id) => {
     setItems((prev) => {
@@ -938,6 +979,7 @@ function AddRxPurchase() {
       if (field === "itemName") {
         const selectedItem = allLens.find((lens) => lens.productName === value);
         if (selectedItem) {
+          copy[index].itemId = selectedItem._id;
           const prices = getPriceForItem(selectedItem);
           copy[index].salePrice = prices.sale;
           copy[index].purchasePrice = prices.purchase;
@@ -957,14 +999,47 @@ function AddRxPurchase() {
       const discountAmount = qty * price * (disc / 100);
       copy[index].totalAmount = roundAmount(qty * price - discountAmount).toString();
 
+      // ── Price Sync Logic: Fetch prices for power-based items ──────────────
+      // When power fields change, fetch Lens Group pricing (with or without itemId)
+      if (["itemName", "sph", "cyl", "axis", "add"].includes(field)) {
+        const item = copy[index];
+        if (item.itemName && (item.sph !== "" || item.cyl !== "" || item.add !== "")) {
+          // If itemId exists, use it; otherwise try to find it from itemName
+          let itemIdToUse = item.itemId;
+          if (!itemIdToUse && item.itemName) {
+            // Find the item in allLens to get its ID
+            const foundLens = allLens.find(lx => lx.productName === item.itemName || lx.itemName === item.itemName);
+            itemIdToUse = foundLens?.id || foundLens?._id || foundLens?.itemId;
+          }
+          
+          if (itemIdToUse) {
+            getLensPriceByPower(itemIdToUse, item.sph, item.cyl, item.axis, item.add)
+              .then(priceData => {
+                if (priceData && priceData.found) {
+                  setItems(current => {
+                    const updated = [...current];
+                    if (updated[index]) {
+                      updated[index].purchasePrice = priceData.purchasePrice || updated[index].purchasePrice;
+                      updated[index].salePrice = priceData.salePrice || updated[index].salePrice;
+                      // Recalculate totalAmount with new price
+                      const qty = parseFloat(updated[index].qty) || 0;
+                      const newPrice = parseFloat(updated[index].purchasePrice ?? updated[index].salePrice) || 0;
+                      const disc = Number(updated[index].discount) || 0;
+                      updated[index].totalAmount = roundAmount(qty * newPrice - qty * newPrice * (disc / 100)).toString();
+                    }
+                    return updated;
+                  });
+                }
+              })
+              .catch(err => console.error("Price fetch error:", err));
+          }
+        }
+      }
+      // ───────────────────────────────────────────────────────────────────
+
       return copy;
     });
   };
-
-  const [vendorQueries, setVendorQueries] = useState({});
-  const [showVendorSuggestions, setShowVendorSuggestions] = useState({});
-  const [activeVendorIndexes, setActiveVendorIndexes] = useState({});
-  const vendorInputRefs = useRef({});
 
   const getFilteredVendors = (index) => {
     const q = (vendorQueries[index] || "").toLowerCase().trim();
@@ -1014,6 +1089,71 @@ function AddRxPurchase() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
+  // KEYBOARD HANDLING per-row for item column
+  const handleTableItemKeyDown = (e, index) => {
+    const filtered = getFilteredLens(index);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showItemSuggestions[index]) {
+        setShowItemSuggestions(p => ({ ...p, [index]: true }));
+        setActiveItemIndexes(p => ({ ...p, [index]: 0 }));
+      } else {
+        setActiveItemIndexes(p => ({
+          ...p,
+          [index]: Math.min((p[index] || 0) + 1, filtered.length - 1)
+        }));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveItemIndexes(p => ({
+        ...p,
+        [index]: Math.max((p[index] || 0) - 1, 0)
+      }));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const active = activeItemIndexes[index];
+      if (active >= 0 && active < filtered.length) {
+        selectLens(filtered[active], index);
+      }
+    } else if (e.key === "Escape") {
+      setShowItemSuggestions(p => ({ ...p, [index]: false }));
+      setActiveItemIndexes(p => ({ ...p, [index]: -1 }));
+    }
+  };
+
+  // KEYBOARD HANDLING per-row for vendor column
+  const handleTableVendorKeyDown = (e, index) => {
+    const filtered = getFilteredVendors(index);
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showVendorSuggestions[index]) {
+        setShowVendorSuggestions(p => ({ ...p, [index]: true }));
+        setActiveVendorIndexes(p => ({ ...p, [index]: 0 }));
+      } else {
+        setActiveVendorIndexes((prev) => ({
+          ...prev,
+          [index]: Math.min((prev[index] || 0) + 1, filtered.length - 1),
+        }));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveVendorIndexes((prev) => ({
+        ...prev,
+        [index]: Math.max((prev[index] || 0) - 1, 0),
+      }));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const active = activeVendorIndexes[index];
+      if (active >= 0 && active < filtered.length) {
+        selectVendor(filtered[active], index);
+      }
+    } else if (e.key === "Escape") {
+      setShowVendorSuggestions((prev) => ({ ...prev, [index]: false }));
+      setActiveVendorIndexes((prev) => ({ ...prev, [index]: -1 }));
+    }
+  };
+
   // KEYBOARD HANDLING per-row
   const onVendorInputKeyDown = (e, index) => {
     const filtered = getFilteredVendors(index);
@@ -1041,6 +1181,37 @@ function AddRxPurchase() {
     } else if (e.key === "Escape") {
       setShowVendorSuggestions((prev) => ({ ...prev, [index]: false }));
       setActiveVendorIndexes((prev) => ({ ...prev, [index]: -1 }));
+    }
+  };
+
+  const handleBarcodeBlur = async (barcode, rowIndex) => {
+    if (!barcode || barcode.trim() === "") return;
+    try {
+      const barcodeData = await getBarcodeDetails(barcode);
+      if (barcodeData) {
+        setItems(prev => {
+          const c = [...prev];
+          const row = c[rowIndex];
+          row.itemName = barcodeData.itemName || row.itemName;
+          row.eye = barcodeData.eye || row.eye;
+          row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
+          row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
+          row.axis = barcodeData.axis || row.axis;
+          row.add = barcodeData.add || row.add;
+          row.purchasePrice = barcodeData.purchasePrice || row.purchasePrice;
+          const q = parseFloat(row.qty) || 0;
+          const p = parseFloat(row.purchasePrice) || 0;
+          const d = parseFloat(row.discount) || 0;
+          row.totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+          return c;
+        });
+        toast.success(`Product loaded from barcode`);
+        focusOnQtyInput(rowIndex);
+      } else {
+        toast.error("Product not found");
+      }
+    } catch (error) {
+      toast.error(getBarcodeErrorMessage(error));
     }
   };
 
@@ -1123,6 +1294,7 @@ function AddRxPurchase() {
       barcode: it.barcode || "",
       itemName: it.itemName || "",
       unit: it.unit || "",
+      orderNo: it.orderNo || "",
       dia: it.dia || "",
       eye: it.eye || "",
       sph: Number(it.sph) || 0,
@@ -1495,7 +1667,7 @@ function AddRxPurchase() {
                       <tr className="hover:bg-blue-50/30 transition-colors group h-10">
                         <td className="py-1 text-center text-slate-300 text-[10px] font-bold border-r border-slate-50 tabular-nums">{index + 1}</td>
                         <td className="p-0.5 border-r border-slate-50">
-                          <input type="text" value={item.barcode || ""} onChange={(e) => updateItem(index, "barcode", e.target.value)}
+                          <input type="text" value={item.barcode || ""} onChange={(e) => updateItem(index, "barcode", e.target.value)} onBlur={(e) => !isReadOnly && handleBarcodeBlur(e.target.value, index)}
                             className="w-full h-8 px-1.5 py-1 bg-transparent text-[10px] font-black text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 rounded transition-all tabular-nums"
                             placeholder="Barcode" disabled={isReadOnly} />
                         </td>
@@ -1504,12 +1676,19 @@ function AddRxPurchase() {
                             onFocus={() => !isReadOnly && setShowItemSuggestions(p => ({ ...p, [index]: true }))}
                             onBlur={() => setTimeout(() => setShowItemSuggestions(p => ({ ...p, [index]: false })), 200)}
                             onChange={(e) => { setItemQueries(p => ({ ...p, [index]: e.target.value })); setShowItemSuggestions(p => ({ ...p, [index]: true })); updateItem(index, "itemName", e.target.value); }}
+                            onKeyDown={(e) => handleTableItemKeyDown(e, index)}
                             className="w-full h-8 px-1.5 py-1 bg-transparent text-[10px] font-black text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 rounded transition-all uppercase"
                             placeholder="Search Item..." disabled={isReadOnly} />
                           {showItemSuggestions[index] && getFilteredLens(index).length > 0 && (
-                            <div className="absolute top-full left-0 w-full bg-white border border-slate-200 shadow-2xl z-50 rounded-lg mt-0.5 p-1 max-h-48 overflow-y-auto">
+                            <div className="absolute top-full left-0 w-full bg-white border border-slate-200 shadow-2xl z-50 rounded-lg mt-0.5 max-h-56 overflow-y-auto">
                               {getFilteredLens(index).map((l, i) => (
-                                <div key={i} onMouseDown={() => selectLens(l, index)} className="px-2 py-1.5 hover:bg-blue-50 cursor-pointer text-[10px] font-black text-slate-600 border-b border-slate-50 last:border-0 uppercase tracking-tight text-left">
+                                <div key={i} 
+                                  className={`item-suggestion-purchase-rx-${index}-${i} px-2 py-1.5 cursor-pointer text-[10px] font-black border-b border-slate-50 last:border-0 transition-colors uppercase tracking-tight text-left ${
+                                    i === activeItemIndexes[index] ? 'bg-blue-100 font-black text-blue-800' : 'text-slate-600 hover:bg-blue-50'
+                                  }`}
+                                  onMouseDown={() => selectLens(l, index)}
+                                  onMouseEnter={() => setActiveItemIndexes(p => ({ ...p, [index]: i }))}
+                                  onMouseLeave={() => setActiveItemIndexes(p => ({ ...p, [index]: -1 }))}>
                                   {l.productName}
                                   <div className="text-[8px] text-slate-400 mt-0.5 flex justify-between">
                                     <span>MRP: ₹{l.mrp}</span>
@@ -1530,13 +1709,16 @@ function AddRxPurchase() {
                         </td>
                         {["sph", "cyl", "axis", "add"].map((field) => (
                           <td key={field} className="p-0 border-r border-slate-100 bg-blue-50/20">
-                            <input type="text" value={item[field] || ""} onChange={(e) => updateItem(index, field, e.target.value)}
+                            <input type="text" value={["sph", "cyl", "add"].includes(field) ? formatPowerValue(item[field]) : (item[field] || "")} 
+                              onChange={(e) => updateItem(index, field, e.target.value)} onBlur={(e) => updateItem(index, field, ["sph", "cyl", "add"].includes(field) ? formatPowerValue(e.target.value) : e.target.value)}
                               className="w-full h-9 px-1 py-1 bg-transparent text-[12px] font-black text-center text-slate-800 outline-none focus:bg-white/80 focus:ring-1 focus:ring-blue-100 tabular-nums"
-                              placeholder="0.00" disabled={isReadOnly} />
+                              placeholder={field === "axis" ? "0" : "+0.00"} disabled={isReadOnly} />
                           </td>
                         ))}
                         <td className="p-0.5 border-r border-slate-50 bg-emerald-50/10">
-                          <input type="number" value={item.qty || ""} onChange={(e) => { let v = e.target.value; if(Number(v)<0) v=0; updateItem(index, "qty", v); }}
+                          <input
+                            ref={(el) => (qtyRefs.current[index] = el)}
+                            type="number" value={item.qty || ""} onChange={(e) => { let v = e.target.value; if(Number(v)<0) v=0; updateItem(index, "qty", v); }}
                             className="w-full h-8 px-1 py-1 bg-transparent text-[11px] font-black text-right text-emerald-600 outline-none focus:bg-white focus:ring-1 focus:ring-emerald-100 rounded transition-all tabular-nums"
                             placeholder="0" disabled={isReadOnly} />
                         </td>
@@ -1567,16 +1749,21 @@ function AddRxPurchase() {
                               <input type="text" value={vendorQueries[index] ?? item.vendorName ?? ""} 
                                  onChange={(e) => { setVendorQueries(p => ({ ...p, [index]: e.target.value })); setShowVendorSuggestions(p => ({ ...p, [index]: true })); updateItem(index, "vendorName", e.target.value); }} 
                                  onFocus={() => setShowVendorSuggestions(p => ({ ...p, [index]: true }))}
-                                 onKeyDown={(e) => onVendorInputKeyDown(e, index)}
+                                 onKeyDown={(e) => handleTableVendorKeyDown(e, index)}
                                  className={`w-full h-8 ${vendorQueries[index] ? 'pl-2' : 'pl-6'} pr-2 py-1 bg-transparent text-[10px] font-black text-slate-600 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 rounded transition-all uppercase text-left`}
                                  placeholder="Vendor..." disabled={isReadOnly} />
                               {showVendorSuggestions[index] && getFilteredVendors(index).length > 0 && (
-                                 <div className="absolute bottom-full left-0 w-64 bg-white border border-slate-200 shadow-2xl z-50 rounded-lg mb-1 p-1 max-h-48 overflow-y-auto">
-                                    <div className="px-2 py-1 bg-slate-50 text-[8px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 mb-1">Select Vendor</div>
+                                 <div className="absolute bottom-full left-0 w-64 bg-white border border-slate-200 shadow-2xl z-50 rounded-lg mb-1 max-h-56 overflow-y-auto">
+                                    <div className="px-2 py-1 bg-slate-50 text-[8px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0 z-10">Select Vendor</div>
                                     {getFilteredVendors(index).map((v, i) => (
-                                       <div key={v._id ?? i} onMouseDown={() => selectVendor(v, index)}
-                                          className={`px-2 py-1.5 cursor-pointer border-b border-slate-50 last:border-0 rounded transition-colors ${activeVendorIndexes[index] === i ? 'bg-blue-50' : 'hover:bg-blue-50/50'} text-left`}>
-                                          <div className="text-[10px] font-black text-slate-700 uppercase tracking-tight">{v.name}</div>
+                                       <div key={v._id ?? i} 
+                                          className={`vendor-suggestion-purchase-rx-${index}-${i} px-2 py-1.5 cursor-pointer border-b border-slate-50 last:border-0 rounded transition-colors text-left ${
+                                            i === activeVendorIndexes[index] ? 'bg-blue-100 font-black text-blue-800' : 'text-slate-600 hover:bg-blue-50'
+                                          }`}
+                                          onMouseDown={() => selectVendor(v, index)}
+                                          onMouseEnter={() => setActiveVendorIndexes(p => ({ ...p, [index]: i }))}
+                                          onMouseLeave={() => setActiveVendorIndexes(p => ({ ...p, [index]: -1 }))}>
+                                          <div className="text-[10px] font-black uppercase tracking-tight">{v.name}</div>
                                           {v.phone && <div className="text-[8px] text-slate-400 font-bold mt-0.5">📞 {v.phone}</div>}
                                        </div>
                                     ))}

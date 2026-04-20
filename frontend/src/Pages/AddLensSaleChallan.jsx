@@ -25,12 +25,13 @@ import {
   getAllLensSaleOrder,
   getNextBillNumberForSaleChallan,
 } from "../controllers/LensSaleChallan.controller";
-import { getDeliveryPersons } from "../controllers/UserController";
 import { Toaster, toast } from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../AuthContext";
 import { getFinancialYearSeries } from "../utils/billingUtils";
+import { getBarcodeDetails, getBarcodeErrorMessage, getLensPriceByPower } from "../controllers/barcode.controller";
+import { formatPowerValue } from "../utils/amountUtils";
 
 const Header = ({ isReadOnly, id, partyData }) => (
   <div className="bg-white border-b border-slate-200 px-3 py-1 flex items-center justify-between sticky top-0 z-[100] shadow-sm">
@@ -67,8 +68,6 @@ function AddLensSaleChallan() {
   const [accounts, setAccounts] = useState([]);
   const [allTaxes, setAllTaxes] = useState([]);
   const [allLens, setAllLens] = useState([]);
-  const [deliveryPersonsList, setDeliveryPersonsList] = useState([]);
-  const [deliveryPerson, setDeliveryPerson] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
   const navigate = useNavigate();
   const { id } = useParams();
@@ -110,7 +109,7 @@ function AddLensSaleChallan() {
 
   useEffect(() => {
     const fetch = async () => {
-      try { const res = await getAllAccounts(); setAccounts(Array.isArray(res) ? res : []); }
+      try { const res = await getAllAccounts("sale"); setAccounts(Array.isArray(res) ? res : []); }
       catch (err) { console.error(err); setAccounts([]); }
     };
     const fetchTax = async () => {
@@ -134,13 +133,7 @@ function AddLensSaleChallan() {
       try { const res = await getAllLensPower(); setAllLens(Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : [])); }
       catch (err) { console.error(err); }
     };
-    const fetchDeliveryPersons = async () => {
-      try {
-        const persons = await getDeliveryPersons();
-        setDeliveryPersonsList(persons);
-      } catch (err) { console.error(err); }
-    };
-    fetch(); fetchTax(); fetchLenses(); fetchDeliveryPersons();
+    fetch(); fetchTax(); fetchLenses();
   }, []);
 
   const [partyData, setPartyData] = useState({
@@ -149,7 +142,7 @@ function AddLensSaleChallan() {
   });
 
   const [items, setItems] = useState([{
-    id: 1, barcode: "", itemName: "", orderNo: "", eye: "", sph: "", cyl: "", axis: "", add: "", remark: "", qty: "", salePrice: 0, discount: "", totalAmount: "", combinationId: ""
+    id: 1, itemId: "", barcode: "", itemName: "", orderNo: "", eye: "", sph: "", cyl: "", axis: "", add: "", remark: "", qty: "", salePrice: 0, discount: "", totalAmount: "", combinationId: ""
   }]);
 
   const [taxes, setTaxes] = useState([{ id: 1, taxName: "", type: "Additive", percentage: "2.5", amount: "0.00" }]);
@@ -164,14 +157,18 @@ function AddLensSaleChallan() {
     setItems(saleData.items?.length ? saleData.items.map((it, i) => ({ ...it, id: i + 1, totalAmount: String(it.totalAmount) })) : items);
     setTaxes(saleData.taxes?.length ? saleData.taxes.map(t => ({ ...t, id: t._id || genTaxId("load") })) : taxes);
     setRemark(saleData.remark || ""); setStatus(saleData.status || "Pending"); setPaidAmount(saleData.paidAmount || "");
-    setDeliveryPerson(saleData.deliveryPerson || "");
   }, [saleData]);
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef(null);
 
-  const filteredAccounts = partyData.partyAccount ? accounts.filter(a => a.Name?.toLowerCase().includes(partyData.partyAccount.toLowerCase())) : accounts.slice(0, 10);
+  const filteredAccounts = partyData.partyAccount ? accounts.filter(a => {
+    const name = String(a.Name || "").toLowerCase();
+    const accountId = String(a.AccountId || "").toLowerCase();
+    const query = partyData.partyAccount.toLowerCase();
+    return name.includes(query) || accountId.includes(query);
+  }) : accounts.slice(0, 10);
 
   const selectAccount = async (acc) => {
     setPartyData({
@@ -249,7 +246,7 @@ function AddLensSaleChallan() {
   const selectLens = (l, idx) => {
     setItems(prev => {
       const c = [...prev];
-      c[idx] = { ...c[idx], itemName: l.productName, billItemName: l.billItemName || "", vendorItemName: l.vendorItemName || "", salePrice: l.salePrice?.default || l.salePrice || 0, eye: l.eye || c[idx].eye || "" };
+      c[idx] = { ...c[idx], itemId: l._id, itemName: l.productName, billItemName: l.billItemName || "", vendorItemName: l.vendorItemName || "", salePrice: l.salePrice?.default || l.salePrice || 0, eye: l.eye || c[idx].eye || "" };
       const q = parseFloat(c[idx].qty) || 0, p = parseFloat(c[idx].salePrice) || 0, d = parseFloat(c[idx].discount) || 0;
       c[idx].totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
       return c;
@@ -386,10 +383,71 @@ function AddLensSaleChallan() {
           }).catch(err => console.error("Stock fetch error:", err));
         }
       }
-      // ───────────────────────────────────────────────────────────────────
+
+      // ── Price Sync Logic: Fetch prices for power-based items ──────────────
+      // When power fields change, fetch Lens Group pricing (with or without itemId)
+      if (["itemName", "sph", "cyl", "axis", "add"].includes(f)) {
+        const item = c[idx];
+        if (item.itemName && (item.sph !== "" || item.cyl !== "" || item.add !== "")) {
+          // If itemId exists, use it; otherwise try to find it from itemName
+          const foundLens = allLens.find(lx => lx.productName === item.itemName || lx.itemName === item.itemName);
+          const itemIdToUse = item.itemId || foundLens?.id || foundLens?._id || foundLens?.itemId;
+          
+          if (itemIdToUse) {
+            getLensPriceByPower(itemIdToUse, item.sph, item.cyl, item.axis, item.add)
+              .then(priceData => {
+                if (priceData && priceData.found) {
+                  setItems(current => {
+                    const updated = [...current];
+                    if (updated[idx]) {
+                      updated[idx].salePrice = priceData.salePrice || updated[idx].salePrice;
+                      // Recalculate totalAmount
+                      const q = parseFloat(updated[idx].qty) || 0;
+                      const p = parseFloat(updated[idx].salePrice) || 0;
+                      const d = Number(updated[idx].discount) || 0;
+                      updated[idx].totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+                    }
+                    return updated;
+                  });
+                }
+              })
+              .catch(err => console.error("Price fetch error:", err));
+          }
+        }
+      }
 
       return c;
     });
+  };
+
+  const handleBarcodeBlur = async (barcode, rowIndex) => {
+    if (!barcode || barcode.trim() === "") return;
+    try {
+      const barcodeData = await getBarcodeDetails(barcode);
+      if (barcodeData) {
+        setItems(prev => {
+          const c = [...prev];
+          const row = c[rowIndex];
+          row.itemName = barcodeData.itemName || row.itemName;
+          row.eye = barcodeData.eye || row.eye;
+          row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
+          row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
+          row.axis = barcodeData.axis || row.axis;
+          row.add = barcodeData.add || row.add;
+          row.salePrice = barcodeData.price || row.salePrice;
+          const q = parseFloat(row.qty) || 0;
+          const p = parseFloat(row.salePrice) || 0;
+          const d = parseFloat(row.discount) || 0;
+          row.totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+          return c;
+        });
+        toast.success(`Product loaded from barcode`);
+      } else {
+        toast.error("Product not found");
+      }
+    } catch (error) {
+      toast.error(getBarcodeErrorMessage(error));
+    }
   };
 
   const addTaxRow = () => setTaxes(p => [...p, { id: genTaxId("m"), taxName: "", type: "Additive", percentage: "", amount: "0.00" }]);
@@ -446,7 +504,6 @@ function AddLensSaleChallan() {
       dueAmount: net - Number(paidAmount),
       remark,
       status,
-      deliveryPerson,
       sourceSaleId,
       companyId: user?.companyId // Link to tenant
     };
@@ -509,35 +566,9 @@ function AddLensSaleChallan() {
                 <label className="block text-[9px] text-slate-400 uppercase font-black">Godown / Point</label>
                 <input type="text" value={billData.godown} disabled={isReadOnly} onChange={e => setBillData(v => ({ ...v, godown: e.target.value }))} className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black h-8 uppercase outline-none focus:border-blue-500" placeholder="HO" />
               </div>
-              <div className="space-y-1 col-span-1">
-                <label className="block text-[9px] text-slate-400 uppercase">Booked By</label>
+              <div className="space-y-1 col-span-2">
+                <label className="block text-[9px] text-slate-400 uppercase">Booked By / Operator</label>
                 <input type="text" value={billData.bookedBy} disabled={isReadOnly} onChange={e => setBillData(v => ({ ...v, bookedBy: e.target.value }))} className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black h-8 outline-none focus:border-blue-500" />
-              </div>
-              <div className="space-y-1 col-span-1 relative">
-                <label className="block text-[9px] text-slate-400 uppercase">Delivery Person</label>
-                <input 
-                  type="text" 
-                  value={deliveryPerson} 
-                  disabled={isReadOnly} 
-                  onChange={e => setDeliveryPerson(e.target.value)}
-                  className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black h-8 uppercase outline-none focus:border-blue-500" 
-                  placeholder="Assign Person..." 
-                />
-                {!isReadOnly && deliveryPerson && deliveryPersonsList.length > 0 && !deliveryPersonsList.some(p => p.name === deliveryPerson) && (
-                  <div className="absolute top-full left-0 w-full bg-white border border-slate-200 shadow-xl rounded-lg z-[400] p-1 mt-1 max-h-32 overflow-auto">
-                    {deliveryPersonsList
-                      .filter(p => p.name.toLowerCase().includes(deliveryPerson.toLowerCase()))
-                      .map((p, i) => (
-                        <div 
-                          key={i} 
-                          onMouseDown={() => setDeliveryPerson(p.name)} 
-                          className="px-3 py-1.5 hover:bg-blue-50 cursor-pointer text-[10px] uppercase font-black border-b border-slate-50 last:border-0"
-                        >
-                          {p.name}
-                        </div>
-                      ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -571,7 +602,7 @@ function AddLensSaleChallan() {
                   <div className="absolute left-0 right-0 z-[500] mt-1 max-h-40 overflow-auto bg-white border border-slate-200 shadow-2xl rounded-lg p-1 uppercase">
                     {filteredAccounts.map((a, i) => (
                       <div key={i} onMouseDown={() => selectAccount(a)} className="px-3 py-1.5 hover:bg-blue-50 cursor-pointer border-b border-slate-50 last:border-0">
-                         <div className="text-[10px] font-black text-slate-800 leading-none">{a.Name}</div>
+                         <div className="text-[10px] font-black text-slate-800 leading-none">{a.Name} (ID: {a.AccountId}) - Station: {a.Stations?.[0] || "-"}</div>
                          <div className="flex justify-between mt-1 text-[8px] font-bold text-slate-400">
                             <span>{a.MobileNumber || "N/A"}</span>
                             <span>{a.State || "N/A"}</span>
@@ -642,7 +673,7 @@ function AddLensSaleChallan() {
                     <tr className={`hover:bg-blue-50/20 group h-8 transition-colors ${highlightedRow === idx ? "bg-emerald-50 ring-1 ring-emerald-400 inset" : ""}`}>
                       <td className="py-0 text-center text-slate-300 text-[10px] border-r border-slate-100 font-black">{idx + 1}</td>
                       <td className="p-0 border-r border-slate-100 uppercase">
-                        <input type="text" value={it.barcode} disabled={isReadOnly} autoFocus={idx === items.length - 1 && it.barcode === ""} onChange={e => updateItem(idx, "barcode", e.target.value)} className="w-full px-2 py-0 text-[10px] font-black text-blue-600 h-8 bg-transparent outline-none focus:bg-white" placeholder="SCAN..." />
+                        <input type="text" value={it.barcode} disabled={isReadOnly} autoFocus={idx === items.length - 1 && it.barcode === ""} onChange={e => updateItem(idx, "barcode", e.target.value)} onBlur={e => !isReadOnly && handleBarcodeBlur(e.target.value, idx)} className="w-full px-2 py-0 text-[10px] font-black text-blue-600 h-8 bg-transparent outline-none focus:bg-white" placeholder="SCAN..." />
                       </td>
                       <td className="p-0 relative px-2 uppercase">
                         <input type="text" value={itemQueries[idx] ?? it.itemName} disabled={isReadOnly} onFocus={() => !isReadOnly && setShowItemSuggestions(p => ({ ...p, [idx]: true }))} onBlur={() => setTimeout(() => setShowItemSuggestions(p => ({ ...p, [idx]: false })), 200)} onChange={e => { setItemQueries(p => ({ ...p, [idx]: e.target.value })); setShowItemSuggestions(p => ({ ...p, [idx]: true })); updateItem(idx, "itemName", e.target.value); }} className="w-full py-0 text-[10px] outline-none h-8 font-black uppercase bg-transparent" placeholder="Line item name" />
@@ -654,10 +685,10 @@ function AddLensSaleChallan() {
                       </td>
                       <td className="p-0"><input type="text" value={it.orderNo} disabled={isReadOnly} onChange={e => updateItem(idx, "orderNo", e.target.value)} className="w-full text-center text-[9px] text-slate-400 h-8 bg-transparent outline-none uppercase font-black" /></td>
                       <td className="p-0 bg-blue-50/20"><input type="text" value={it.eye} disabled={isReadOnly} onChange={e => updateItem(idx, "eye", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent text-blue-600 outline-none uppercase" /></td>
-                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.sph} disabled={isReadOnly} onBlur={() => validateRow(idx)} onChange={e => updateItem(idx, "sph", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none" /></td>
-                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.cyl} disabled={isReadOnly} onBlur={() => validateRow(idx)} onChange={e => updateItem(idx, "cyl", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none" /></td>
-                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.axis} disabled={isReadOnly} onChange={e => updateItem(idx, "axis", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none" /></td>
-                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.add} disabled={isReadOnly} onBlur={() => validateRow(idx)} onChange={e => updateItem(idx, "add", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none" /></td>
+                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.sph} disabled={isReadOnly} onChange={e => updateItem(idx, "sph", e.target.value)} onBlur={(e) => updateItem(idx, "sph", formatPowerValue(e.target.value))} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none" placeholder="+0.00" /></td>
+                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.cyl} disabled={isReadOnly} onChange={e => updateItem(idx, "cyl", e.target.value)} onBlur={(e) => updateItem(idx, "cyl", formatPowerValue(e.target.value))} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none" placeholder="+0.00" /></td>
+                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.axis} disabled={isReadOnly} onChange={e => updateItem(idx, "axis", e.target.value)} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none" placeholder="0" /></td>
+                      <td className="p-0 bg-blue-50/20"><input type="text" value={it.add} disabled={isReadOnly} onChange={e => updateItem(idx, "add", e.target.value)} onBlur={(e) => updateItem(idx, "add", formatPowerValue(e.target.value))} className="w-full text-center text-[10px] font-black h-8 bg-transparent outline-none" placeholder="+0.00" /></td>
                       <td className="p-0 px-2"><input type="text" value={it.remark} disabled={isReadOnly} onChange={e => updateItem(idx, "remark", e.target.value)} className="w-full text-[8px] text-center outline-none bg-transparent h-8 font-bold uppercase" placeholder="NOTES" /></td>
                       <td className="p-0"><input type="number" value={it.qty} disabled={isReadOnly} onChange={e => updateItem(idx, "qty", e.target.value)} className="w-full text-right px-2 py-0 text-[10px] font-black h-8 bg-emerald-50/30 text-emerald-700 outline-none" /></td>
                       <td className="p-0"><input type="number" value={it.salePrice} disabled={isReadOnly} onChange={e => updateItem(idx, "salePrice", Number(e.target.value))} className="w-full text-right px-2 py-0 text-[10px] font-black h-8 bg-blue-50/20 text-blue-800 outline-none" /></td>

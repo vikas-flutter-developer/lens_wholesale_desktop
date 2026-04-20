@@ -76,18 +76,8 @@ class _ActiveDashboardPageState extends State<ActiveDashboardPage> with SingleTi
             children: [
               Row(
                 children: [
-                  const Text(
-                    'PositivERP',
-                    style: TextStyle(
-                      color: Color(0xFFFBBF24),
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   Text(
-                    '— Wholesale AI Analytics',
+                    'Wholesale AI Analytics',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 24,

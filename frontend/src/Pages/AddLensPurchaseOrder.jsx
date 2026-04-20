@@ -29,6 +29,8 @@ import {
 import * as XLSX from "xlsx";
 import BulkLensMatrixV2 from "../Components/BulkLensMatrixV2";
 import { getAllAccounts } from "../controllers/Account.controller";
+import { getBarcodeDetails, getBarcodeErrorMessage, getLensPriceByPower } from "../controllers/barcode.controller";
+import { formatPowerValue } from "../utils/amountUtils";
 
 import { getAllTaxCategories } from "../controllers/TaxCategoryController";
 import { getAllLensPower } from "../controllers/LensGroupCreationController";
@@ -142,14 +144,24 @@ function AddLensPurchaseOrder() {
   const [activeTaxIndex, setActiveTaxIndex] = useState(-1);
   const [itemQueries, setItemQueries] = useState({});
   const [showItemSuggestions, setShowItemSuggestions] = useState({});
+  const [activeItemIndexes, setActiveItemIndexes] = useState({});
   const [vendorQueries, setVendorQueries] = useState({});
   const [showVendorSuggestions, setShowVendorSuggestions] = useState({});
+  const [activeVendorIndexes, setActiveVendorIndexes] = useState({});
   const [rowErrors, setRowErrors] = useState({});
 
   const initializedRef = useRef(false);
   const containerRef = useRef(null);
   const tableRef = useRef(null);
   const fileInputRef = useRef(null);
+  const qtyRefs = useRef([]);
+
+  const focusOnQtyInput = (rowIndex) => {
+    setTimeout(() => {
+      qtyRefs.current[rowIndex]?.focus();
+      qtyRefs.current[rowIndex]?.select();
+    }, 0);
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -348,7 +360,7 @@ function AddLensPurchaseOrder() {
 
   useEffect(() => {
     const fetch = async () => {
-      try { const res = await getAllAccounts(); setAccounts(Array.isArray(res) ? res : []); }
+      try { const res = await getAllAccounts("purchase"); setAccounts(Array.isArray(res) ? res : []); }
       catch (err) { console.error(err); }
     };
     const fetchTax = async () => {
@@ -374,6 +386,30 @@ function AddLensPurchaseOrder() {
     };
     fetch(); fetchTax(); fetchLenses();
   }, []);
+
+  // Auto-scroll to highlighted suggestion for item dropdown
+  useEffect(() => {
+    Object.keys(activeItemIndexes).forEach((index) => {
+      if (showItemSuggestions[index] && activeItemIndexes[index] >= 0) {
+        setTimeout(() => {
+          const activeEl = document.querySelector(`.item-suggestion-purchase-${index}-${activeItemIndexes[index]}`);
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 0);
+      }
+    });
+  }, [activeItemIndexes, showItemSuggestions]);
+
+  // Auto-scroll to highlighted suggestion for vendor dropdown
+  useEffect(() => {
+    Object.keys(activeVendorIndexes).forEach((index) => {
+      if (showVendorSuggestions[index] && activeVendorIndexes[index] >= 0) {
+        setTimeout(() => {
+          const activeEl = document.querySelector(`.vendor-suggestion-purchase-${index}-${activeVendorIndexes[index]}`);
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 0);
+      }
+    });
+  }, [activeVendorIndexes, showVendorSuggestions]);
 
   useEffect(() => {
     if (!purchaseData) return;
@@ -466,7 +502,12 @@ function AddLensPurchaseOrder() {
     else if (e.key === "Escape") setShowSuggestions(false);
   };
 
-  const filteredAccounts = partyData.partyAccount ? accounts.filter(a => a.Name?.toLowerCase().includes(partyData.partyAccount.toLowerCase())) : accounts.slice(0, 10);
+  const filteredAccounts = partyData.partyAccount ? accounts.filter(a => {
+    const name = String(a.Name || "").toLowerCase();
+    const accountId = String(a.AccountId || "").toLowerCase();
+    const query = partyData.partyAccount.toLowerCase();
+    return name.includes(query) || accountId.includes(query);
+  }) : accounts.slice(0, 10);
   const filteredTaxes = taxQuery ? allTaxes.filter(t => t.Name?.toLowerCase().includes(taxQuery.toLowerCase())) : allTaxes.slice(0, 10);
 
   const selectTax = (t) => {
@@ -524,6 +565,73 @@ function AddLensPurchaseOrder() {
       return c;
     });
     setItemQueries(p => ({ ...p, [idx]: l.productName })); setShowItemSuggestions(p => ({ ...p, [idx]: false }));
+  };
+
+  // Keyboard navigation handlers for table columns
+  const handleTableItemKeyDown = (e, index) => {
+    const options = getFilteredLens(index);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showItemSuggestions[index]) {
+        setShowItemSuggestions(p => ({ ...p, [index]: true }));
+        setActiveItemIndexes(p => ({ ...p, [index]: 0 }));
+      } else {
+        setActiveItemIndexes(p => ({
+          ...p,
+          [index]: Math.min((p[index] || 0) + 1, options.length - 1)
+        }));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveItemIndexes(p => ({
+        ...p,
+        [index]: Math.max((p[index] || 0) - 1, 0)
+      }));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const activeIdx = activeItemIndexes[index] ?? -1;
+      if (activeIdx >= 0 && activeIdx < options.length) {
+        selectLens(options[activeIdx], index);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setShowItemSuggestions(p => ({ ...p, [index]: false }));
+      setActiveItemIndexes(p => ({ ...p, [index]: -1 }));
+    }
+  };
+
+  const handleTableVendorKeyDown = (e, index) => {
+    const filteredVendors = partyname.filter(a => !vendorQueries[index] || a.Name?.toLowerCase().includes((vendorQueries[index] || "").toLowerCase()));
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!showVendorSuggestions[index]) {
+        setShowVendorSuggestions(p => ({ ...p, [index]: true }));
+        setActiveVendorIndexes(p => ({ ...p, [index]: 0 }));
+      } else {
+        setActiveVendorIndexes(p => ({
+          ...p,
+          [index]: Math.min((p[index] || 0) + 1, filteredVendors.length - 1)
+        }));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveVendorIndexes(p => ({
+        ...p,
+        [index]: Math.max((p[index] || 0) - 1, 0)
+      }));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const activeIdx = activeVendorIndexes[index] ?? -1;
+      if (activeIdx >= 0 && activeIdx < filteredVendors.length) {
+        updateItem(index, "vendor", filteredVendors[activeIdx].Name);
+        setVendorQueries(p => ({ ...p, [index]: filteredVendors[activeIdx].Name }));
+        setShowVendorSuggestions(p => ({ ...p, [index]: false }));
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setShowVendorSuggestions(p => ({ ...p, [index]: false }));
+      setActiveVendorIndexes(p => ({ ...p, [index]: -1 }));
+    }
   };
 
   const addItemRow = () => setItems(p => [...p, { id: p.length + 1, barcode: "", itemName: "", orderNo: "", eye: "", sph: "", cyl: "", axis: "", add: "", remark: "", qty: "", purchasePrice: 0, discount: "", totalAmount: "", sellPrice: "", combinationId: "", vendor: partyData.partyAccount || "" }]);
@@ -602,8 +710,84 @@ function AddLensPurchaseOrder() {
       }
       const q = parseFloat(c[idx].qty) || 0, p = parseFloat(c[idx].purchasePrice) || 0, d = parseFloat(c[idx].discount) || 0;
       c[idx].totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+
+      // ── Price Sync Logic: Fetch prices for power-based items ──────────────
+      if (["itemName", "sph", "cyl", "axis", "add"].includes(f)) {
+        const item = c[idx];
+        if (item.itemName && (item.sph !== "" || item.cyl !== "" || item.add !== "")) {
+          const foundLens = allLens.find(lx => lx.productName === item.itemName || lx.itemName === item.itemName);
+          const itemIdToUse = item.itemId || foundLens?.id || foundLens?._id || foundLens?.itemId;
+          
+          if (itemIdToUse) {
+            getLensPriceByPower(itemIdToUse, item.sph, item.cyl, item.axis, item.add)
+              .then(priceData => {
+                if (priceData && priceData.found) {
+                  setItems(current => {
+                    const updated = [...current];
+                    if (updated[idx]) {
+                      updated[idx].purchasePrice = priceData.purchasePrice || updated[idx].purchasePrice;
+                      updated[idx].sellPrice = priceData.salePrice || updated[idx].sellPrice;
+                      // Recalculate totalAmount
+                      const q_inner = parseFloat(updated[idx].qty) || 0;
+                      const p_inner = parseFloat(updated[idx].purchasePrice) || 0;
+                      const d_inner = Number(updated[idx].discount) || 0;
+                      updated[idx].totalAmount = (q_inner * p_inner - q_inner * p_inner * (d_inner / 100)).toFixed(2);
+                    }
+                    return updated;
+                  });
+                }
+              })
+              .catch(err => console.error("Price fetch error:", err));
+          }
+        }
+      }
+
       return c;
     });
+  };
+
+  // Handle barcode auto-fill
+  const handleBarcodeBlur = async (barcode, rowIndex) => {
+    if (!barcode || barcode.trim() === "") return;
+
+    try {
+      const barcodeData = await getBarcodeDetails(barcode);
+      
+      if (barcodeData) {
+        // Auto-fill the row with barcode data
+        setItems(prev => {
+          const c = [...prev];
+          const row = c[rowIndex];
+          
+          row.itemName = barcodeData.itemName || row.itemName;
+          row.eye = barcodeData.eye || row.eye;
+          row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
+          row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
+          row.axis = barcodeData.axis || row.axis;
+          row.add = barcodeData.add || row.add;
+          row.purchasePrice = barcodeData.purchasePrice || row.purchasePrice;
+          row.sellPrice = barcodeData.sellPrice || row.sellPrice;
+          row.stock = barcodeData.stock || 0;
+          
+          // Recalculate total
+          const q = parseFloat(row.qty) || 0;
+          const p = parseFloat(row.purchasePrice) || 0;
+          const d = parseFloat(row.discount) || 0;
+          row.totalAmount = (q * p - q * p * (d / 100)).toFixed(2);
+          
+          return c;
+        });
+        
+        toast.success(`Product loaded from barcode`);
+        focusOnQtyInput(rowIndex);
+      } else {
+        toast.error("Product not found");
+      }
+    } catch (error) {
+      const errorMsg = getBarcodeErrorMessage(error);
+      toast.error(errorMsg);
+      console.error("Barcode error:", error);
+    }
   };
 
   const addTaxRow = () => setTaxes(p => [...p, { id: genTaxId("m"), taxName: "", type: "Additive", percentage: "", amount: "0.00" }]);
@@ -978,7 +1162,7 @@ function AddLensPurchaseOrder() {
                    <div style={{position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999, marginTop: '4px'}} className="bg-white border border-slate-200 shadow-2xl rounded-lg max-h-56 overflow-y-auto">
                      {filteredAccounts.map((acc, idx) => (
                        <div key={idx} className="px-3 py-2 cursor-pointer hover:bg-blue-50 border-b border-slate-50 last:border-0 transition-colors" onMouseDown={() => selectAccount(acc)}>
-                         <div className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{acc.Name}</div>
+                         <div className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{acc.Name} (ID: {acc.AccountId}) - Station: {acc.Stations?.[0] || "-"}</div>
                          <div className="flex justify-between items-center mt-0.5">
                            <span className="text-[9px] font-bold text-slate-400 uppercase">{acc.AccountGroup?.Name || "NO GROUP"}</span>
                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${acc.CurrentBalance?.type === 'Cr' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>₹{parseFloat(String(acc.CurrentBalance?.amount || 0)).toLocaleString()} {acc.CurrentBalance?.type}</span>
@@ -1080,7 +1264,7 @@ function AddLensPurchaseOrder() {
                     <tr className="hover:bg-blue-50/30 transition-colors group h-10" onDoubleClick={() => !isReadOnly && openBulkOrderModal(it)}>
                       <td className="py-1 text-center text-slate-300 text-[10px] font-bold border-r border-slate-50 tabular-nums">{idx + 1}</td>
                       <td className="p-1 border-r border-slate-50">
-                        <input type="text" value={it.barcode || ""} onChange={(e) => updateItem(idx, "barcode", e.target.value)}
+                        <input type="text" value={it.barcode || ""} onChange={(e) => updateItem(idx, "barcode", e.target.value)} onBlur={(e) => !isReadOnly && handleBarcodeBlur(e.target.value, idx)}
                           className="w-full h-7 px-1.5 py-1 bg-transparent text-[10px] font-black text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 rounded transition-all tabular-nums"
                           placeholder="..." disabled={isReadOnly} />
                       </td>
@@ -1089,12 +1273,21 @@ function AddLensPurchaseOrder() {
                           onFocus={() => !isReadOnly && setShowItemSuggestions(p => ({ ...p, [idx]: true }))}
                           onBlur={() => setTimeout(() => setShowItemSuggestions(p => ({ ...p, [idx]: false })), 200)}
                           onChange={(e) => { setItemQueries(p => ({ ...p, [idx]: e.target.value })); setShowItemSuggestions(p => ({ ...p, [idx]: true })); updateItem(idx, "itemName", e.target.value); }}
+                          onKeyDown={(e) => handleTableItemKeyDown(e, idx)}
                           className="w-full h-7 px-1.5 py-1 bg-transparent text-[10px] font-black text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 rounded transition-all uppercase"
                           placeholder="Search Item..." disabled={isReadOnly} />
                         {showItemSuggestions[idx] && getFilteredLens(idx).length > 0 && (
-                          <div className="absolute top-full left-0 w-full bg-white border border-slate-200 shadow-2xl z-50 rounded-lg mt-0.5 p-1 max-h-48 overflow-y-auto">
+                          <div className="absolute top-full left-0 w-full bg-white border border-slate-200 shadow-2xl z-50 rounded-lg mt-0.5 max-h-56 overflow-y-auto">
                             {getFilteredLens(idx).map((l, i) => (
-                              <div key={i} onMouseDown={() => selectLens(l, idx)} className="px-2 py-1.5 hover:bg-blue-50 cursor-pointer text-[10px] font-black text-slate-600 border-b border-slate-50 last:border-0 uppercase tracking-tight">{l.productName}</div>
+                              <div key={i} 
+                                className={`item-suggestion-purchase-${idx}-${i} px-2 py-1.5 cursor-pointer text-[10px] font-black border-b border-slate-50 last:border-0 transition-colors uppercase tracking-tight ${
+                                  i === activeItemIndexes[idx] ? 'bg-blue-100 font-black text-blue-800' : 'text-slate-600 hover:bg-blue-50'
+                                }`}
+                                onMouseDown={() => selectLens(l, idx)}
+                                onMouseEnter={() => setActiveItemIndexes(p => ({ ...p, [idx]: i }))}
+                                onMouseLeave={() => setActiveItemIndexes(p => ({ ...p, [idx]: -1 }))}>
+                                {l.productName}
+                              </div>
                             ))}
                           </div>
                         )}
@@ -1109,9 +1302,18 @@ function AddLensPurchaseOrder() {
                       </td>
                       {["sph", "cyl", "axis", "add"].map((field) => (
                         <td key={field} className="p-0 border-r border-slate-100 bg-blue-50/20">
-                          <input type="text" value={it[field] || ""} onBlur={() => validateRow(idx)} onChange={(e) => updateItem(idx, field, e.target.value)}
+                          <input type="text"
+                            value={it[field] || ""}
+                            onBlur={() => {
+                                validateRow(idx);
+                                if (field !== "axis") {
+                                    updateItem(idx, field, formatPowerValue(it[field]));
+                                }
+                            }}
+                            onChange={(e) => updateItem(idx, field, e.target.value)}
                             className="w-full h-9 px-1 py-1 bg-transparent text-[12px] font-black text-center text-slate-800 outline-none focus:bg-white/80 focus:ring-1 focus:ring-blue-100 tabular-nums"
-                            placeholder="0.00" disabled={isReadOnly} />
+                            placeholder={field === "axis" ? "0" : "+0.00"}
+                            disabled={isReadOnly} />
                         </td>
                       ))}
                       <td className="p-1 border-r border-slate-50">
@@ -1120,7 +1322,9 @@ function AddLensPurchaseOrder() {
                           placeholder="REMARK" disabled={isReadOnly} />
                       </td>
                       <td className="p-1 border-r border-slate-50 bg-emerald-50/10">
-                        <input type="number" value={it.qty || ""} onChange={(e) => updateItem(idx, "qty", e.target.value)}
+                        <input
+                          ref={(el) => (qtyRefs.current[idx] = el)}
+                          type="number" value={it.qty || ""} onChange={(e) => updateItem(idx, "qty", e.target.value)}
                           className="w-full h-7 px-1 py-1 bg-transparent text-[11px] font-black text-right text-emerald-600 outline-none focus:bg-white focus:ring-1 focus:ring-emerald-100 rounded transition-all tabular-nums"
                           placeholder="0" disabled={isReadOnly} />
                       </td>
@@ -1129,16 +1333,27 @@ function AddLensPurchaseOrder() {
                           onFocus={() => !isReadOnly && setShowVendorSuggestions(p => ({ ...p, [idx]: true }))}
                           onBlur={() => setTimeout(() => setShowVendorSuggestions(p => ({ ...p, [idx]: false })), 200)}
                           onChange={(e) => { setVendorQueries(p => ({ ...p, [idx]: e.target.value })); setShowVendorSuggestions(p => ({ ...p, [idx]: true })); updateItem(idx, "vendor", e.target.value); }}
+                          onKeyDown={(e) => handleTableVendorKeyDown(e, idx)}
                           className={`w-full h-7 px-1.5 py-1 bg-transparent text-[9px] font-black outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 rounded transition-all uppercase ${it.vendor && it.vendor !== partyData.partyAccount ? 'text-amber-600 bg-amber-50' : 'text-slate-500'}`}
                           placeholder="Vendor..." disabled={isReadOnly} />
                         {it.vendor && it.vendor !== partyData.partyAccount && (
                           <div className="absolute -top-1 right-0 px-1 bg-amber-500 text-white text-[7px] font-black rounded-sm shadow-sm scale-75 origin-top-right uppercase">Diff</div>
                         )}
                         {showVendorSuggestions[idx] && (
-                          <div className="absolute top-full left-0 w-48 bg-white border border-slate-200 shadow-2xl z-50 rounded-lg mt-0.5 p-1 max-h-40 overflow-y-auto">
-                            {accounts.filter(a => a.Name?.toLowerCase().includes((vendorQueries[idx] || "").toLowerCase())).slice(0, 10).map((a, i) => (
-                              <div key={i} onMouseDown={() => { updateItem(idx, "vendor", a.Name); setVendorQueries(p => ({ ...p, [idx]: a.Name })); setShowVendorSuggestions(p => ({ ...p, [idx]: false })); }}
-                                className="px-2 py-1.5 hover:bg-blue-50 cursor-pointer text-[9px] font-black text-slate-600 border-b border-slate-50 last:border-0 uppercase">{a.Name}</div>
+                          <div className="absolute top-full left-0 w-48 bg-white border border-slate-200 shadow-2xl z-50 rounded-lg mt-0.5 max-h-56 overflow-y-auto">
+                            {partyname.filter(a => 
+                              !vendorQueries[idx] || 
+                              a.Name?.toLowerCase().includes((vendorQueries[idx] || "").toLowerCase())
+                            ).slice(0, 10).map((a, i) => (
+                              <div key={i} 
+                                className={`vendor-suggestion-purchase-${idx}-${i} px-2 py-1.5 cursor-pointer text-[9px] font-black border-b border-slate-50 last:border-0 transition-colors uppercase ${
+                                  i === activeVendorIndexes[idx] ? 'bg-blue-100 font-black text-blue-800' : 'text-slate-600 hover:bg-blue-50'
+                                }`}
+                                onMouseDown={() => { updateItem(idx, "vendor", a.Name); setVendorQueries(p => ({ ...p, [idx]: a.Name })); setShowVendorSuggestions(p => ({ ...p, [idx]: false })); }}
+                                onMouseEnter={() => setActiveVendorIndexes(p => ({ ...p, [idx]: i }))}
+                                onMouseLeave={() => setActiveVendorIndexes(p => ({ ...p, [idx]: -1 }))}>
+                                {a.Name}
+                              </div>
                             ))}
                           </div>
                         )}

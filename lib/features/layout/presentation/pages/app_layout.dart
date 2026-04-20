@@ -342,9 +342,9 @@ class _AppLayoutState extends State<AppLayout> {
 
                       // Main Content
                       Expanded(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
+                        child: Listener(
+                          behavior: HitTestBehavior.translucent,
+                          onPointerDown: (_) {
                             if (!_isCollapsed) {
                               setState(() => _isCollapsed = true);
                             }
@@ -372,7 +372,6 @@ class _AppLayoutState extends State<AppLayout> {
                 if (_hoveredItem != null && _hoveredItem!.submenu != null)
                   Builder(
                     builder: (flyoutCtx) {
-                      // We need the height of the stack containing the sidebar
                       final RenderBox? stackBox = context.findRenderObject() as RenderBox?;
                       final stackHeight = stackBox?.size.height ?? MediaQuery.of(context).size.height;
                       
@@ -392,17 +391,22 @@ class _AppLayoutState extends State<AppLayout> {
                             color: const Color(0xFF111827),
                             child: Container(
                               width: 240,
-                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              constraints: BoxConstraints(
+                                maxHeight: stackHeight - 40,
+                              ),
                               decoration: BoxDecoration(
                                 border: Border.all(color: const Color(0xFF374151).withValues(alpha: 0.5)),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ..._hoveredItem!.submenu!.map((sub) => _buildFlyoutItem(sub)),
-                                ],
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ..._hoveredItem!.submenu!.map((sub) => _buildFlyoutItem(sub)),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -526,7 +530,9 @@ class _AppLayoutState extends State<AppLayout> {
                 
                 final relativeY = itemPos.dy - stackPos.dy;
                 final viewportHeight = MediaQuery.of(context).size.height;
-                bool flipped = (viewportHeight - itemPos.dy) < 200;
+                // Calculate required height: ~40px per item + 8px padding
+                final requiredHeight = (item.submenu?.length ?? 0) * 40 + 8;
+                bool flipped = (viewportHeight - itemPos.dy) < requiredHeight;
                 
                 _handleMouseEnter(item, Offset(64, flipped ? relativeY + 48 : relativeY), isFlipped: flipped);
                 setState(() => _hoveredItemKey = item.key);
@@ -568,7 +574,9 @@ class _AppLayoutState extends State<AppLayout> {
                 
                 final relativeY = itemPos.dy - stackPos.dy;
                 final viewportHeight = MediaQuery.of(context).size.height;
-                bool flipped = (viewportHeight - itemPos.dy) < 200;
+                // Calculate required height: ~40px per item + 8px padding
+                final requiredHeight = (item.submenu?.length ?? 0) * 40 + 8;
+                bool flipped = (viewportHeight - itemPos.dy) < requiredHeight;
                 
                 // Align with top (or bottom if flipped) of item in expanded mode
                 // Expanded items are roughly 44px high

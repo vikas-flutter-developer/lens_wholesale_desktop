@@ -11,7 +11,7 @@ const PaymentSchema = new Schema({
     paymentDate: { type: Date, default: Date.now },
     expiryDate: { type: Date, required: true },
     status: { type: String, enum: ['pending', 'paid', 'failed'], default: 'paid' },
-    transactionId: { type: String, unique: true },
+    transactionId: { type: String, unique: true, sparse: true },
     paymentMethod: { type: String, enum: ['manual', 'razorpay', 'stripe', 'other'], default: 'manual' },
     
     // Invoice specific

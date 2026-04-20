@@ -127,10 +127,25 @@ class SuperAdminController {
     async assignSubscription(req, res) {
         try {
             const { companyId, planId, billingCycle, startDate } = req.body;
+
+            // Basic validation
+            if (!companyId || !planId || !billingCycle) {
+                return res.status(400).json({ message: "Company ID, Plan ID, and Billing Cycle are required" });
+            }
+
             const plan = await Plan.findById(planId);
             if (!plan) return res.status(404).json({ message: "Plan not found" });
 
+            const validCycles = ['monthly', 'quarterly', 'yearly'];
+            if (!validCycles.includes(billingCycle)) {
+                return res.status(400).json({ message: "Invalid billing cycle" });
+            }
+
             const calculatedStartDate = startDate ? new Date(startDate) : new Date();
+            if (isNaN(calculatedStartDate.getTime())) {
+                return res.status(400).json({ message: "Invalid start date format" });
+            }
+
             const expiryDate = this.calculateExpiry(calculatedStartDate, billingCycle);
             
             // Add grace period (7 days)
@@ -148,23 +163,35 @@ class SuperAdminController {
                 isActive: true
             }, { new: true });
 
+            if (!company) return res.status(404).json({ message: "Company not found" });
+
             // Record Payment (Manual for now)
             const amount = plan.prices[billingCycle];
+            if (amount === undefined) {
+                return res.status(400).json({ message: `Price not defined for cycle: ${billingCycle}` });
+            }
+
             const payment = new Payment({
                 companyId,
                 planId,
                 billingCycle,
                 amount,
-                totalAmount: amount, // Logic for GST can be added
+                totalAmount: amount,
                 expiryDate,
                 status: 'paid',
                 paymentMethod: 'manual',
+                transactionId: `MANUAL-${Date.now()}-${Math.floor(Math.random() * 1000)}`, // Ensure uniqueness
                 invoiceNumber: `INV-${Date.now()}`
             });
             await payment.save();
 
             res.json({ company, payment });
         } catch (error) {
+            console.error("Subscription Assignment Error:", error);
+            // Handle duplicate key error specifically
+            if (error.code === 11000) {
+                return res.status(409).json({ message: "A payment with this invoice number or transaction ID already exists. Please try again." });
+            }
             res.status(500).json({ message: error.message });
         }
     }
@@ -270,6 +297,20 @@ class SuperAdminController {
         try {
             await Company.findByIdAndDelete(req.params.id);
             res.json({ message: "Company deleted successfully" });
+        } catch (error) {
+            res.status(500).json({ message: error.message });
+        }
+    }
+
+    async toggleBlockCompany(req, res) {
+        try {
+            const company = await Company.findById(req.params.id);
+            if (!company) return res.status(404).json({ message: "Company not found" });
+
+            company.isBlocked = !company.isBlocked;
+            await company.save();
+
+            res.json(company);
         } catch (error) {
             res.status(500).json({ message: error.message });
         }

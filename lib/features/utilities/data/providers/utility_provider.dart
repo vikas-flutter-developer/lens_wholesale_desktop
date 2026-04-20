@@ -32,7 +32,6 @@ class UtilityProvider extends ChangeNotifier {
     {'label': 'Lens Location', 'value': '/inventory/lens-location'},
     {'label': 'Product Exchange', 'value': '/lenstransaction/add-product-exchange'},
     {'label': 'Damage & Shrinkage', 'value': '/lenstransaction/add-damage-entry'},
-    {'label': 'Barcode Management', 'value': '/inventory/barcode-management'},
     {'label': 'Offers', 'value': '/utilities/offers'},
     {'label': 'Bulk Update', 'value': '/utilities/bulk-update'},
     {'label': 'Backup & Restore', 'value': '/utilities/backup-restore'},
@@ -62,6 +61,9 @@ class UtilityProvider extends ChangeNotifier {
   List<KeyBinding> _keyBindings = [];
   List<KeyBinding> get keyBindings => _keyBindings;
 
+  List<Map<String, dynamic>> _groupProductOffers = [];
+  List<Map<String, dynamic>> get groupProductOffers => _groupProductOffers;
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -72,7 +74,7 @@ class UtilityProvider extends ChangeNotifier {
   String? get error => _error;
 
   UtilityProvider() {
-    _loadKeyBindings();
+    fetchShortcuts();
   }
 
   void setFilter(String filter) {
@@ -214,88 +216,143 @@ class UtilityProvider extends ChangeNotifier {
     }
   }
 
-  // Shortcut Key Logic
-  Future<void> _loadKeyBindings() async {
+  Future<void> fetchOffersByGroup(String groupName) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedJson = prefs.getString('keyboard_shortcuts');
-      
-      if (savedJson != null) {
-        final List<dynamic> decoded = json.decode(savedJson);
-        _keyBindings = decoded.map((e) => KeyBinding.fromJson(e as Map<String, dynamic>)).toList();
+      final res = await _service.fetchOffersByGroup(groupName);
+      if (res['success'] == true) {
+        _groupProductOffers = List<Map<String, dynamic>>.from(res['data'] ?? []);
       } else {
-        _keyBindings = _getDefaultKeyBindings();
-        await _saveKeyBindings();
+        _error = res['message']?.toString();
       }
     } catch (e) {
-      _keyBindings = _getDefaultKeyBindings();
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
+  }
+
+  Future<bool> bulkUpsertGroupOffers(String groupName, List<Map<String, dynamic>> offers) async {
+    _isLoading = true;
+    _error = null;
     notifyListeners();
-  }
-
-  List<KeyBinding> _getDefaultKeyBindings() {
-    return [
-      const KeyBinding(action: 'Sale Order', keyCombination: 'F1', module: 'Sale', url: '/sales/lens-sale-order'),
-      const KeyBinding(action: 'Add Sale Order', keyCombination: 'F2', module: 'Sale', url: '/sales/add-lens-sale-order'),
-      const KeyBinding(action: 'Purchase Order', keyCombination: 'F3', module: 'Purchase', url: '/purchases/purchase-order'),
-      const KeyBinding(action: 'Lens Stock Report', keyCombination: 'F4', module: 'Reports', url: '/lenstransaction/lensstockreport'),
-      const KeyBinding(action: 'Add Voucher', keyCombination: 'F5', module: 'Transaction', url: '/transaction/add-voucher'),
-      const KeyBinding(action: 'Lens Location', keyCombination: 'F6', module: 'Reports', url: '/inventory/lens-location'),
-      const KeyBinding(action: 'Day Book', keyCombination: 'F7', module: 'Reports', url: '/reports/financial/daybook'),
-      const KeyBinding(action: 'Party Wise Item', keyCombination: 'F8', module: 'Reports', url: '/reports/inventory/party-wise-item'),
-      const KeyBinding(action: 'Barcode Management', keyCombination: 'F9', module: 'Utilities', url: '/inventory/barcode-management'),
-      const KeyBinding(action: 'Dashboard', keyCombination: 'Alt+D', module: 'Global', url: '/'),
-      const KeyBinding(action: 'Offers', keyCombination: 'Alt+O', module: 'Utilities', url: '/utilities/offers'),
-      const KeyBinding(action: 'Backup & Restore', keyCombination: 'Alt+B', module: 'Utilities', url: '/utilities/backup-restore'),
-    ];
-  }
-
-  Future<void> _saveKeyBindings() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final encoded = json.encode(_keyBindings.map((e) => e.toJson()).toList());
-      await prefs.setString('keyboard_shortcuts', encoded);
+      final res = await _service.bulkUpsertOffers(groupName, offers);
+      return res['success'] == true;
     } catch (e) {
-      debugPrint("Error saving shortcuts: $e");
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  void addKeyBinding(KeyBinding binding) {
-    _keyBindings.add(binding);
-    _saveKeyBindings();
+  // Shortcut Key Logic
+  Future<void> fetchShortcuts() async {
+    _isLoading = true;
+    _error = null;
     notifyListeners();
-  }
-
-  void updateKeyBinding(int index, KeyBinding binding) {
-    if (index >= 0 && index < _keyBindings.length) {
-      _keyBindings[index] = binding;
-      _saveKeyBindings();
+    try {
+      final res = await _service.fetchShortcuts();
+      if (res is List) {
+        _keyBindings = res.map((e) => KeyBinding.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
 
-  void deleteKeyBinding(int index) {
-    if (index >= 0 && index < _keyBindings.length) {
-      _keyBindings.removeAt(index);
-      _saveKeyBindings();
-      notifyListeners();
-    }
-  }
-
-  void toggleKeyBindingStatus(int index) {
-    if (index >= 0 && index < _keyBindings.length) {
-      final current = _keyBindings[index];
-      _keyBindings[index] = current.copyWith(
-        status: current.status == 'Enabled' ? 'Disabled' : 'Enabled'
-      );
-      _saveKeyBindings();
-      notifyListeners();
-    }
-  }
-
-  Future<void> resetToDefaults() async {
-    _keyBindings = _getDefaultKeyBindings();
-    await _saveKeyBindings();
+  Future<bool> addKeyBinding(KeyBinding binding) async {
+    _isActionLoading = true;
     notifyListeners();
+    try {
+      final data = {
+        'pageName': binding.pageName,
+        'module': binding.module,
+        'shortcutKey': binding.shortcutKey,
+        'description': binding.description,
+        'status': binding.status,
+        'url': binding.url,
+      };
+      await _service.createShortcut(data);
+      await fetchShortcuts();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isActionLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateKeyBinding(String id, KeyBinding binding) async {
+    _isActionLoading = true;
+    notifyListeners();
+    try {
+      final data = {
+        'pageName': binding.pageName,
+        'module': binding.module,
+        'shortcutKey': binding.shortcutKey,
+        'description': binding.description,
+        'status': binding.status,
+        'url': binding.url,
+      };
+      await _service.updateShortcut(id, data);
+      await fetchShortcuts();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isActionLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteKeyBinding(String id) async {
+    _isActionLoading = true;
+    notifyListeners();
+    try {
+      await _service.deleteShortcut(id);
+      await fetchShortcuts();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isActionLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleKeyBindingStatus(String id, KeyBinding binding) async {
+    final updatedBinding = binding.copyWith(
+      status: binding.status == 'Enabled' ? 'Disabled' : 'Enabled'
+    );
+    await updateKeyBinding(id, updatedBinding);
+  }
+
+  Future<bool> resetShortcutToDefaults() async {
+    _isActionLoading = true;
+    notifyListeners();
+    try {
+      await _service.resetShortcuts();
+      await fetchShortcuts();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isActionLoading = false;
+      notifyListeners();
+    }
   }
 }

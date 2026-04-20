@@ -75,8 +75,8 @@ Map<String, dynamic> _$$AppOfferImplToJson(_$AppOfferImpl instance) =>
 _$KeyBindingImpl _$$KeyBindingImplFromJson(Map<String, dynamic> json) =>
     _$KeyBindingImpl(
       id: json['_id'] as String?,
-      action: json['action'] as String,
-      keyCombination: json['keyCombination'] as String,
+      pageName: json['pageName'] as String,
+      shortcutKey: json['shortcutKey'] as String,
       status: json['status'] as String? ?? 'Enabled',
       module: json['module'] as String?,
       description: json['description'] as String?,
@@ -86,8 +86,8 @@ _$KeyBindingImpl _$$KeyBindingImplFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$$KeyBindingImplToJson(_$KeyBindingImpl instance) =>
     <String, dynamic>{
       '_id': instance.id,
-      'action': instance.action,
-      'keyCombination': instance.keyCombination,
+      'pageName': instance.pageName,
+      'shortcutKey': instance.shortcutKey,
       'status': instance.status,
       'module': instance.module,
       'description': instance.description,

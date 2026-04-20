@@ -11,15 +11,16 @@ class ItemMasterModel with _$ItemMasterModel {
   const factory ItemMasterModel({
     @JsonKey(name: '_id') String? id,
     @Default('') String itemName,
+    @Default('') String vendorItemName,
     @Default('') String billItemName,
     @Default('') String alias,
     @Default('') String printName,
     @Default('') String groupName,
     @Default('') String unit,
-    @Default('') String allUnit, // React uses allUnit for altUnit
+    @JsonKey(name: 'altUnit') @Default('') String allUnit, // backend uses altUnit
     @Default('') String description,
     @Default('N') String taxSetting, // 'N' for No, 'Y' for Yes
-    double? openingStock,
+    @JsonKey(name: 'openingStockQty') double? openingStock, // backend uses openingStockQty
     double? openingStockValue,
     double? purchasePrice,
     double? saleProfit,
@@ -30,15 +31,15 @@ class ItemMasterModel with _$ItemMasterModel {
     double? minSalePrice,
     @JsonKey(fromJson: _parseString) @Default('') String hsnCode,
     @JsonKey(fromJson: _parseString) @Default('') String barcode,
-    @Default('') String stockable,
+    @Default(false) bool stockable,
     @Default('') String godown,
-    @JsonKey(fromJson: _parseString) @Default('') String loyaltyPoints,
-    @JsonKey(fromJson: _parseString) @Default('') String refAmn,
-    @JsonKey(fromJson: _parseString) @Default('') String refAmntIndia,
+    double? loyaltyPoints, // backend: Number
+    double? refAmn, // backend: Number
+    double? refAmntIndia, // backend: Number
     @Default(false) bool forLensProduct,
     @JsonKey(fromJson: _parseString) @Default('') String sellStockLevel,
     @Default('') String batchWiseDetails,
-    @Default('') String taxCategory,
+    @JsonKey(name: 'TaxCategory') @Default('') String taxCategory, // backend: TaxCategory
     @JsonKey(fromJson: _parseString) String? createdAt,
     @JsonKey(fromJson: _parseString) String? updatedAt,
   }) = _ItemMasterModel;

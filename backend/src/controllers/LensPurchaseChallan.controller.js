@@ -986,12 +986,11 @@ export {
   createLensPurchaseInvoice,
   createChallanFromInvoice,
   updatePurchaseChallanStatus,
-  updatePurchaseChallanItemStatus,
   patchLensPurchaseChallanDcId,
   updateCancelReason,
 };
 
-async function updatePurchaseChallanItemStatus(req, res) {
+export async function updatePurchaseChallanItemStatus(req, res) {
   try {
     const { challanId, itemIds, newStatus } = req.body;
     const challan = await LensPurchaseChallan.findById(challanId);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/inventory_report_models.dart';
 import '../services/inventory_report_service.dart';
 
@@ -7,6 +8,14 @@ class InventoryReportProvider with ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  String? _error;
+  String? get error => _error;
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
 
   // Lens Movement Report
   LensMovementReportData? _lensMovementData;
@@ -65,14 +74,122 @@ class InventoryReportProvider with ChangeNotifier {
 
   Future<void> fetchReorderReport(Map<String, dynamic> filters) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     try {
       _reorderItems = await _service.getReorderReport(filters);
     } catch (e) {
+      _error = e.toString();
       debugPrint('Error fetching Stock Reorder Report: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // Sale Item Group Wise Report
+  List<SaleItemGroupWiseItem>? _saleItemGroupWiseItems;
+  List<SaleItemGroupWiseItem>? get saleItemGroupWiseItems => _saleItemGroupWiseItems;
+
+  Future<void> fetchSaleItemGroupWiseReport(Map<String, dynamic> filters) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _saleItemGroupWiseItems = await _service.getSaleItemGroupWiseReport(filters);
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error fetching Sale Item Group Wise Report: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Booked By Report
+  List<BookedByReportItem>? _bookedByItems;
+  List<BookedByReportItem>? get bookedByItems => _bookedByItems;
+
+  Future<void> fetchBookedByReport() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final lensOrders = await _service.getAllLensSaleOrders();
+      final rxOrders = await _service.getAllRxSaleOrders();
+      final contactOrders = await _service.getAllContactLensSaleOrders();
+
+      List<BookedByReportItem> flattened = [];
+
+      void processOrders(List<dynamic> orders, String type) {
+        for (var order in orders) {
+          final billData = order['billData'];
+          if (billData == null) continue;
+          
+          final rawBookedBy = billData['bookedBy'] ?? billData['booked_by'];
+          if (rawBookedBy == null || rawBookedBy.toString().trim().isEmpty) continue;
+
+          final items = order['items'] as List?;
+          if (items == null) continue;
+
+          final partyData = order['partyData'];
+          final partyName = partyData != null ? partyData['partyAccount'] : '';
+          final billNo = billData['billNo'] ?? billData['bill_no'] ?? '';
+          final date = billData['date'] ?? order['createdAt'];
+          final time = _getTimeString(order['createdAt']);
+          final bookedBy = _normalizeBookedBy(rawBookedBy);
+          final netAmount = (order['netAmount'] ?? 0).toDouble();
+
+          for (var i = 0; i < items.length; i++) {
+            final item = items[i];
+            flattened.add(BookedByReportItem(
+              id: '${order['_id']}-$i',
+              orderDate: date,
+              orderTime: time,
+              billNo: billNo.toString(),
+              bookedBy: bookedBy,
+              itemName: item['itemName'] ?? item['productName'] ?? '',
+              eye: item['eye'] ?? '',
+              sph: item['sph'],
+              cyl: item['cyl'],
+              axis: item['axis'],
+              add: item['add'],
+              qty: (item['qty'] ?? 0).toInt(),
+              netAmount: netAmount,
+              partyName: partyName,
+              remark: item['remark'] ?? order['remark'] ?? '',
+              orderType: type,
+            ));
+          }
+        }
+      }
+
+      processOrders(lensOrders, 'Lens');
+      processOrders(rxOrders, 'Rx');
+      processOrders(contactOrders, 'ContactLens');
+
+      _bookedByItems = flattened;
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error fetching Booked By Report: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  String _normalizeBookedBy(dynamic name) {
+    if (name == null || name is! String) return '';
+    return name.trim().split(' ').map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1).toLowerCase() : '').join(' ');
+  }
+
+  String _getTimeString(dynamic dateStr) {
+    if (dateStr == null) return '';
+    try {
+      final date = DateTime.parse(dateStr.toString());
+      return DateFormat('hh:mm:ss a').format(date.toLocal());
+    } catch (_) {
+      return '';
     }
   }
 
@@ -81,6 +198,8 @@ class InventoryReportProvider with ChangeNotifier {
     _powerMovementData = null;
     _partyWiseItems = null;
     _reorderItems = null;
+    _saleItemGroupWiseItems = null;
+    _bookedByItems = null;
     notifyListeners();
   }
 }

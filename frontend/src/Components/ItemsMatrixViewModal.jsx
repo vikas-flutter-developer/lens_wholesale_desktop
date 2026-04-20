@@ -7,6 +7,7 @@ const ItemsMatrixViewModal = ({
     isOpen,
     onClose,
     title = "Items Matrix",
+    pdfTitle,
     data = [],
     columns = [],
     onSave
@@ -40,45 +41,79 @@ const ItemsMatrixViewModal = ({
     const cylList = useMemo(() => generateRange(items.map(it => it.cyl)), [items]);
     const addList = useMemo(() => generateRange(items.map(it => it.add || it.addValue || 0)), [items]);
 
+    const hasActualAdd = useMemo(() => {
+        return items.some(it => {
+            const a = parseFloat(it.add || it.addValue || 0);
+            return a !== 0;
+        });
+    }, [items]);
+
     useEffect(() => {
         const matrix = {};
         items.forEach(item => {
             const sphKey = parseFloat(item.sph || 0).toFixed(2);
             const cylKey = parseFloat(item.cyl || 0).toFixed(2);
-            const rowKey = `${item.eye || "RL"}_${sphKey}_${cylKey}`;
+            const addKey = parseFloat(item.add || item.addValue || 0).toFixed(2);
+            const eye = item.eye || "RL";
 
-            if (!matrix[rowKey]) {
-                matrix[rowKey] = {
-                    sph: sphKey,
-                    cyl: cylKey,
-                    eye: item.eye || "RL",
-                    axis: item.axis || "",
-                    price: item.salePrice || item.purchasePrice || 0,
-                    status: item.itemStatus || item.status || "Pending",
-                    vendor: item.vendor || "",
-                    adds: {},
-                    itemRef: item // Keep reference for other props
+            if (hasActualAdd) {
+                const rowKey = `${eye}_${sphKey}_${cylKey}`;
+                if (!matrix[rowKey]) {
+                    matrix[rowKey] = {
+                        sph: sphKey,
+                        cyl: cylKey,
+                        eye: eye,
+                        axis: item.axis || "",
+                        price: item.salePrice || item.purchasePrice || 0,
+                        status: item.itemStatus || item.status || "Pending",
+                        vendor: item.vendor || "",
+                        adds: {},
+                        itemRef: item
+                    };
+                }
+                matrix[rowKey].adds[addKey] = {
+                    qty: item.qty || 0,
+                    _id: item._id
+                };
+            } else {
+                const rowKey = `${eye}_${sphKey}`;
+                if (!matrix[rowKey]) {
+                    matrix[rowKey] = {
+                        sph: sphKey,
+                        eye: eye,
+                        axis: item.axis || "",
+                        price: item.salePrice || item.purchasePrice || 0,
+                        status: item.itemStatus || item.status || "Pending",
+                        vendor: item.vendor || "",
+                        cyls: {},
+                        itemRef: item
+                    };
+                }
+                matrix[rowKey].cyls[cylKey] = {
+                    qty: item.qty || 0,
+                    _id: item._id
                 };
             }
-            matrix[rowKey].adds[parseFloat(item.add || item.addValue || 0).toFixed(2)] = {
-                qty: item.qty || 0,
-                _id: item._id
-            };
         });
         setMatrixData(matrix);
-    }, [items]);
+    }, [items, hasActualAdd]);
 
-    const handleQtyChange = (sph, cyl, add, val) => {
-        const rowKey = `${activeEye}_${sph}_${cyl}`;
+    const handleQtyChange = (sph, cyl, addOrCyl, val) => {
+        const rowKey = hasActualAdd ? `${activeEye}_${sph}_${cyl}` : `${activeEye}_${sph}`;
         setMatrixData(prev => {
-            const row = prev[rowKey] || { adds: {} };
-            const newAdds = { ...row.adds, [add]: { ...row.adds[add], qty: val } };
-            return { ...prev, [rowKey]: { ...row, adds: newAdds } };
+            const row = prev[rowKey] || (hasActualAdd ? { adds: {} } : { cyls: {} });
+            if (hasActualAdd) {
+                const newAdds = { ...row.adds, [addOrCyl]: { ...row.adds[addOrCyl], qty: val } };
+                return { ...prev, [rowKey]: { ...row, adds: newAdds } };
+            } else {
+                const newCyls = { ...row.cyls, [addOrCyl]: { ...(row.cyls[addOrCyl] || {}), qty: val } };
+                return { ...prev, [rowKey]: { ...row, cyls: newCyls } };
+            }
         });
     };
 
     const handleRowPropChange = (sph, cyl, prop, val) => {
-        const rowKey = `${activeEye}_${sph}_${cyl}`;
+        const rowKey = hasActualAdd ? `${activeEye}_${sph}_${cyl}` : `${activeEye}_${sph}`;
         setMatrixData(prev => ({
             ...prev,
             [rowKey]: { ...(prev[rowKey] || {}), [prop]: val }
@@ -116,12 +151,24 @@ const ItemsMatrixViewModal = ({
         try {
             const updatedItems = [];
             Object.entries(matrixData).forEach(([rowKey, data]) => {
-                const [eye, sph, cyl] = rowKey.split("_");
-                Object.entries(data.adds).forEach(([add, addData]) => {
-                    const qty = parseFloat(addData.qty);
+                const parts = rowKey.split("_");
+                const eye = parts[0];
+                const sph = parts[1];
+                const cyl = hasActualAdd ? parts[2] : null;
+
+                const valuesSource = hasActualAdd ? data.adds : data.cyls;
+
+                Object.entries(valuesSource).forEach(([colVal, cellData]) => {
+                    const qty = parseFloat(cellData.qty);
+                    const currentCyl = hasActualAdd ? cyl : colVal;
+                    const currentAdd = hasActualAdd ? colVal : "0.00";
+
                     const originalItem = items.find(it =>
-                        it._id === addData._id ||
-                        (it.eye === eye && parseFloat(it.sph || 0).toFixed(2) === sph && parseFloat(it.cyl || 0).toFixed(2) === cyl && parseFloat(it.add || it.addValue || 0).toFixed(2) === add)
+                        it._id === cellData._id ||
+                        (it.eye === eye && 
+                         parseFloat(it.sph || 0).toFixed(2) === sph && 
+                         parseFloat(it.cyl || 0).toFixed(2) === currentCyl && 
+                         parseFloat(it.add || it.addValue || 0).toFixed(2) === currentAdd)
                     ) || data.itemRef;
 
                     updatedItems.push({
@@ -150,55 +197,98 @@ const ItemsMatrixViewModal = ({
     const matrixRows = useMemo(() => {
         const rows = [];
         sphList.forEach(sph => {
-            cylList.forEach(cyl => {
-                const rowKey = `${activeEye}_${sph}_${cyl}`;
-                if (matrixData[rowKey]) rows.push({ sph, cyl });
-            });
+            if (hasActualAdd) {
+                cylList.forEach(cyl => {
+                    const rowKey = `${activeEye}_${sph}_${cyl}`;
+                    if (matrixData[rowKey]) rows.push({ sph, cyl });
+                });
+            } else {
+                const rowKey = `${activeEye}_${sph}`;
+                if (matrixData[rowKey]) rows.push({ sph });
+            }
         });
         return rows;
-    }, [sphList, cylList, activeEye, matrixData]);
+    }, [sphList, cylList, activeEye, matrixData, hasActualAdd]);
 
-    const handleDownloadPDF = () => {
+    const summary = useMemo(() => {
+        return Object.values(matrixData).reduce((acc, row) => {
+            const cells = hasActualAdd ? Object.values(row.adds || {}) : Object.values(row.cyls || {});
+            const rowQty = cells.reduce((sum, v) => sum + (parseFloat(v.qty) || 0), 0);
+            const rowItems = cells.filter(v => (parseFloat(v.qty) || 0) > 0).length;
+            
+            return {
+                items: acc.items + rowItems,
+                qty: acc.qty + rowQty,
+                value: acc.value + (rowQty * (parseFloat(row.price) || 0))
+            };
+        }, { items: 0, qty: 0, value: 0 });
+    }, [matrixData, hasActualAdd]);
+
+    const handleDownloadPDF = async () => {
         const doc = new jsPDF("l", "pt", "a4");
+        const actualPdfTitle = pdfTitle || title;
+        
+        // Load and add Logo
+        try {
+            const img = new Image();
+            img.src = "/sadguru_logo.svg";
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+            });
+            const imgW = img.width || 200;
+            const imgH = img.height || 60;
+            const canvas = document.createElement("canvas");
+            canvas.width = imgW;
+            canvas.height = imgH;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, imgW, imgH);
+            const pngDataUrl = canvas.toDataURL("image/png");
+            
+            doc.addImage(pngDataUrl, "PNG", 40, 35, 80, (imgH / imgW) * 80);
+        } catch (e) {
+            console.error("Could not add logo", e);
+        }
         
         // Header
         doc.setFontSize(18);
         doc.setTextColor(40);
-        doc.text(`${title}`, 40, 40);
+        doc.text(`${actualPdfTitle}`, 160, 40);
         
         doc.setFontSize(11);
         doc.setTextColor(100);
-        doc.text(`Item Name: ${items[0]?.itemName || "N/A"}`, 40, 60);
-        doc.text(`Eye: ${activeEye}`, 40, 75);
-        doc.text(`Generated On: ${new Date().toLocaleString()}`, 40, 90);
+        doc.text(`Item Name: ${items[0]?.itemName || "N/A"}`, 160, 60);
+        doc.text(`Eye: ${activeEye}`, 160, 75);
+        doc.text(`Generated On: ${new Date().toLocaleString()}`, 160, 90);
 
         // Matrix Table
-        const headers = ["SPH", "CYL", "AXIS", "PRICE", "STATUS"];
-        if (addList.length > 0) {
+        const headers = ["EYE", "SPH"];
+        if (hasActualAdd) headers.push("CYL");
+        headers.push("AXIS");
+
+        if (hasActualAdd) {
             addList.forEach(add => headers.push(`ADD ${add}`));
         } else {
-            headers.push("QTY");
+            cylList.forEach(cyl => headers.push(cyl));
         }
 
         const tableRows = matrixRows.map(row => {
-            const rowKey = `${activeEye}_${row.sph}_${row.cyl}`;
+            const rowKey = hasActualAdd ? `${activeEye}_${row.sph}_${row.cyl}` : `${activeEye}_${row.sph}`;
             const rowData = matrixData[rowKey] || {};
-            const tableRow = [
-                row.sph,
-                row.cyl,
-                rowData.axis || "-",
-                `₹${rowData.price || 0}`,
-                rowData.status || "Pending"
-            ];
+            const tableRow = [activeEye, row.sph];
+            if (hasActualAdd) tableRow.push(row.cyl);
+            tableRow.push(rowData.axis || "-");
 
-            if (addList.length > 0) {
+            if (hasActualAdd) {
                 addList.forEach(add => {
-                    const qty = rowData.adds[add]?.qty || 0;
+                    const qty = rowData.adds?.[add]?.qty || 0;
                     tableRow.push(qty > 0 ? qty : "-");
                 });
             } else {
-                const qty = Object.values(rowData.adds)[0]?.qty || 0;
-                tableRow.push(qty > 0 ? qty : "-");
+                cylList.forEach(cyl => {
+                    const qty = rowData.cyls?.[cyl]?.qty || 0;
+                    tableRow.push(qty > 0 ? qty : "-");
+                });
             }
             return tableRow;
         });
@@ -206,7 +296,7 @@ const ItemsMatrixViewModal = ({
         autoTable(doc, {
             head: [headers],
             body: tableRows,
-            startY: 110,
+            startY: 140,
             styles: { fontSize: 8, cellPadding: 3, halign: 'center' },
             headStyles: { fillColor: [44, 62, 80], textColor: [255, 255, 255], fontStyle: 'bold' },
             alternateRowStyles: { fillColor: [245, 245, 245] },
@@ -215,9 +305,20 @@ const ItemsMatrixViewModal = ({
 
         // Summary Footer
         const finalY = doc.lastAutoTable.finalY + 30;
-        const totalItems = Object.values(matrixData).reduce((acc, row) => acc + Object.values(row.adds).filter(v => v.qty > 0).length, 0);
-        const totalQty = Object.values(matrixData).reduce((acc, row) => acc + Object.values(row.adds).reduce((sum, v) => sum + (parseFloat(v.qty) || 0), 0), 0);
-        const netValue = Object.values(matrixData).reduce((acc, row) => acc + Object.values(row.adds).reduce((sum, v) => sum + ((parseFloat(v.qty) || 0) * (parseFloat(row.price) || 0)), 0), 0).toFixed(2);
+        
+        const summaryData = Object.values(matrixData).reduce((acc, row) => {
+            const cells = hasActualAdd ? Object.values(row.adds || {}) : Object.values(row.cyls || {});
+            const rowQty = cells.reduce((sum, v) => sum + (parseFloat(v.qty) || 0), 0);
+            const rowItems = cells.filter(v => (parseFloat(v.qty) || 0) > 0).length;
+            
+            return {
+                items: acc.items + rowItems,
+                qty: acc.qty + rowQty,
+                value: acc.value + (rowQty * (parseFloat(row.price) || 0))
+            };
+        }, { items: 0, qty: 0, value: 0 });
+
+        const { items: totalItems, qty: totalQty } = summaryData;
 
         doc.setFontSize(10);
         doc.setTextColor(40);
@@ -226,16 +327,17 @@ const ItemsMatrixViewModal = ({
         doc.setFont(undefined, 'normal');
         doc.text(`Total Items: ${totalItems}`, 40, finalY + 15);
         doc.text(`Total Quantity: ${totalQty}`, 40, finalY + 30);
-        doc.text(`Net Value: ₹${netValue}`, 40, finalY + 45);
 
-        doc.save(`${title.replace(/ /g, "_")}_${activeEye}.pdf`);
+        doc.save(`${actualPdfTitle.replace(/ /g, "_")}_${activeEye}.pdf`);
     };
 
     if (!isOpen) return null;
 
     const renderStatusCell = (row, idx, colIdx) => {
-        const rowKey = `${activeEye}_${row.sph}_${row.cyl}`;
+        const rowKey = hasActualAdd ? `${activeEye}_${row.sph}_${row.cyl}` : `${activeEye}_${row.sph}`;
         const rowData = matrixData[rowKey];
+        if (!rowData) return null;
+
         const colDef = columns.find(c => c.key === 'itemStatus' || c.key === 'status');
 
         if (colDef && colDef.render) {
@@ -306,30 +408,35 @@ const ItemsMatrixViewModal = ({
                             <thead className="sticky top-0 z-20 bg-slate-50 text-slate-600 shadow-sm">
                                 <tr>
                                     <th className="px-3 py-2 border-b border-r border-slate-200 w-20 text-center font-bold bg-slate-100">SPH</th>
-                                    <th className="px-3 py-2 border-b border-r border-slate-200 w-20 text-center font-bold bg-slate-100">CYL</th>
+                                    {hasActualAdd && <th className="px-3 py-2 border-b border-r border-slate-200 w-20 text-center font-bold bg-slate-100">CYL</th>}
                                     <th className="px-3 py-2 border-b border-r border-slate-200 w-24 text-center font-bold bg-slate-100">AXIS</th>
                                     <th className="px-3 py-2 border-b border-r border-slate-200 w-28 text-center font-bold bg-slate-100">PRICE</th>
                                     <th className="px-3 py-2 border-b border-r border-slate-200 w-32 text-center font-bold bg-slate-100">STATUS</th>
-                                    {addList.length > 0 ? addList.map(add => (
+                                    {hasActualAdd ? addList.map(add => (
                                         <th key={add} className="px-3 py-2 border-b border-r border-slate-200 min-w-[80px] text-center font-bold">ADD {add}</th>
-                                    )) : <th className="px-3 py-2 border-b border-r border-slate-200 min-w-[80px] text-center font-bold">QTY</th>}
+                                    )) : cylList.map(cyl => (
+                                        <th key={cyl} className="px-3 py-2 border-b border-r border-slate-200 min-w-[80px] text-center font-bold">{cyl}</th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {matrixRows.map((row, idx) => {
-                                    const rowKey = `${activeEye}_${row.sph}_${row.cyl}`;
-                                    const rowData = matrixData[rowKey] || { axis: "", price: 0, status: "Pending", adds: {} };
+                                    const rowKey = hasActualAdd ? `${activeEye}_${row.sph}_${row.cyl}` : `${activeEye}_${row.sph}`;
+                                    const rowData = matrixData[rowKey] || { axis: "", price: 0, status: "Pending", adds: {}, cyls: {} };
+                                    
+                                    const leftColBase = hasActualAdd ? 1 : 0;
+
                                     return (
                                         <tr key={rowKey} className="hover:bg-blue-50/30 transition-colors group">
                                             <td className="px-3 py-2 border-r border-slate-100 text-center font-bold text-slate-700 bg-slate-50/50">{row.sph}</td>
-                                            <td className="px-3 py-2 border-r border-slate-100 text-center font-bold text-slate-700 bg-slate-50/50">{row.cyl}</td>
+                                            {hasActualAdd && <td className="px-3 py-2 border-r border-slate-100 text-center font-bold text-slate-700 bg-slate-50/50">{row.cyl}</td>}
                                             <td className="p-1 border-r border-slate-100">
                                                 <input
                                                     type="text"
                                                     value={rowData.axis}
                                                     onChange={e => handleRowPropChange(row.sph, row.cyl, "axis", e.target.value)}
-                                                    onKeyDown={e => handleMatrixKeyDown(e, idx, 0, matrixRows.length)}
-                                                    data-matrix-input data-row={idx} data-col={0}
+                                                    onKeyDown={e => handleMatrixKeyDown(e, idx, leftColBase, matrixRows.length)}
+                                                    data-matrix-input data-row={idx} data-col={leftColBase}
                                                     className="w-full h-8 text-center bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-blue-400 rounded outline-none text-xs font-semibold"
                                                 />
                                             </td>
@@ -338,13 +445,13 @@ const ItemsMatrixViewModal = ({
                                                     type="number"
                                                     value={rowData.price}
                                                     onChange={e => handleRowPropChange(row.sph, row.cyl, "price", e.target.value)}
-                                                    onKeyDown={e => handleMatrixKeyDown(e, idx, 1, matrixRows.length)}
-                                                    data-matrix-input data-row={idx} data-col={1}
+                                                    onKeyDown={e => handleMatrixKeyDown(e, idx, leftColBase + 1, matrixRows.length)}
+                                                    data-matrix-input data-row={idx} data-col={leftColBase + 1}
                                                     className="w-full h-8 text-center bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-blue-400 rounded outline-none text-xs font-semibold"
                                                 />
                                             </td>
-                                            <td className="p-1 border-r border-slate-100 text-center">{renderStatusCell(row, idx, 2)}</td>
-                                            {addList.length > 0 ? addList.map((add, addIdx) => {
+                                            <td className="p-1 border-r border-slate-100 text-center">{renderStatusCell(row, idx, leftColBase + 2)}</td>
+                                            {hasActualAdd ? addList.map((add, addIdx) => {
                                                 const addData = rowData.adds[add] || { qty: "" };
                                                 return (
                                                     <td key={add} className="p-1 border-r border-slate-100">
@@ -352,24 +459,27 @@ const ItemsMatrixViewModal = ({
                                                             type="number" min="0" placeholder="-"
                                                             value={addData.qty || ""}
                                                             onChange={e => handleQtyChange(row.sph, row.cyl, add, e.target.value)}
-                                                            onKeyDown={e => handleMatrixKeyDown(e, idx, 3 + addIdx, matrixRows.length)}
-                                                            data-matrix-input data-row={idx} data-col={3 + addIdx}
+                                                            onKeyDown={e => handleMatrixKeyDown(e, idx, leftColBase + 3 + addIdx, matrixRows.length)}
+                                                            data-matrix-input data-row={idx} data-col={leftColBase + 3 + addIdx}
                                                             className={`w-full h-8 text-center text-xs font-bold outline-none rounded transition-all focus:ring-2 focus:ring-blue-500/20 ${addData.qty > 0 ? "bg-blue-100 text-blue-700" : "bg-transparent hover:bg-slate-50"}`}
                                                         />
                                                     </td>
                                                 );
-                                            }) : (
-                                                <td className="p-1 border-r border-slate-100">
-                                                    <input
-                                                        type="number" min="0" placeholder="-"
-                                                        value={Object.values(rowData.adds)[0]?.qty || ""}
-                                                        onChange={e => handleQtyChange(row.sph, row.cyl, "0.00", e.target.value)}
-                                                        onKeyDown={e => handleMatrixKeyDown(e, idx, 3, matrixRows.length)}
-                                                        data-matrix-input data-row={idx} data-col={3}
-                                                        className={`w-full h-8 text-center text-xs font-bold outline-none rounded transition-all focus:ring-2 focus:ring-blue-500/20 ${(Object.values(rowData.adds)[0]?.qty) > 0 ? "bg-blue-100 text-blue-700" : "bg-transparent hover:bg-slate-50"}`}
-                                                    />
-                                                </td>
-                                            )}
+                                            }) : cylList.map((cyl, cylIdx) => {
+                                                const cylData = rowData.cyls[cyl] || { qty: "" };
+                                                return (
+                                                    <td key={cyl} className="p-1 border-r border-slate-100">
+                                                        <input
+                                                            type="number" min="0" placeholder="-"
+                                                            value={cylData.qty || ""}
+                                                            onChange={e => handleQtyChange(row.sph, null, cyl, e.target.value)}
+                                                            onKeyDown={e => handleMatrixKeyDown(e, idx, leftColBase + 3 + cylIdx, matrixRows.length)}
+                                                            data-matrix-input data-row={idx} data-col={leftColBase + 3 + cylIdx}
+                                                            className={`w-full h-8 text-center text-xs font-bold outline-none rounded transition-all focus:ring-2 focus:ring-blue-500/20 ${cylData.qty > 0 ? "bg-blue-100 text-blue-700" : "bg-transparent hover:bg-slate-50"}`}
+                                                        />
+                                                    </td>
+                                                );
+                                            })}
                                         </tr>
                                     );
                                 })}
@@ -380,9 +490,9 @@ const ItemsMatrixViewModal = ({
 
                 <div className="p-4 bg-white border-t border-slate-200 flex justify-between items-center shrink-0 shadow-lg">
                     <div className="flex gap-6 text-sm font-medium text-slate-600">
-                        <div className="flex items-center gap-2"><span>Total Items:</span><span className="font-bold text-slate-900">{Object.values(matrixData).reduce((acc, row) => acc + Object.values(row.adds).filter(v => v.qty > 0).length, 0)}</span></div>
-                        <div className="flex items-center gap-2"><span>Total Qty:</span><span className="font-bold text-slate-900">{Object.values(matrixData).reduce((acc, row) => acc + Object.values(row.adds).reduce((sum, v) => sum + (parseFloat(v.qty) || 0), 0), 0)}</span></div>
-                        <div className="flex items-center gap-2"><span>Net Value:</span><span className="font-bold text-emerald-600">₹{Object.values(matrixData).reduce((acc, row) => acc + Object.values(row.adds).reduce((sum, v) => sum + ((parseFloat(v.qty) || 0) * (parseFloat(row.price) || 0)), 0), 0).toFixed(2)}</span></div>
+                        <div className="flex items-center gap-2"><span>Total Items:</span><span className="font-bold text-slate-900">{summary.items}</span></div>
+                        <div className="flex items-center gap-2"><span>Total Qty:</span><span className="font-bold text-slate-900">{summary.qty}</span></div>
+                        <div className="flex items-center gap-2"><span>Net Value:</span><span className="font-bold text-emerald-600">₹{summary.value.toFixed(2)}</span></div>
                     </div>
                     <div className="flex gap-3">
                         <button onClick={onClose} className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-bold text-sm transition-all" disabled={loading}>Cancel</button>

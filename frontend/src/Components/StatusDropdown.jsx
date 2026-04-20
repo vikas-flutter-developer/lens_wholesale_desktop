@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { handleDropdownKeyDown, autoScrollToHighlighted } from "../utils/dropdownKeyboardHandler";
 
 const STATUS_OPTIONS = [
   { value: "Pending", label: "Pending", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
@@ -17,6 +18,9 @@ const MOBILE_STATUS_DISPLAY = {
 
 const StatusDropdown = ({ currentStatus, onStatusChange, isLoading = false, readOnly = false, size = "md" }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const buttonRef = useRef(null);
+  const containerRef = useRef(null);
 
   const getFormattedStatus = (status) => {
     if (!status) return "Pending";
@@ -46,6 +50,25 @@ const StatusDropdown = ({ currentStatus, onStatusChange, isLoading = false, read
   // Fallback
   if (!currentOption) currentOption = STATUS_OPTIONS[0];
 
+  // Auto-scroll to highlighted option
+  useEffect(() => {
+    if (isOpen && highlightedIndex >= 0) {
+      setTimeout(() => {
+        const activeEl = containerRef.current?.querySelector(`.status-option-${highlightedIndex}`);
+        if (activeEl) {
+          activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+      }, 0);
+    }
+  }, [highlightedIndex, isOpen]);
+
+  // Reset highlight when dropdown closes
+  useEffect(() => {
+    if (!isOpen) {
+      setHighlightedIndex(-1);
+    }
+  }, [isOpen]);
+
   const handleStatusSelect = async (newStatus) => {
     if (readOnly || newStatus === currentStatus) {
       setIsOpen(false);
@@ -61,12 +84,27 @@ const StatusDropdown = ({ currentStatus, onStatusChange, isLoading = false, read
     }
   };
 
+  // Handle keyboard navigation
+  const handleKeyDown = (e) => {
+    handleDropdownKeyDown(e, {
+      isOpen,
+      highlightedIndex,
+      options: STATUS_OPTIONS,
+      setHighlightedIndex,
+      setIsOpen,
+      onSelect: (option) => handleStatusSelect(option.value),
+      canOpenDropdown: !readOnly,
+    });
+  };
+
   const sizeClasses = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm";
 
   return (
-    <div className={`relative inline-block ${size === 'sm' ? 'w-auto' : 'w-full'}`}>
+    <div className={`relative inline-block ${size === 'sm' ? 'w-auto' : 'w-full'}`} ref={containerRef}>
       <button
+        ref={buttonRef}
         onClick={() => !readOnly && setIsOpen(!isOpen)}
+        onKeyDown={handleKeyDown}
         disabled={isLoading || readOnly}
         className={`w-full rounded-lg border border-slate-300 flex items-center justify-between gap-2 transition-all duration-200 ${currentOption.color
           } ${sizeClasses} ${isLoading || readOnly ? "cursor-default" : "hover:shadow-md"}`}
@@ -81,15 +119,20 @@ const StatusDropdown = ({ currentStatus, onStatusChange, isLoading = false, read
       </button>
 
       {!readOnly && isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 min-w-[120px] bg-white border border-slate-300 rounded-lg shadow-lg z-50">
-          {STATUS_OPTIONS.map((option) => (
+        <div className="absolute top-full left-0 right-0 mt-1 min-w-[120px] bg-white border border-slate-300 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+          {STATUS_OPTIONS.map((option, index) => (
             <button
               key={option.value}
               onClick={() => handleStatusSelect(option.value)}
-              className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors duration-150 hover:bg-slate-100 first:rounded-t-lg last:rounded-b-lg ${option.value === formattedStatus
-                ? `${option.color} bg-opacity-20`
-                : "text-slate-700 hover:bg-slate-50"
-                }`}
+              onMouseEnter={() => setHighlightedIndex(index)}
+              onMouseLeave={() => setHighlightedIndex(-1)}
+              className={`status-option-${index} w-full text-left px-4 py-2 text-sm font-medium transition-colors duration-150 first:rounded-t-lg last:rounded-b-lg ${
+                index === highlightedIndex
+                  ? `${option.color} bg-opacity-40 font-bold`
+                  : option.value === formattedStatus
+                  ? `${option.color} bg-opacity-20`
+                  : "text-slate-700 hover:bg-slate-50"
+              }`}
             >
               <span className="inline-flex items-center gap-2">
                 {option.value === formattedStatus && (

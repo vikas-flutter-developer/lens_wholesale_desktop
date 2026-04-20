@@ -9,7 +9,6 @@ const AccountSchema = new Schema(
     AccountId: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
     },
     // arrays
@@ -89,6 +88,9 @@ const AccountSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// Compound index to ensure AccountId is unique WITHIN each company
+AccountSchema.index({ AccountId: 1, companyId: 1 }, { unique: true });
 
 const Account = mongoose.model("Account", AccountSchema);
 export default Account;

@@ -15,6 +15,7 @@ import {
     resetAllLensPriceHighlights,
     updateLensGroupLocations,
     getCombinationStock,
+    getLensPriceByPower,
 } from '../controllers/lensGroupCreation.controller.js'
 const router = express.Router();
 
@@ -33,5 +34,6 @@ router.get('/power-groups-for-product', authMiddleware, getPowerGroupsForProduct
 router.post('/resetAllPriceHighlights', authMiddleware, resetAllLensPriceHighlights);
 router.post('/update-locations', authMiddleware, updateLensGroupLocations);
 router.post('/getCombinationStock', authMiddleware, getCombinationStock);
+router.get('/get-price-by-power', authMiddleware, getLensPriceByPower);
 
 export default router;

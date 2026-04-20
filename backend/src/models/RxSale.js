@@ -100,6 +100,7 @@ const RxSaleSchema = new mongoose.Schema(
     deliveryPerson: { type: String, default: "" },
     // Delivery tracking fields
     outForDeliveryTime: { type: Date, default: null },
+    arrivedTime: { type: Date, default: null },
     deliveredTime: { type: Date, default: null },
     dispatchTime: { type: Date, default: null },
     deliveryCompletionTime: { type: Date, default: null },
@@ -107,7 +108,7 @@ const RxSaleSchema = new mongoose.Schema(
     otpExpiresAt: { type: Date, default: null },
     deliveryStatus: {
       type: String,
-      enum: ["Pending", "Out for Delivery", "Delivered"],
+      enum: ["Pending", "Out for Delivery", "Arrived", "Delivered"],
       default: "Pending"
     },
   },

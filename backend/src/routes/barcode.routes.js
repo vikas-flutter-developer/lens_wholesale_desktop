@@ -1,9 +1,16 @@
 import express from "express";
 import { body, param } from "express-validator";
-import { saveBarcodeData, bulkSaveBarcodeData, getBarcodeData } from "../controllers/barcode.controller.js";
+import { saveBarcodeData, bulkSaveBarcodeData, getBarcodeData, getNextBarcode } from "../controllers/barcode.controller.js";
 import authMiddleware from "../middlewares/AuthMiddleware.js";
 
 const router = express.Router();
+
+/**
+ * @route   GET /api/barcodes/next
+ * @desc    Fetch next available numeric barcode
+ * @access  Protected
+ */
+router.get("/next", authMiddleware, getNextBarcode);
 
 /**
  * @route   POST /api/barcodes

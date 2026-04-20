@@ -63,16 +63,16 @@ class _GlobalShortcutManagerState extends State<GlobalShortcutManager> {
 
     try {
       final match = shortcuts.firstWhere(
-        (s) => s.status == 'Enabled' && s.keyCombination.toLowerCase() == combo.toLowerCase(),
+        (s) => s.status == 'Enabled' && s.shortcutKey.toLowerCase() == combo.toLowerCase(),
       );
       
       // Match found
       final url = match.url;
-      final pageName = match.action;
+      final pageName = match.pageName;
       
       if (url == null || url.isEmpty) return false;
 
-      // Show snackbar
+      // Show SnackBar
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Navigating to $pageName via Shortcut ($combo)"),

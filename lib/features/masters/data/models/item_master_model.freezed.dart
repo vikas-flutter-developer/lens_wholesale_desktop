@@ -24,17 +24,19 @@ mixin _$ItemMasterModel {
   @JsonKey(name: '_id')
   String? get id => throw _privateConstructorUsedError;
   String get itemName => throw _privateConstructorUsedError;
+  String get vendorItemName => throw _privateConstructorUsedError;
   String get billItemName => throw _privateConstructorUsedError;
   String get alias => throw _privateConstructorUsedError;
   String get printName => throw _privateConstructorUsedError;
   String get groupName => throw _privateConstructorUsedError;
   String get unit => throw _privateConstructorUsedError;
-  String get allUnit =>
-      throw _privateConstructorUsedError; // React uses allUnit for altUnit
+  @JsonKey(name: 'altUnit')
+  String get allUnit => throw _privateConstructorUsedError; // backend uses altUnit
   String get description => throw _privateConstructorUsedError;
   String get taxSetting =>
       throw _privateConstructorUsedError; // 'N' for No, 'Y' for Yes
-  double? get openingStock => throw _privateConstructorUsedError;
+  @JsonKey(name: 'openingStockQty')
+  double? get openingStock => throw _privateConstructorUsedError; // backend uses openingStockQty
   double? get openingStockValue => throw _privateConstructorUsedError;
   double? get purchasePrice => throw _privateConstructorUsedError;
   double? get saleProfit => throw _privateConstructorUsedError;
@@ -47,19 +49,19 @@ mixin _$ItemMasterModel {
   String get hsnCode => throw _privateConstructorUsedError;
   @JsonKey(fromJson: _parseString)
   String get barcode => throw _privateConstructorUsedError;
-  String get stockable => throw _privateConstructorUsedError;
+  bool get stockable => throw _privateConstructorUsedError;
   String get godown => throw _privateConstructorUsedError;
-  @JsonKey(fromJson: _parseString)
-  String get loyaltyPoints => throw _privateConstructorUsedError;
-  @JsonKey(fromJson: _parseString)
-  String get refAmn => throw _privateConstructorUsedError;
-  @JsonKey(fromJson: _parseString)
-  String get refAmntIndia => throw _privateConstructorUsedError;
+  double? get loyaltyPoints =>
+      throw _privateConstructorUsedError; // backend: Number
+  double? get refAmn => throw _privateConstructorUsedError; // backend: Number
+  double? get refAmntIndia =>
+      throw _privateConstructorUsedError; // backend: Number
   bool get forLensProduct => throw _privateConstructorUsedError;
   @JsonKey(fromJson: _parseString)
   String get sellStockLevel => throw _privateConstructorUsedError;
   String get batchWiseDetails => throw _privateConstructorUsedError;
-  String get taxCategory => throw _privateConstructorUsedError;
+  @JsonKey(name: 'TaxCategory')
+  String get taxCategory => throw _privateConstructorUsedError; // backend: TaxCategory
   @JsonKey(fromJson: _parseString)
   String? get createdAt => throw _privateConstructorUsedError;
   @JsonKey(fromJson: _parseString)
@@ -85,15 +87,16 @@ abstract class $ItemMasterModelCopyWith<$Res> {
   $Res call({
     @JsonKey(name: '_id') String? id,
     String itemName,
+    String vendorItemName,
     String billItemName,
     String alias,
     String printName,
     String groupName,
     String unit,
-    String allUnit,
+    @JsonKey(name: 'altUnit') String allUnit,
     String description,
     String taxSetting,
-    double? openingStock,
+    @JsonKey(name: 'openingStockQty') double? openingStock,
     double? openingStockValue,
     double? purchasePrice,
     double? saleProfit,
@@ -104,15 +107,15 @@ abstract class $ItemMasterModelCopyWith<$Res> {
     double? minSalePrice,
     @JsonKey(fromJson: _parseString) String hsnCode,
     @JsonKey(fromJson: _parseString) String barcode,
-    String stockable,
+    bool stockable,
     String godown,
-    @JsonKey(fromJson: _parseString) String loyaltyPoints,
-    @JsonKey(fromJson: _parseString) String refAmn,
-    @JsonKey(fromJson: _parseString) String refAmntIndia,
+    double? loyaltyPoints,
+    double? refAmn,
+    double? refAmntIndia,
     bool forLensProduct,
     @JsonKey(fromJson: _parseString) String sellStockLevel,
     String batchWiseDetails,
-    String taxCategory,
+    @JsonKey(name: 'TaxCategory') String taxCategory,
     @JsonKey(fromJson: _parseString) String? createdAt,
     @JsonKey(fromJson: _parseString) String? updatedAt,
   });
@@ -135,6 +138,7 @@ class _$ItemMasterModelCopyWithImpl<$Res, $Val extends ItemMasterModel>
   $Res call({
     Object? id = freezed,
     Object? itemName = null,
+    Object? vendorItemName = null,
     Object? billItemName = null,
     Object? alias = null,
     Object? printName = null,
@@ -156,9 +160,9 @@ class _$ItemMasterModelCopyWithImpl<$Res, $Val extends ItemMasterModel>
     Object? barcode = null,
     Object? stockable = null,
     Object? godown = null,
-    Object? loyaltyPoints = null,
-    Object? refAmn = null,
-    Object? refAmntIndia = null,
+    Object? loyaltyPoints = freezed,
+    Object? refAmn = freezed,
+    Object? refAmntIndia = freezed,
     Object? forLensProduct = null,
     Object? sellStockLevel = null,
     Object? batchWiseDetails = null,
@@ -175,6 +179,10 @@ class _$ItemMasterModelCopyWithImpl<$Res, $Val extends ItemMasterModel>
             itemName: null == itemName
                 ? _value.itemName
                 : itemName // ignore: cast_nullable_to_non_nullable
+                      as String,
+            vendorItemName: null == vendorItemName
+                ? _value.vendorItemName
+                : vendorItemName // ignore: cast_nullable_to_non_nullable
                       as String,
             billItemName: null == billItemName
                 ? _value.billItemName
@@ -255,23 +263,23 @@ class _$ItemMasterModelCopyWithImpl<$Res, $Val extends ItemMasterModel>
             stockable: null == stockable
                 ? _value.stockable
                 : stockable // ignore: cast_nullable_to_non_nullable
-                      as String,
+                      as bool,
             godown: null == godown
                 ? _value.godown
                 : godown // ignore: cast_nullable_to_non_nullable
                       as String,
-            loyaltyPoints: null == loyaltyPoints
+            loyaltyPoints: freezed == loyaltyPoints
                 ? _value.loyaltyPoints
                 : loyaltyPoints // ignore: cast_nullable_to_non_nullable
-                      as String,
-            refAmn: null == refAmn
+                      as double?,
+            refAmn: freezed == refAmn
                 ? _value.refAmn
                 : refAmn // ignore: cast_nullable_to_non_nullable
-                      as String,
-            refAmntIndia: null == refAmntIndia
+                      as double?,
+            refAmntIndia: freezed == refAmntIndia
                 ? _value.refAmntIndia
                 : refAmntIndia // ignore: cast_nullable_to_non_nullable
-                      as String,
+                      as double?,
             forLensProduct: null == forLensProduct
                 ? _value.forLensProduct
                 : forLensProduct // ignore: cast_nullable_to_non_nullable
@@ -314,15 +322,16 @@ abstract class _$$ItemMasterModelImplCopyWith<$Res>
   $Res call({
     @JsonKey(name: '_id') String? id,
     String itemName,
+    String vendorItemName,
     String billItemName,
     String alias,
     String printName,
     String groupName,
     String unit,
-    String allUnit,
+    @JsonKey(name: 'altUnit') String allUnit,
     String description,
     String taxSetting,
-    double? openingStock,
+    @JsonKey(name: 'openingStockQty') double? openingStock,
     double? openingStockValue,
     double? purchasePrice,
     double? saleProfit,
@@ -333,15 +342,15 @@ abstract class _$$ItemMasterModelImplCopyWith<$Res>
     double? minSalePrice,
     @JsonKey(fromJson: _parseString) String hsnCode,
     @JsonKey(fromJson: _parseString) String barcode,
-    String stockable,
+    bool stockable,
     String godown,
-    @JsonKey(fromJson: _parseString) String loyaltyPoints,
-    @JsonKey(fromJson: _parseString) String refAmn,
-    @JsonKey(fromJson: _parseString) String refAmntIndia,
+    double? loyaltyPoints,
+    double? refAmn,
+    double? refAmntIndia,
     bool forLensProduct,
     @JsonKey(fromJson: _parseString) String sellStockLevel,
     String batchWiseDetails,
-    String taxCategory,
+    @JsonKey(name: 'TaxCategory') String taxCategory,
     @JsonKey(fromJson: _parseString) String? createdAt,
     @JsonKey(fromJson: _parseString) String? updatedAt,
   });
@@ -363,6 +372,7 @@ class __$$ItemMasterModelImplCopyWithImpl<$Res>
   $Res call({
     Object? id = freezed,
     Object? itemName = null,
+    Object? vendorItemName = null,
     Object? billItemName = null,
     Object? alias = null,
     Object? printName = null,
@@ -384,9 +394,9 @@ class __$$ItemMasterModelImplCopyWithImpl<$Res>
     Object? barcode = null,
     Object? stockable = null,
     Object? godown = null,
-    Object? loyaltyPoints = null,
-    Object? refAmn = null,
-    Object? refAmntIndia = null,
+    Object? loyaltyPoints = freezed,
+    Object? refAmn = freezed,
+    Object? refAmntIndia = freezed,
     Object? forLensProduct = null,
     Object? sellStockLevel = null,
     Object? batchWiseDetails = null,
@@ -403,6 +413,10 @@ class __$$ItemMasterModelImplCopyWithImpl<$Res>
         itemName: null == itemName
             ? _value.itemName
             : itemName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        vendorItemName: null == vendorItemName
+            ? _value.vendorItemName
+            : vendorItemName // ignore: cast_nullable_to_non_nullable
                   as String,
         billItemName: null == billItemName
             ? _value.billItemName
@@ -483,23 +497,23 @@ class __$$ItemMasterModelImplCopyWithImpl<$Res>
         stockable: null == stockable
             ? _value.stockable
             : stockable // ignore: cast_nullable_to_non_nullable
-                  as String,
+                  as bool,
         godown: null == godown
             ? _value.godown
             : godown // ignore: cast_nullable_to_non_nullable
                   as String,
-        loyaltyPoints: null == loyaltyPoints
+        loyaltyPoints: freezed == loyaltyPoints
             ? _value.loyaltyPoints
             : loyaltyPoints // ignore: cast_nullable_to_non_nullable
-                  as String,
-        refAmn: null == refAmn
+                  as double?,
+        refAmn: freezed == refAmn
             ? _value.refAmn
             : refAmn // ignore: cast_nullable_to_non_nullable
-                  as String,
-        refAmntIndia: null == refAmntIndia
+                  as double?,
+        refAmntIndia: freezed == refAmntIndia
             ? _value.refAmntIndia
             : refAmntIndia // ignore: cast_nullable_to_non_nullable
-                  as String,
+                  as double?,
         forLensProduct: null == forLensProduct
             ? _value.forLensProduct
             : forLensProduct // ignore: cast_nullable_to_non_nullable
@@ -535,15 +549,16 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
   const _$ItemMasterModelImpl({
     @JsonKey(name: '_id') this.id,
     this.itemName = '',
+    this.vendorItemName = '',
     this.billItemName = '',
     this.alias = '',
     this.printName = '',
     this.groupName = '',
     this.unit = '',
-    this.allUnit = '',
+    @JsonKey(name: 'altUnit') this.allUnit = '',
     this.description = '',
     this.taxSetting = 'N',
-    this.openingStock,
+    @JsonKey(name: 'openingStockQty') this.openingStock,
     this.openingStockValue,
     this.purchasePrice,
     this.saleProfit,
@@ -554,15 +569,15 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
     this.minSalePrice,
     @JsonKey(fromJson: _parseString) this.hsnCode = '',
     @JsonKey(fromJson: _parseString) this.barcode = '',
-    this.stockable = '',
+    this.stockable = false,
     this.godown = '',
-    @JsonKey(fromJson: _parseString) this.loyaltyPoints = '',
-    @JsonKey(fromJson: _parseString) this.refAmn = '',
-    @JsonKey(fromJson: _parseString) this.refAmntIndia = '',
+    this.loyaltyPoints,
+    this.refAmn,
+    this.refAmntIndia,
     this.forLensProduct = false,
     @JsonKey(fromJson: _parseString) this.sellStockLevel = '',
     this.batchWiseDetails = '',
-    this.taxCategory = '',
+    @JsonKey(name: 'TaxCategory') this.taxCategory = '',
     @JsonKey(fromJson: _parseString) this.createdAt,
     @JsonKey(fromJson: _parseString) this.updatedAt,
   });
@@ -576,6 +591,9 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
   @override
   @JsonKey()
   final String itemName;
+  @override
+  @JsonKey()
+  final String vendorItemName;
   @override
   @JsonKey()
   final String billItemName;
@@ -592,9 +610,9 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
   @JsonKey()
   final String unit;
   @override
-  @JsonKey()
+  @JsonKey(name: 'altUnit')
   final String allUnit;
-  // React uses allUnit for altUnit
+  // backend uses altUnit
   @override
   @JsonKey()
   final String description;
@@ -603,7 +621,9 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
   final String taxSetting;
   // 'N' for No, 'Y' for Yes
   @override
+  @JsonKey(name: 'openingStockQty')
   final double? openingStock;
+  // backend uses openingStockQty
   @override
   final double? openingStockValue;
   @override
@@ -628,19 +648,19 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
   final String barcode;
   @override
   @JsonKey()
-  final String stockable;
+  final bool stockable;
   @override
   @JsonKey()
   final String godown;
   @override
-  @JsonKey(fromJson: _parseString)
-  final String loyaltyPoints;
+  final double? loyaltyPoints;
+  // backend: Number
   @override
-  @JsonKey(fromJson: _parseString)
-  final String refAmn;
+  final double? refAmn;
+  // backend: Number
   @override
-  @JsonKey(fromJson: _parseString)
-  final String refAmntIndia;
+  final double? refAmntIndia;
+  // backend: Number
   @override
   @JsonKey()
   final bool forLensProduct;
@@ -651,8 +671,9 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
   @JsonKey()
   final String batchWiseDetails;
   @override
-  @JsonKey()
+  @JsonKey(name: 'TaxCategory')
   final String taxCategory;
+  // backend: TaxCategory
   @override
   @JsonKey(fromJson: _parseString)
   final String? createdAt;
@@ -662,7 +683,7 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
 
   @override
   String toString() {
-    return 'ItemMasterModel(id: $id, itemName: $itemName, billItemName: $billItemName, alias: $alias, printName: $printName, groupName: $groupName, unit: $unit, allUnit: $allUnit, description: $description, taxSetting: $taxSetting, openingStock: $openingStock, openingStockValue: $openingStockValue, purchasePrice: $purchasePrice, saleProfit: $saleProfit, salePrice: $salePrice, mrpPrice: $mrpPrice, saleDiscount: $saleDiscount, purchaseDiscount: $purchaseDiscount, minSalePrice: $minSalePrice, hsnCode: $hsnCode, barcode: $barcode, stockable: $stockable, godown: $godown, loyaltyPoints: $loyaltyPoints, refAmn: $refAmn, refAmntIndia: $refAmntIndia, forLensProduct: $forLensProduct, sellStockLevel: $sellStockLevel, batchWiseDetails: $batchWiseDetails, taxCategory: $taxCategory, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'ItemMasterModel(id: $id, itemName: $itemName, vendorItemName: $vendorItemName, billItemName: $billItemName, alias: $alias, printName: $printName, groupName: $groupName, unit: $unit, allUnit: $allUnit, description: $description, taxSetting: $taxSetting, openingStock: $openingStock, openingStockValue: $openingStockValue, purchasePrice: $purchasePrice, saleProfit: $saleProfit, salePrice: $salePrice, mrpPrice: $mrpPrice, saleDiscount: $saleDiscount, purchaseDiscount: $purchaseDiscount, minSalePrice: $minSalePrice, hsnCode: $hsnCode, barcode: $barcode, stockable: $stockable, godown: $godown, loyaltyPoints: $loyaltyPoints, refAmn: $refAmn, refAmntIndia: $refAmntIndia, forLensProduct: $forLensProduct, sellStockLevel: $sellStockLevel, batchWiseDetails: $batchWiseDetails, taxCategory: $taxCategory, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -673,6 +694,8 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.itemName, itemName) ||
                 other.itemName == itemName) &&
+            (identical(other.vendorItemName, vendorItemName) ||
+                other.vendorItemName == vendorItemName) &&
             (identical(other.billItemName, billItemName) ||
                 other.billItemName == billItemName) &&
             (identical(other.alias, alias) || other.alias == alias) &&
@@ -734,6 +757,7 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
     runtimeType,
     id,
     itemName,
+    vendorItemName,
     billItemName,
     alias,
     printName,
@@ -787,15 +811,16 @@ abstract class _ItemMasterModel implements ItemMasterModel {
   const factory _ItemMasterModel({
     @JsonKey(name: '_id') final String? id,
     final String itemName,
+    final String vendorItemName,
     final String billItemName,
     final String alias,
     final String printName,
     final String groupName,
     final String unit,
-    final String allUnit,
+    @JsonKey(name: 'altUnit') final String allUnit,
     final String description,
     final String taxSetting,
-    final double? openingStock,
+    @JsonKey(name: 'openingStockQty') final double? openingStock,
     final double? openingStockValue,
     final double? purchasePrice,
     final double? saleProfit,
@@ -806,15 +831,15 @@ abstract class _ItemMasterModel implements ItemMasterModel {
     final double? minSalePrice,
     @JsonKey(fromJson: _parseString) final String hsnCode,
     @JsonKey(fromJson: _parseString) final String barcode,
-    final String stockable,
+    final bool stockable,
     final String godown,
-    @JsonKey(fromJson: _parseString) final String loyaltyPoints,
-    @JsonKey(fromJson: _parseString) final String refAmn,
-    @JsonKey(fromJson: _parseString) final String refAmntIndia,
+    final double? loyaltyPoints,
+    final double? refAmn,
+    final double? refAmntIndia,
     final bool forLensProduct,
     @JsonKey(fromJson: _parseString) final String sellStockLevel,
     final String batchWiseDetails,
-    final String taxCategory,
+    @JsonKey(name: 'TaxCategory') final String taxCategory,
     @JsonKey(fromJson: _parseString) final String? createdAt,
     @JsonKey(fromJson: _parseString) final String? updatedAt,
   }) = _$ItemMasterModelImpl;
@@ -828,6 +853,8 @@ abstract class _ItemMasterModel implements ItemMasterModel {
   @override
   String get itemName;
   @override
+  String get vendorItemName;
+  @override
   String get billItemName;
   @override
   String get alias;
@@ -838,13 +865,15 @@ abstract class _ItemMasterModel implements ItemMasterModel {
   @override
   String get unit;
   @override
-  String get allUnit; // React uses allUnit for altUnit
+  @JsonKey(name: 'altUnit')
+  String get allUnit; // backend uses altUnit
   @override
   String get description;
   @override
   String get taxSetting; // 'N' for No, 'Y' for Yes
   @override
-  double? get openingStock;
+  @JsonKey(name: 'openingStockQty')
+  double? get openingStock; // backend uses openingStockQty
   @override
   double? get openingStockValue;
   @override
@@ -868,18 +897,15 @@ abstract class _ItemMasterModel implements ItemMasterModel {
   @JsonKey(fromJson: _parseString)
   String get barcode;
   @override
-  String get stockable;
+  bool get stockable;
   @override
   String get godown;
   @override
-  @JsonKey(fromJson: _parseString)
-  String get loyaltyPoints;
+  double? get loyaltyPoints; // backend: Number
   @override
-  @JsonKey(fromJson: _parseString)
-  String get refAmn;
+  double? get refAmn; // backend: Number
   @override
-  @JsonKey(fromJson: _parseString)
-  String get refAmntIndia;
+  double? get refAmntIndia; // backend: Number
   @override
   bool get forLensProduct;
   @override
@@ -888,7 +914,8 @@ abstract class _ItemMasterModel implements ItemMasterModel {
   @override
   String get batchWiseDetails;
   @override
-  String get taxCategory;
+  @JsonKey(name: 'TaxCategory')
+  String get taxCategory; // backend: TaxCategory
   @override
   @JsonKey(fromJson: _parseString)
   String? get createdAt;

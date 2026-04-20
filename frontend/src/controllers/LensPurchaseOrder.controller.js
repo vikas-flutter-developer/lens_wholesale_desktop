@@ -95,27 +95,10 @@ export const createLensChallan = async (data) => {
 
 export const getNextBillNumberForPurchaseOrder = async (partyName) => {
   try {
-    const res = await ApiClient.get("/lensPurchaseOrder/getAllLensPurchaseOrder");
-
-    let orderData = [];
-    if (res?.data && Array.isArray(res.data)) {
-      orderData = res.data;
-    } else if (res?.data?.data && Array.isArray(res.data.data)) {
-      orderData = res.data.data;
-    } else if (Array.isArray(res)) {
-      orderData = res;
-    }
-
-    if (!Array.isArray(orderData) || orderData.length === 0) {
-      return 1;
-    }
-
-    // Since the database has a unique index on billNo (globally), 
-    // we should return a global increment to avoid E11000 errors.
-    const globalCount = orderData.length;
-    return globalCount + 1;
+    const res = await ApiClient.post("/lensPurchaseOrder/getNextBillNumber", { partyName });
+    return res.data.nextBillNumber || 1;
   } catch (err) {
-    console.error("Error getting next bill number:", err);
+    console.log("Error getting next bill number:", err);
     return 1;
   }
 };

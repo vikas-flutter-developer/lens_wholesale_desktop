@@ -279,9 +279,9 @@ Map<String, dynamic> _$$PartyWiseItemImplToJson(_$PartyWiseItemImpl instance) =>
 _$StockReorderItemImpl _$$StockReorderItemImplFromJson(
   Map<String, dynamic> json,
 ) => _$StockReorderItemImpl(
-  productName: json['productName'] as String,
-  groupName: json['groupName'] as String,
-  unit: json['unit'] as String,
+  productName: json['productName'] as String?,
+  groupName: json['groupName'] as String?,
+  unit: json['unit'] as String?,
   alertQty: (json['alertQty'] as num?)?.toDouble() ?? 0,
   stock: (json['stock'] as num?)?.toDouble() ?? 0,
   minStock: (json['minStock'] as num?)?.toDouble(),
@@ -313,11 +313,11 @@ Map<String, dynamic> _$$StockReorderItemImplToJson(
 _$StockReorderLensInfoImpl _$$StockReorderLensInfoImplFromJson(
   Map<String, dynamic> json,
 ) => _$StockReorderLensInfoImpl(
-  sph: json['sph'] as String?,
-  cyl: json['cyl'] as String?,
+  sph: json['sph'],
+  cyl: json['cyl'],
   eye: json['eye'] as String?,
-  axis: json['axis'] as String?,
-  add: json['add'] as String?,
+  axis: json['axis'],
+  add: json['add'],
 );
 
 Map<String, dynamic> _$$StockReorderLensInfoImplToJson(
@@ -328,4 +328,88 @@ Map<String, dynamic> _$$StockReorderLensInfoImplToJson(
   'eye': instance.eye,
   'axis': instance.axis,
   'add': instance.add,
+};
+
+_$SaleItemGroupWiseItemImpl _$$SaleItemGroupWiseItemImplFromJson(
+  Map<String, dynamic> json,
+) => _$SaleItemGroupWiseItemImpl(
+  billNo: json['billNo'] as String?,
+  date: json['date'] as String?,
+  party: json['party'] as String?,
+  productGroup: json['productGroup'] as String?,
+  productName: json['productName'] as String?,
+  qty: (json['qty'] as num?)?.toDouble() ?? 0,
+  prodPrice: (json['prodPrice'] as num?)?.toDouble() ?? 0,
+  prodDisPct: (json['prodDisPct'] as num?)?.toDouble() ?? 0,
+  prodDisRs: (json['prodDisRs'] as num?)?.toDouble() ?? 0,
+  otherDisPct: (json['otherDisPct'] as num?)?.toDouble() ?? 0,
+  otherDisRs: (json['otherDisRs'] as num?)?.toDouble() ?? 0,
+  prodValue: (json['prodValue'] as num?)?.toDouble() ?? 0,
+  prodTxbleAmt: (json['prodTxbleAmt'] as num?)?.toDouble() ?? 0,
+  invoiceTotalAmt: (json['invoiceTotalAmt'] as num?)?.toDouble() ?? 0,
+  cash: (json['cash'] as num?)?.toDouble() ?? 0,
+  bank: (json['bank'] as num?)?.toDouble() ?? 0,
+);
+
+Map<String, dynamic> _$$SaleItemGroupWiseItemImplToJson(
+  _$SaleItemGroupWiseItemImpl instance,
+) => <String, dynamic>{
+  'billNo': instance.billNo,
+  'date': instance.date,
+  'party': instance.party,
+  'productGroup': instance.productGroup,
+  'productName': instance.productName,
+  'qty': instance.qty,
+  'prodPrice': instance.prodPrice,
+  'prodDisPct': instance.prodDisPct,
+  'prodDisRs': instance.prodDisRs,
+  'otherDisPct': instance.otherDisPct,
+  'otherDisRs': instance.otherDisRs,
+  'prodValue': instance.prodValue,
+  'prodTxbleAmt': instance.prodTxbleAmt,
+  'invoiceTotalAmt': instance.invoiceTotalAmt,
+  'cash': instance.cash,
+  'bank': instance.bank,
+};
+
+_$BookedByReportItemImpl _$$BookedByReportItemImplFromJson(
+  Map<String, dynamic> json,
+) => _$BookedByReportItemImpl(
+  id: json['id'] as String?,
+  orderDate: json['orderDate'] as String?,
+  orderTime: json['orderTime'] as String?,
+  billNo: json['billNo'] as String?,
+  bookedBy: json['bookedBy'] as String?,
+  itemName: json['itemName'] as String?,
+  eye: json['eye'] as String?,
+  sph: json['sph'],
+  cyl: json['cyl'],
+  axis: json['axis'],
+  add: json['add'],
+  qty: (json['qty'] as num?)?.toInt() ?? 0,
+  netAmount: (json['netAmount'] as num?)?.toDouble() ?? 0.0,
+  partyName: json['partyName'] as String?,
+  remark: json['remark'] as String?,
+  orderType: json['orderType'] as String?,
+);
+
+Map<String, dynamic> _$$BookedByReportItemImplToJson(
+  _$BookedByReportItemImpl instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'orderDate': instance.orderDate,
+  'orderTime': instance.orderTime,
+  'billNo': instance.billNo,
+  'bookedBy': instance.bookedBy,
+  'itemName': instance.itemName,
+  'eye': instance.eye,
+  'sph': instance.sph,
+  'cyl': instance.cyl,
+  'axis': instance.axis,
+  'add': instance.add,
+  'qty': instance.qty,
+  'netAmount': instance.netAmount,
+  'partyName': instance.partyName,
+  'remark': instance.remark,
+  'orderType': instance.orderType,
 };

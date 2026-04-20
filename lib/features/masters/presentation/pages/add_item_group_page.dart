@@ -4,7 +4,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/item_group_model.dart';
 import '../../data/providers/inventory_providers.dart';
-import '../../../../core/network/api_client.dart';
 
 class AddItemGroupPage extends StatefulWidget {
   final bool hideHeader;
@@ -24,6 +23,9 @@ class _AddItemGroupPageState extends State<AddItemGroupPage> {
   final _formKey = GlobalKey<FormState>();
   final _groupNameController = TextEditingController();
   final _dateController = TextEditingController();
+  final _searchController = TextEditingController();
+
+  // Reference fields from React - keeping them but UI will be cleaner
   final _saleDiscountController = TextEditingController();
   final _purchaseDiscountController = TextEditingController();
   final _hsnCodeController = TextEditingController();
@@ -31,7 +33,6 @@ class _AddItemGroupPageState extends State<AddItemGroupPage> {
   final _textCategory1Controller = TextEditingController();
   final _codeg1LimitController = TextEditingController();
   final _taxCategory2Controller = TextEditingController();
-  final _searchController = TextEditingController();
 
   bool _saleDiscountApplyAll = false;
   bool _hsnApplyAll = false;
@@ -55,16 +56,10 @@ class _AddItemGroupPageState extends State<AddItemGroupPage> {
 
   @override
   void dispose() {
-    _groupNameController.dispose();
-    _dateController.dispose();
-    _saleDiscountController.dispose();
-    _purchaseDiscountController.dispose();
-    _hsnCodeController.dispose();
-    _loyaltyPointController.dispose();
-    _textCategory1Controller.dispose();
-    _codeg1LimitController.dispose();
+    _groupNameController.dispose(); _dateController.dispose(); _searchController.dispose();
+    _saleDiscountController.dispose(); _purchaseDiscountController.dispose(); _hsnCodeController.dispose();
+    _loyaltyPointController.dispose(); _textCategory1Controller.dispose(); _codeg1LimitController.dispose();
     _taxCategory2Controller.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -87,8 +82,7 @@ class _AddItemGroupPageState extends State<AddItemGroupPage> {
       _alertNegativeQty = group.alertNegativeQty;
       _restrictNegativeQty = group.restrictNegativeQty;
     });
-    // Scroll to top
-    Scrollable.ensureVisible(_formKey.currentContext!);
+    Scrollable.ensureVisible(_formKey.currentContext!, duration: const Duration(milliseconds: 300));
   }
 
   void _handleReset() {
@@ -139,314 +133,98 @@ class _AddItemGroupPageState extends State<AddItemGroupPage> {
       final provider = context.read<ItemGroupProvider>();
       if (_editingId != null) {
         await provider.updateGroup(_editingId!, group);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item group updated successfully')),
-        );
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item group updated!')));
       } else {
         await provider.addGroup(group);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item group created successfully')),
-        );
-        if (widget.onSaveSuccess != null) {
-          widget.onSaveSuccess!(group.groupName);
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item group created!')));
+        if (widget.onSaveSuccess != null) widget.onSaveSuccess!(group.groupName);
       }
       _handleReset();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     } finally {
-      setState(() => _isSubmitting = false);
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ItemGroupProvider>();
-    final filteredGroups = provider.groups.where((g) {
-      final query = _searchController.text.toLowerCase();
-      return g.groupName.toLowerCase().contains(query);
-    }).toList();
+    final filteredGroups = provider.groups.where((g) => g.groupName.toLowerCase().contains(_searchController.text.toLowerCase())).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFF8FAFC), Color(0xFFEFF6FF)],
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Form Section: Group Information
+              _buildFormSection(),
+              const SizedBox(height: 32),
+
+              // Table Section: Existing Item Groups
+              _buildTableSection(filteredGroups, provider.isLoading),
+              const SizedBox(height: 48),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormSection() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 20, offset: const Offset(0, 4))],
+      ),
+      child: Form(
+        key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!widget.hideHeader) ...[
-              const Text(
-                'Item Group Master',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Manage item groups and their default settings',
-                style: TextStyle(color: Color(0xFF64748B)),
-              ),
-              const SizedBox(height: 32),
-            ],
-
-            // Form Card
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: _buildTextField(
-                            controller: _groupNameController,
-                            label: 'Group Name',
-                            icon: LucideIcons.layers,
-                            validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _dateController,
-                            label: 'Date',
-                            icon: LucideIcons.calendar,
-                            readOnly: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    
-                    // Discounts & HSN
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTextFieldWithCheckbox(
-                            controller: _saleDiscountController,
-                            label: 'Sale Discount (%)',
-                            isChecked: _saleDiscountApplyAll,
-                            onChanged: (v) => setState(() => _saleDiscountApplyAll = v!),
-                            checkboxLabel: 'Apply All',
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _purchaseDiscountController,
-                            label: 'Purchase Discount (%)',
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildTextFieldWithCheckbox(
-                            controller: _hsnCodeController,
-                            label: 'HSN Code',
-                            isChecked: _hsnApplyAll,
-                            onChanged: (v) => setState(() => _hsnApplyAll = v!),
-                            checkboxLabel: 'Apply All',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Loyalty & Categories
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTextFieldWithCheckbox(
-                            controller: _loyaltyPointController,
-                            label: 'Loyalty Points',
-                            isChecked: _loyaltyApplyAll,
-                            onChanged: (v) => setState(() => _loyaltyApplyAll = v!),
-                            checkboxLabel: 'Apply All',
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildTextFieldWithCheckbox(
-                            controller: _textCategory1Controller,
-                            label: 'Text Category 1',
-                            isChecked: _textCategory1ApplyAll,
-                            onChanged: (v) => setState(() => _textCategory1ApplyAll = v!),
-                            checkboxLabel: 'Apply All',
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _codeg1LimitController,
-                            label: 'Code G1 Limit',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Tax Category 2 & Checkboxes
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _taxCategory2Controller,
-                            label: 'Tax Category 2',
-                          ),
-                        ),
-                        const SizedBox(width: 24),
-                        Row(
-                          children: [
-                            _buildCheckbox('Alert -ve Qty', _alertNegativeQty, (v) => setState(() => _alertNegativeQty = v!)),
-                            const SizedBox(width: 16),
-                            _buildCheckbox('Restrict -ve Qty', _restrictNegativeQty, (v) => setState(() => _restrictNegativeQty = v!)),
-                          ],
-                        ),
-                        const Spacer(),
-                      ],
-                    ),
-
-                    const SizedBox(height: 32),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        SizedBox(
-                          width: 300,
-                          child: TextField(
-                            controller: _searchController,
-                            decoration: InputDecoration(
-                              hintText: 'Search groups...',
-                              prefixIcon: const Icon(LucideIcons.search, size: 18),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            TextButton.icon(
-                              onPressed: _handleReset,
-                              icon: const Icon(LucideIcons.rotateCcw, size: 18),
-                              label: const Text('Reset'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: const Color(0xFF64748B),
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              onPressed: _isSubmitting ? null : _handleSubmit,
-                              icon: _isSubmitting 
-                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                : const Icon(LucideIcons.save, size: 18),
-                              label: Text(_editingId != null ? 'Update Group' : 'Save Group'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2563EB),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+            const Text("Group Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(flex: 3, child: _buildTextField("GROUP NAME *", _groupNameController, hint: "Enter group name", required: true)),
+                const SizedBox(width: 24),
+                Expanded(flex: 2, child: _buildTextField("DATE", _dateController, icon: LucideIcons.calendar, readOnly: true)),
+              ],
             ),
-
             const SizedBox(height: 32),
-
-            // Table Card
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Existing Item Groups', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Text('Total: ${filteredGroups.length}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                    ),
+            Row(
+              children: [
+                SizedBox(
+                  width: 320,
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: _inputDecoration(hint: "Search groups...", prefixIcon: LucideIcons.search),
                   ),
-                  DataTable(
-                    headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
-                    columns: const [
-                      DataColumn(label: Text('SR NO.')),
-                      DataColumn(label: Text('DATE')),
-                      DataColumn(label: Text('GROUP NAME')),
-                      DataColumn(label: Text('ACTION', textAlign: TextAlign.center)),
-                    ],
-                    rows: List.generate(filteredGroups.length, (index) {
-                      final group = filteredGroups[index];
-                      return DataRow(
-                        cells: [
-                          DataCell(Text('${index + 1}')),
-                          DataCell(Text(group.date ?? '-')),
-                          DataCell(Text(group.groupName, style: const TextStyle(fontWeight: FontWeight.bold))),
-                          DataCell(Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(LucideIcons.pencil, size: 16, color: Color(0xFF2563EB)),
-                                onPressed: () => _handleEdit(group),
-                                tooltip: 'Edit',
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  LucideIcons.trash2, 
-                                  size: 16, 
-                                  color: group.canDelete ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1)
-                                ),
-                                onPressed: !group.canDelete ? null : () => _showDeleteDialog(group),
-                                tooltip: group.canDelete ? 'Delete' : 'Cannot delete (contains items)',
-                              ),
-                            ],
-                          )),
-                        ],
-                      );
-                    }),
-                  ),
-                  if (filteredGroups.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text('No groups found.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF94A3B8), fontStyle: FontStyle.italic)),
-                    ),
-                ],
-              ),
+                ),
+                const Spacer(),
+                _buildActionButton(label: "Reset", icon: LucideIcons.rotateCcw, color: const Color(0xFFF1F5F9), textColor: const Color(0xFF475569), onPressed: _handleReset),
+                const SizedBox(width: 12),
+                _buildActionButton(
+                  label: _editingId != null ? "Update Group" : "Save Group",
+                  icon: _isSubmitting ? LucideIcons.loader2 : LucideIcons.save,
+                  color: const Color(0xFF2563EB),
+                  onPressed: _isSubmitting ? null : _handleSubmit,
+                  isLoading: _isSubmitting,
+                ),
+              ],
             ),
           ],
         ),
@@ -454,58 +232,195 @@ class _AddItemGroupPageState extends State<AddItemGroupPage> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    IconData? icon,
-    String? Function(String?)? validator,
-    bool readOnly = false,
-  }) {
-    return TextFormField(
-      controller: controller,
-      readOnly: readOnly,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: icon != null ? Icon(icon, size: 18) : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        enabledBorder: OutlineInputBorder(
+  Widget _buildTableSection(List<ItemGroupModel> groups, bool isLoading) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final totalWidth = constraints.maxWidth;
+      double w(double p) => totalWidth * p;
+
+      final widths = {
+        'sr': w(0.12),
+        'date': w(0.28),
+        'name': w(0.45),
+        'action': w(0.15),
+      };
+
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 15, offset: const Offset(0, 4))],
         ),
-        filled: true,
-        fillColor: readOnly ? const Color(0xFFF1F5F9) : Colors.white,
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: const BoxDecoration(color: Color(0xFFF8FAFC), border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0)))),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("EXISTING ITEM GROUPS", style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF475569), fontSize: 13, letterSpacing: 0.5)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
+                    child: Text("Total: ${groups.length}", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                  ),
+                ],
+              ),
+            ),
+            if (isLoading && groups.isEmpty)
+              const Padding(padding: EdgeInsets.all(64), child: Center(child: CircularProgressIndicator()))
+            else if (groups.isEmpty)
+              const Padding(padding: EdgeInsets.all(64), child: Center(child: Text("No groups found.", style: TextStyle(color: Color(0xFF94A3B8), fontStyle: FontStyle.italic))))
+            else
+              DataTable(
+                headingRowHeight: 44,
+                dataRowMinHeight: 60,
+                dataRowMaxHeight: 75,
+                horizontalMargin: 0,
+                columnSpacing: 0,
+                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                dividerThickness: 1,
+                columns: [
+                  _buildColumn("SR NO.", width: widths['sr']!, centered: true),
+                  _buildColumn("DATE", width: widths['date']!),
+                  _buildColumn("GROUP NAME", width: widths['name']!),
+                  _buildColumn("ACTION", width: widths['action']!, centered: true),
+                ],
+                rows: groups.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final g = entry.value;
+                  // Format date to dd/M/yyyy matching react toLocaleDateString
+                  String formattedDate = "-";
+                  try {
+                    if (g.date != null) {
+                      final dt = DateTime.parse(g.date!);
+                      formattedDate = DateFormat('d/M/yyyy').format(dt);
+                    }
+                  } catch (_) {}
+
+                  return DataRow(
+                    cells: [
+                      _buildCell(
+                        child: Text("${i + 1}", style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: Color(0xFF64748B))),
+                        width: widths['sr']!,
+                        centered: true,
+                      ),
+                      _buildCell(child: Text(formattedDate, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF475569))), width: widths['date']!),
+                      _buildCell(child: Text(g.groupName, style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1E293B), fontSize: 13.5)), width: widths['name']!),
+                      _buildCell(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildTableIconButton(LucideIcons.pencil, const Color(0xFF2563EB), () => _handleEdit(g), size: 15),
+                            const SizedBox(width: 8),
+                            _buildTableIconButton(LucideIcons.trash2, const Color(0xFFDC2626), () => _showDeleteDialog(g), size: 15),
+                          ],
+                        ),
+                        width: widths['action']!,
+                        centered: true,
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
+      );
+    });
+  }
+
+  DataColumn _buildColumn(String label, {required double width, bool centered = false}) {
+    return DataColumn(
+      label: Container(
+        width: width,
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        alignment: centered ? Alignment.center : Alignment.centerLeft,
+        decoration: const BoxDecoration(border: Border(right: BorderSide(color: Color(0xFFE2E8F0)))),
+        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF64748B), fontSize: 10, letterSpacing: 0.8)),
       ),
     );
   }
 
-  Widget _buildTextFieldWithCheckbox({
-    required TextEditingController controller,
-    required String label,
-    required bool isChecked,
-    required ValueChanged<bool?> onChanged,
-    required String checkboxLabel,
-  }) {
+  DataCell _buildCell({required Widget child, required double width, bool centered = false}) {
+    return DataCell(
+      Container(
+        width: width,
+        height: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        alignment: centered ? Alignment.center : Alignment.centerLeft,
+        decoration: const BoxDecoration(border: Border(right: BorderSide(color: Color(0xFFE2E8F0)))),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController ctrl, {String? hint, bool required = false, bool readOnly = false, IconData? icon}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildTextField(controller: controller, label: label),
-        Row(
-          children: [
-            Checkbox(value: isChecked, onChanged: onChanged, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-            Text(checkboxLabel, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-          ],
+        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF475569), letterSpacing: 1.0)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: ctrl,
+          readOnly: readOnly,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+          decoration: _inputDecoration(hint: hint, prefixIcon: icon),
+          validator: (val) => required && (val == null || val.trim().isEmpty) ? "Required" : null,
         ),
       ],
     );
   }
 
-  Widget _buildCheckbox(String label, bool value, ValueChanged<bool?> onChanged) {
-    return Row(
-      children: [
-        Checkbox(value: value, onChanged: onChanged, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-        Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
-      ],
+  InputDecoration _inputDecoration({String? hint, IconData? prefixIcon}) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 16, color: const Color(0xFF94A3B8)) : null,
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+    );
+  }
+
+  Widget _buildActionButton({required String label, required IconData icon, required Color color, Color? textColor, required VoidCallback? onPressed, bool isLoading = false}) {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: color == const Color(0xFF2563EB) ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))] : null,
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: isLoading 
+          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
+          : Icon(icon, size: 16, color: textColor ?? Colors.white),
+        label: Text(label, style: TextStyle(color: textColor ?? Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableIconButton(IconData icon, Color color, VoidCallback onPressed, {double size = 16}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(icon, size: size, color: color),
+        ),
+      ),
     );
   }
 
@@ -513,21 +428,23 @@ class _AddItemGroupPageState extends State<AddItemGroupPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Group'),
-        content: Text('Are you sure you want to delete "${group.groupName}"?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Group', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1E293B))),
+        content: Text('Are you sure you want to delete "${group.groupName}"? This action cannot be undone.', style: const TextStyle(fontSize: 14, color: Color(0xFF475569))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold))),
+          ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
                 await context.read<ItemGroupProvider>().deleteGroup(group.id!);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Group deleted')));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Group deleted successfully')));
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

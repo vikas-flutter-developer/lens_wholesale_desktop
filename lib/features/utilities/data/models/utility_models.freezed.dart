@@ -870,8 +870,8 @@ KeyBinding _$KeyBindingFromJson(Map<String, dynamic> json) {
 mixin _$KeyBinding {
   @JsonKey(name: '_id')
   String? get id => throw _privateConstructorUsedError;
-  String get action => throw _privateConstructorUsedError;
-  String get keyCombination => throw _privateConstructorUsedError;
+  String get pageName => throw _privateConstructorUsedError;
+  String get shortcutKey => throw _privateConstructorUsedError;
   String get status =>
       throw _privateConstructorUsedError; // 'Enabled' or 'Disabled'
   String? get module => throw _privateConstructorUsedError;
@@ -897,8 +897,8 @@ abstract class $KeyBindingCopyWith<$Res> {
   @useResult
   $Res call({
     @JsonKey(name: '_id') String? id,
-    String action,
-    String keyCombination,
+    String pageName,
+    String shortcutKey,
     String status,
     String? module,
     String? description,
@@ -922,8 +922,8 @@ class _$KeyBindingCopyWithImpl<$Res, $Val extends KeyBinding>
   @override
   $Res call({
     Object? id = freezed,
-    Object? action = null,
-    Object? keyCombination = null,
+    Object? pageName = null,
+    Object? shortcutKey = null,
     Object? status = null,
     Object? module = freezed,
     Object? description = freezed,
@@ -935,13 +935,13 @@ class _$KeyBindingCopyWithImpl<$Res, $Val extends KeyBinding>
                 ? _value.id
                 : id // ignore: cast_nullable_to_non_nullable
                       as String?,
-            action: null == action
-                ? _value.action
-                : action // ignore: cast_nullable_to_non_nullable
+            pageName: null == pageName
+                ? _value.pageName
+                : pageName // ignore: cast_nullable_to_non_nullable
                       as String,
-            keyCombination: null == keyCombination
-                ? _value.keyCombination
-                : keyCombination // ignore: cast_nullable_to_non_nullable
+            shortcutKey: null == shortcutKey
+                ? _value.shortcutKey
+                : shortcutKey // ignore: cast_nullable_to_non_nullable
                       as String,
             status: null == status
                 ? _value.status
@@ -976,8 +976,8 @@ abstract class _$$KeyBindingImplCopyWith<$Res>
   @useResult
   $Res call({
     @JsonKey(name: '_id') String? id,
-    String action,
-    String keyCombination,
+    String pageName,
+    String shortcutKey,
     String status,
     String? module,
     String? description,
@@ -1000,8 +1000,8 @@ class __$$KeyBindingImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? id = freezed,
-    Object? action = null,
-    Object? keyCombination = null,
+    Object? pageName = null,
+    Object? shortcutKey = null,
     Object? status = null,
     Object? module = freezed,
     Object? description = freezed,
@@ -1013,13 +1013,13 @@ class __$$KeyBindingImplCopyWithImpl<$Res>
             ? _value.id
             : id // ignore: cast_nullable_to_non_nullable
                   as String?,
-        action: null == action
-            ? _value.action
-            : action // ignore: cast_nullable_to_non_nullable
+        pageName: null == pageName
+            ? _value.pageName
+            : pageName // ignore: cast_nullable_to_non_nullable
                   as String,
-        keyCombination: null == keyCombination
-            ? _value.keyCombination
-            : keyCombination // ignore: cast_nullable_to_non_nullable
+        shortcutKey: null == shortcutKey
+            ? _value.shortcutKey
+            : shortcutKey // ignore: cast_nullable_to_non_nullable
                   as String,
         status: null == status
             ? _value.status
@@ -1047,8 +1047,8 @@ class __$$KeyBindingImplCopyWithImpl<$Res>
 class _$KeyBindingImpl implements _KeyBinding {
   const _$KeyBindingImpl({
     @JsonKey(name: '_id') this.id,
-    required this.action,
-    required this.keyCombination,
+    required this.pageName,
+    required this.shortcutKey,
     this.status = 'Enabled',
     this.module,
     this.description,
@@ -1062,9 +1062,9 @@ class _$KeyBindingImpl implements _KeyBinding {
   @JsonKey(name: '_id')
   final String? id;
   @override
-  final String action;
+  final String pageName;
   @override
-  final String keyCombination;
+  final String shortcutKey;
   @override
   @JsonKey()
   final String status;
@@ -1078,7 +1078,7 @@ class _$KeyBindingImpl implements _KeyBinding {
 
   @override
   String toString() {
-    return 'KeyBinding(id: $id, action: $action, keyCombination: $keyCombination, status: $status, module: $module, description: $description, url: $url)';
+    return 'KeyBinding(id: $id, pageName: $pageName, shortcutKey: $shortcutKey, status: $status, module: $module, description: $description, url: $url)';
   }
 
   @override
@@ -1087,9 +1087,10 @@ class _$KeyBindingImpl implements _KeyBinding {
         (other.runtimeType == runtimeType &&
             other is _$KeyBindingImpl &&
             (identical(other.id, id) || other.id == id) &&
-            (identical(other.action, action) || other.action == action) &&
-            (identical(other.keyCombination, keyCombination) ||
-                other.keyCombination == keyCombination) &&
+            (identical(other.pageName, pageName) ||
+                other.pageName == pageName) &&
+            (identical(other.shortcutKey, shortcutKey) ||
+                other.shortcutKey == shortcutKey) &&
             (identical(other.status, status) || other.status == status) &&
             (identical(other.module, module) || other.module == module) &&
             (identical(other.description, description) ||
@@ -1102,8 +1103,8 @@ class _$KeyBindingImpl implements _KeyBinding {
   int get hashCode => Object.hash(
     runtimeType,
     id,
-    action,
-    keyCombination,
+    pageName,
+    shortcutKey,
     status,
     module,
     description,
@@ -1127,8 +1128,8 @@ class _$KeyBindingImpl implements _KeyBinding {
 abstract class _KeyBinding implements KeyBinding {
   const factory _KeyBinding({
     @JsonKey(name: '_id') final String? id,
-    required final String action,
-    required final String keyCombination,
+    required final String pageName,
+    required final String shortcutKey,
     final String status,
     final String? module,
     final String? description,
@@ -1142,9 +1143,9 @@ abstract class _KeyBinding implements KeyBinding {
   @JsonKey(name: '_id')
   String? get id;
   @override
-  String get action;
+  String get pageName;
   @override
-  String get keyCombination;
+  String get shortcutKey;
   @override
   String get status; // 'Enabled' or 'Disabled'
   @override

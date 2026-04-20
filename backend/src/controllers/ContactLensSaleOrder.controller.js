@@ -445,15 +445,9 @@ const createContactLensChallan = async (req, res) => {
                     const oldStock = Number(matched.initStock || 0);
                     const qty = Number(it.qty || 0);
                     if (oldStock < qty) {
-                        return res.status(400).json({
-                            success: false,
-                            message: `Insufficient stock for item "${it.itemName}". Available: ${oldStock}, Required: ${qty}`,
-                            itemName: it.itemName,
-                            available: oldStock,
-                            required: qty
-                        });
+                        console.warn(`⚠️ Insufficient stock for item "${it.itemName}". Available: ${oldStock}, Required: ${qty}. Unable to fulfill entire order.`);
                     }
-                    matched.initStock = oldStock - qty;
+                    matched.initStock = Math.max(0, oldStock - qty);
                     await parent.save();
                     console.log(`✅ Stock reduced for item: ${it.itemName}, Remaining: ${matched.initStock}`);
                 } catch (err) {
