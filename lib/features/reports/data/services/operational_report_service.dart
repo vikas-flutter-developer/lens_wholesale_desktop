@@ -11,6 +11,11 @@ class OperationalReportService {
     final response = await apiClient.dio.post('/reports/cancelled-order-ratio', data: filters);
     return CancelledOrderRatioReport.fromJson(response.data);
   }
+
+  Future<SaleReturnRatioReport> getSaleReturnRatioReport(Map<String, dynamic> filters) async {
+    final response = await apiClient.dio.post('/reports/sale-return-ratio', data: filters);
+    return SaleReturnRatioReport.fromJson(response.data);
+  }
 }
 
 final operationalReportService = OperationalReportService();

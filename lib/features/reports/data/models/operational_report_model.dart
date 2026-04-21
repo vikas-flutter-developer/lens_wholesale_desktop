@@ -108,3 +108,41 @@ class RatioTrend with _$RatioTrend {
 
   factory RatioTrend.fromJson(Map<String, dynamic> json) => _$RatioTrendFromJson(json);
 }
+
+// Sale Return Ratio Report Models
+@freezed
+class SaleReturnRatioReport with _$SaleReturnRatioReport {
+  const factory SaleReturnRatioReport({
+    required bool success,
+    required SaleReturnRatioSummary summary,
+    required List<PartyWiseReturnRatio> partyWise,
+    required List<RatioTrend> trend,
+  }) = _SaleReturnRatioReport;
+
+  factory SaleReturnRatioReport.fromJson(Map<String, dynamic> json) => _$SaleReturnRatioReportFromJson(json);
+}
+
+@freezed
+class SaleReturnRatioSummary with _$SaleReturnRatioSummary {
+  const factory SaleReturnRatioSummary({
+    @Default(0.0) double totalSale,
+    @Default(0.0) double totalReturn,
+    @Default(0.0) double netSale,
+    @Default(0.0) double ratio,
+  }) = _SaleReturnRatioSummary;
+
+  factory SaleReturnRatioSummary.fromJson(Map<String, dynamic> json) => _$SaleReturnRatioSummaryFromJson(json);
+}
+
+@freezed
+class PartyWiseReturnRatio with _$PartyWiseReturnRatio {
+  const factory PartyWiseReturnRatio({
+    required String partyName,
+    @Default(0.0) double totalSale,
+    @Default(0.0) double totalReturn,
+    @Default(0.0) double netSale,
+    @Default(0.0) double ratio,
+  }) = _PartyWiseReturnRatio;
+
+  factory PartyWiseReturnRatio.fromJson(Map<String, dynamic> json) => _$PartyWiseReturnRatioFromJson(json);
+}

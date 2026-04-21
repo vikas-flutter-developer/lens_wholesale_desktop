@@ -171,3 +171,65 @@ _$RatioTrendImpl _$$RatioTrendImplFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$$RatioTrendImplToJson(_$RatioTrendImpl instance) =>
     <String, dynamic>{'period': instance.period, 'ratio': instance.ratio};
+
+_$SaleReturnRatioReportImpl _$$SaleReturnRatioReportImplFromJson(
+  Map<String, dynamic> json,
+) => _$SaleReturnRatioReportImpl(
+  success: json['success'] as bool,
+  summary: SaleReturnRatioSummary.fromJson(
+    json['summary'] as Map<String, dynamic>,
+  ),
+  partyWise: (json['partyWise'] as List<dynamic>)
+      .map((e) => PartyWiseReturnRatio.fromJson(e as Map<String, dynamic>))
+      .toList(),
+  trend: (json['trend'] as List<dynamic>)
+      .map((e) => RatioTrend.fromJson(e as Map<String, dynamic>))
+      .toList(),
+);
+
+Map<String, dynamic> _$$SaleReturnRatioReportImplToJson(
+  _$SaleReturnRatioReportImpl instance,
+) => <String, dynamic>{
+  'success': instance.success,
+  'summary': instance.summary,
+  'partyWise': instance.partyWise,
+  'trend': instance.trend,
+};
+
+_$SaleReturnRatioSummaryImpl _$$SaleReturnRatioSummaryImplFromJson(
+  Map<String, dynamic> json,
+) => _$SaleReturnRatioSummaryImpl(
+  totalSale: (json['totalSale'] as num?)?.toDouble() ?? 0.0,
+  totalReturn: (json['totalReturn'] as num?)?.toDouble() ?? 0.0,
+  netSale: (json['netSale'] as num?)?.toDouble() ?? 0.0,
+  ratio: (json['ratio'] as num?)?.toDouble() ?? 0.0,
+);
+
+Map<String, dynamic> _$$SaleReturnRatioSummaryImplToJson(
+  _$SaleReturnRatioSummaryImpl instance,
+) => <String, dynamic>{
+  'totalSale': instance.totalSale,
+  'totalReturn': instance.totalReturn,
+  'netSale': instance.netSale,
+  'ratio': instance.ratio,
+};
+
+_$PartyWiseReturnRatioImpl _$$PartyWiseReturnRatioImplFromJson(
+  Map<String, dynamic> json,
+) => _$PartyWiseReturnRatioImpl(
+  partyName: json['partyName'] as String,
+  totalSale: (json['totalSale'] as num?)?.toDouble() ?? 0.0,
+  totalReturn: (json['totalReturn'] as num?)?.toDouble() ?? 0.0,
+  netSale: (json['netSale'] as num?)?.toDouble() ?? 0.0,
+  ratio: (json['ratio'] as num?)?.toDouble() ?? 0.0,
+);
+
+Map<String, dynamic> _$$PartyWiseReturnRatioImplToJson(
+  _$PartyWiseReturnRatioImpl instance,
+) => <String, dynamic>{
+  'partyName': instance.partyName,
+  'totalSale': instance.totalSale,
+  'totalReturn': instance.totalReturn,
+  'netSale': instance.netSale,
+  'ratio': instance.ratio,
+};

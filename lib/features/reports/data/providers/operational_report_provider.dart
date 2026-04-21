@@ -15,6 +15,9 @@ class OperationalReportProvider with ChangeNotifier {
   CancelledOrderRatioReport? _cancelledOrderRatioReport;
   CancelledOrderRatioReport? get cancelledOrderRatioReport => _cancelledOrderRatioReport;
 
+  SaleReturnRatioReport? _saleReturnRatioReport;
+  SaleReturnRatioReport? get saleReturnRatioReport => _saleReturnRatioReport;
+
   int _threshold = 30;
   int get threshold => _threshold;
 
@@ -63,6 +66,20 @@ class OperationalReportProvider with ChangeNotifier {
     }
   }
 
+  Future<void> fetchSaleReturnRatioReport(Map<String, dynamic> filters) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      _saleReturnRatioReport = await operationalReportService.getSaleReturnRatioReport(filters);
+    } catch (e) {
+      debugPrint('Error fetching Sale Return Ratio report: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Uint8List exportOrderToChallanCsv() {
     if (_orderToChallanReport == null) return Uint8List(0);
 
@@ -101,6 +118,27 @@ class OperationalReportProvider with ChangeNotifier {
         d.partyName,
         d.netAmount,
         d.status,
+      ]);
+    }
+
+    final csvContent = const csv.ListToCsvConverter().convert(rows);
+    return Uint8List.fromList(csvContent.codeUnits);
+  }
+
+  Uint8List exportSaleReturnRatioCsv() {
+    if (_saleReturnRatioReport == null) return Uint8List(0);
+
+    final List<List<dynamic>> rows = [
+      ['Party Name', 'Total Sale', 'Total Return', 'Net Sale', 'Ratio (%)'],
+    ];
+
+    for (var d in _saleReturnRatioReport!.partyWise) {
+      rows.add([
+        d.partyName,
+        d.totalSale,
+        d.totalReturn,
+        d.netSale,
+        d.ratio,
       ]);
     }
 

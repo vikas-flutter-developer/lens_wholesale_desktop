@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart' as csv;
 import '../models/target_model.dart';
+import '../models/collection_target_model.dart';
 import '../services/target_service.dart';
 
 class TargetProvider with ChangeNotifier {
@@ -11,8 +12,8 @@ class TargetProvider with ChangeNotifier {
   TargetReport? _saleReport;
   TargetReport? get saleReport => _saleReport;
 
-  TargetReport? _collectionReport;
-  TargetReport? get collectionReport => _collectionReport;
+  CollectionTargetReport? _collectionReport;
+  CollectionTargetReport? get collectionReport => _collectionReport;
 
   int _selectedYear = DateTime.now().year;
   int get selectedYear => _selectedYear;
@@ -130,24 +131,26 @@ class TargetProvider with ChangeNotifier {
   }
 
   Uint8List exportToCsv(bool isCollection) {
-    final report = isCollection ? _collectionReport : _saleReport;
-    if (report == null) return Uint8List(0);
+    final List<List<dynamic>> rows;
 
-    final List<List<dynamic>> rows = [
-      ['Party Name', 'Target Amount', 'Achieved', 'Difference', 'Ratio (%)', 'Status', 'Period', 'Year'],
-    ];
-
-    for (var agent in report.data) {
-      rows.add([
-        agent.partyName,
-        agent.targetAmount,
-        agent.achieved,
-        agent.difference,
-        agent.ratio,
-        agent.status,
-        agent.periodType,
-        agent.year,
-      ]);
+    if (isCollection) {
+      final report = _collectionReport;
+      if (report == null) return Uint8List(0);
+      rows = [
+        ['Party Name', 'Target Amount', 'Received', 'Balance', 'Excess', 'Performance (%)', 'Status', 'Period', 'Year'],
+      ];
+      for (var p in report.data) {
+        rows.add([p.partyName, p.targetAmount, p.received, p.balance, p.excess, p.performance, p.status, p.periodType, p.year]);
+      }
+    } else {
+      final report = _saleReport;
+      if (report == null) return Uint8List(0);
+      rows = [
+        ['Party Name', 'Target Amount', 'Achieved', 'Difference', 'Ratio (%)', 'Status', 'Period', 'Year'],
+      ];
+      for (var agent in report.data) {
+        rows.add([agent.partyName, agent.targetAmount, agent.achieved, agent.difference, agent.ratio, agent.status, agent.periodType, agent.year]);
+      }
     }
 
     final csvContent = const csv.ListToCsvConverter().convert(rows);

@@ -2153,3 +2153,777 @@ abstract class _RatioTrend implements RatioTrend {
   _$$RatioTrendImplCopyWith<_$RatioTrendImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
+
+SaleReturnRatioReport _$SaleReturnRatioReportFromJson(
+  Map<String, dynamic> json,
+) {
+  return _SaleReturnRatioReport.fromJson(json);
+}
+
+/// @nodoc
+mixin _$SaleReturnRatioReport {
+  bool get success => throw _privateConstructorUsedError;
+  SaleReturnRatioSummary get summary => throw _privateConstructorUsedError;
+  List<PartyWiseReturnRatio> get partyWise =>
+      throw _privateConstructorUsedError;
+  List<RatioTrend> get trend => throw _privateConstructorUsedError;
+
+  /// Serializes this SaleReturnRatioReport to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of SaleReturnRatioReport
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $SaleReturnRatioReportCopyWith<SaleReturnRatioReport> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $SaleReturnRatioReportCopyWith<$Res> {
+  factory $SaleReturnRatioReportCopyWith(
+    SaleReturnRatioReport value,
+    $Res Function(SaleReturnRatioReport) then,
+  ) = _$SaleReturnRatioReportCopyWithImpl<$Res, SaleReturnRatioReport>;
+  @useResult
+  $Res call({
+    bool success,
+    SaleReturnRatioSummary summary,
+    List<PartyWiseReturnRatio> partyWise,
+    List<RatioTrend> trend,
+  });
+
+  $SaleReturnRatioSummaryCopyWith<$Res> get summary;
+}
+
+/// @nodoc
+class _$SaleReturnRatioReportCopyWithImpl<
+  $Res,
+  $Val extends SaleReturnRatioReport
+>
+    implements $SaleReturnRatioReportCopyWith<$Res> {
+  _$SaleReturnRatioReportCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of SaleReturnRatioReport
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? success = null,
+    Object? summary = null,
+    Object? partyWise = null,
+    Object? trend = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            success: null == success
+                ? _value.success
+                : success // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            summary: null == summary
+                ? _value.summary
+                : summary // ignore: cast_nullable_to_non_nullable
+                      as SaleReturnRatioSummary,
+            partyWise: null == partyWise
+                ? _value.partyWise
+                : partyWise // ignore: cast_nullable_to_non_nullable
+                      as List<PartyWiseReturnRatio>,
+            trend: null == trend
+                ? _value.trend
+                : trend // ignore: cast_nullable_to_non_nullable
+                      as List<RatioTrend>,
+          )
+          as $Val,
+    );
+  }
+
+  /// Create a copy of SaleReturnRatioReport
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $SaleReturnRatioSummaryCopyWith<$Res> get summary {
+    return $SaleReturnRatioSummaryCopyWith<$Res>(_value.summary, (value) {
+      return _then(_value.copyWith(summary: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$SaleReturnRatioReportImplCopyWith<$Res>
+    implements $SaleReturnRatioReportCopyWith<$Res> {
+  factory _$$SaleReturnRatioReportImplCopyWith(
+    _$SaleReturnRatioReportImpl value,
+    $Res Function(_$SaleReturnRatioReportImpl) then,
+  ) = __$$SaleReturnRatioReportImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    bool success,
+    SaleReturnRatioSummary summary,
+    List<PartyWiseReturnRatio> partyWise,
+    List<RatioTrend> trend,
+  });
+
+  @override
+  $SaleReturnRatioSummaryCopyWith<$Res> get summary;
+}
+
+/// @nodoc
+class __$$SaleReturnRatioReportImplCopyWithImpl<$Res>
+    extends
+        _$SaleReturnRatioReportCopyWithImpl<$Res, _$SaleReturnRatioReportImpl>
+    implements _$$SaleReturnRatioReportImplCopyWith<$Res> {
+  __$$SaleReturnRatioReportImplCopyWithImpl(
+    _$SaleReturnRatioReportImpl _value,
+    $Res Function(_$SaleReturnRatioReportImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of SaleReturnRatioReport
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? success = null,
+    Object? summary = null,
+    Object? partyWise = null,
+    Object? trend = null,
+  }) {
+    return _then(
+      _$SaleReturnRatioReportImpl(
+        success: null == success
+            ? _value.success
+            : success // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        summary: null == summary
+            ? _value.summary
+            : summary // ignore: cast_nullable_to_non_nullable
+                  as SaleReturnRatioSummary,
+        partyWise: null == partyWise
+            ? _value._partyWise
+            : partyWise // ignore: cast_nullable_to_non_nullable
+                  as List<PartyWiseReturnRatio>,
+        trend: null == trend
+            ? _value._trend
+            : trend // ignore: cast_nullable_to_non_nullable
+                  as List<RatioTrend>,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$SaleReturnRatioReportImpl implements _SaleReturnRatioReport {
+  const _$SaleReturnRatioReportImpl({
+    required this.success,
+    required this.summary,
+    required final List<PartyWiseReturnRatio> partyWise,
+    required final List<RatioTrend> trend,
+  }) : _partyWise = partyWise,
+       _trend = trend;
+
+  factory _$SaleReturnRatioReportImpl.fromJson(Map<String, dynamic> json) =>
+      _$$SaleReturnRatioReportImplFromJson(json);
+
+  @override
+  final bool success;
+  @override
+  final SaleReturnRatioSummary summary;
+  final List<PartyWiseReturnRatio> _partyWise;
+  @override
+  List<PartyWiseReturnRatio> get partyWise {
+    if (_partyWise is EqualUnmodifiableListView) return _partyWise;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_partyWise);
+  }
+
+  final List<RatioTrend> _trend;
+  @override
+  List<RatioTrend> get trend {
+    if (_trend is EqualUnmodifiableListView) return _trend;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_trend);
+  }
+
+  @override
+  String toString() {
+    return 'SaleReturnRatioReport(success: $success, summary: $summary, partyWise: $partyWise, trend: $trend)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$SaleReturnRatioReportImpl &&
+            (identical(other.success, success) || other.success == success) &&
+            (identical(other.summary, summary) || other.summary == summary) &&
+            const DeepCollectionEquality().equals(
+              other._partyWise,
+              _partyWise,
+            ) &&
+            const DeepCollectionEquality().equals(other._trend, _trend));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    success,
+    summary,
+    const DeepCollectionEquality().hash(_partyWise),
+    const DeepCollectionEquality().hash(_trend),
+  );
+
+  /// Create a copy of SaleReturnRatioReport
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$SaleReturnRatioReportImplCopyWith<_$SaleReturnRatioReportImpl>
+  get copyWith =>
+      __$$SaleReturnRatioReportImplCopyWithImpl<_$SaleReturnRatioReportImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$SaleReturnRatioReportImplToJson(this);
+  }
+}
+
+abstract class _SaleReturnRatioReport implements SaleReturnRatioReport {
+  const factory _SaleReturnRatioReport({
+    required final bool success,
+    required final SaleReturnRatioSummary summary,
+    required final List<PartyWiseReturnRatio> partyWise,
+    required final List<RatioTrend> trend,
+  }) = _$SaleReturnRatioReportImpl;
+
+  factory _SaleReturnRatioReport.fromJson(Map<String, dynamic> json) =
+      _$SaleReturnRatioReportImpl.fromJson;
+
+  @override
+  bool get success;
+  @override
+  SaleReturnRatioSummary get summary;
+  @override
+  List<PartyWiseReturnRatio> get partyWise;
+  @override
+  List<RatioTrend> get trend;
+
+  /// Create a copy of SaleReturnRatioReport
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$SaleReturnRatioReportImplCopyWith<_$SaleReturnRatioReportImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+SaleReturnRatioSummary _$SaleReturnRatioSummaryFromJson(
+  Map<String, dynamic> json,
+) {
+  return _SaleReturnRatioSummary.fromJson(json);
+}
+
+/// @nodoc
+mixin _$SaleReturnRatioSummary {
+  double get totalSale => throw _privateConstructorUsedError;
+  double get totalReturn => throw _privateConstructorUsedError;
+  double get netSale => throw _privateConstructorUsedError;
+  double get ratio => throw _privateConstructorUsedError;
+
+  /// Serializes this SaleReturnRatioSummary to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of SaleReturnRatioSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $SaleReturnRatioSummaryCopyWith<SaleReturnRatioSummary> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $SaleReturnRatioSummaryCopyWith<$Res> {
+  factory $SaleReturnRatioSummaryCopyWith(
+    SaleReturnRatioSummary value,
+    $Res Function(SaleReturnRatioSummary) then,
+  ) = _$SaleReturnRatioSummaryCopyWithImpl<$Res, SaleReturnRatioSummary>;
+  @useResult
+  $Res call({
+    double totalSale,
+    double totalReturn,
+    double netSale,
+    double ratio,
+  });
+}
+
+/// @nodoc
+class _$SaleReturnRatioSummaryCopyWithImpl<
+  $Res,
+  $Val extends SaleReturnRatioSummary
+>
+    implements $SaleReturnRatioSummaryCopyWith<$Res> {
+  _$SaleReturnRatioSummaryCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of SaleReturnRatioSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? totalSale = null,
+    Object? totalReturn = null,
+    Object? netSale = null,
+    Object? ratio = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            totalSale: null == totalSale
+                ? _value.totalSale
+                : totalSale // ignore: cast_nullable_to_non_nullable
+                      as double,
+            totalReturn: null == totalReturn
+                ? _value.totalReturn
+                : totalReturn // ignore: cast_nullable_to_non_nullable
+                      as double,
+            netSale: null == netSale
+                ? _value.netSale
+                : netSale // ignore: cast_nullable_to_non_nullable
+                      as double,
+            ratio: null == ratio
+                ? _value.ratio
+                : ratio // ignore: cast_nullable_to_non_nullable
+                      as double,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$SaleReturnRatioSummaryImplCopyWith<$Res>
+    implements $SaleReturnRatioSummaryCopyWith<$Res> {
+  factory _$$SaleReturnRatioSummaryImplCopyWith(
+    _$SaleReturnRatioSummaryImpl value,
+    $Res Function(_$SaleReturnRatioSummaryImpl) then,
+  ) = __$$SaleReturnRatioSummaryImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    double totalSale,
+    double totalReturn,
+    double netSale,
+    double ratio,
+  });
+}
+
+/// @nodoc
+class __$$SaleReturnRatioSummaryImplCopyWithImpl<$Res>
+    extends
+        _$SaleReturnRatioSummaryCopyWithImpl<$Res, _$SaleReturnRatioSummaryImpl>
+    implements _$$SaleReturnRatioSummaryImplCopyWith<$Res> {
+  __$$SaleReturnRatioSummaryImplCopyWithImpl(
+    _$SaleReturnRatioSummaryImpl _value,
+    $Res Function(_$SaleReturnRatioSummaryImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of SaleReturnRatioSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? totalSale = null,
+    Object? totalReturn = null,
+    Object? netSale = null,
+    Object? ratio = null,
+  }) {
+    return _then(
+      _$SaleReturnRatioSummaryImpl(
+        totalSale: null == totalSale
+            ? _value.totalSale
+            : totalSale // ignore: cast_nullable_to_non_nullable
+                  as double,
+        totalReturn: null == totalReturn
+            ? _value.totalReturn
+            : totalReturn // ignore: cast_nullable_to_non_nullable
+                  as double,
+        netSale: null == netSale
+            ? _value.netSale
+            : netSale // ignore: cast_nullable_to_non_nullable
+                  as double,
+        ratio: null == ratio
+            ? _value.ratio
+            : ratio // ignore: cast_nullable_to_non_nullable
+                  as double,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$SaleReturnRatioSummaryImpl implements _SaleReturnRatioSummary {
+  const _$SaleReturnRatioSummaryImpl({
+    this.totalSale = 0.0,
+    this.totalReturn = 0.0,
+    this.netSale = 0.0,
+    this.ratio = 0.0,
+  });
+
+  factory _$SaleReturnRatioSummaryImpl.fromJson(Map<String, dynamic> json) =>
+      _$$SaleReturnRatioSummaryImplFromJson(json);
+
+  @override
+  @JsonKey()
+  final double totalSale;
+  @override
+  @JsonKey()
+  final double totalReturn;
+  @override
+  @JsonKey()
+  final double netSale;
+  @override
+  @JsonKey()
+  final double ratio;
+
+  @override
+  String toString() {
+    return 'SaleReturnRatioSummary(totalSale: $totalSale, totalReturn: $totalReturn, netSale: $netSale, ratio: $ratio)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$SaleReturnRatioSummaryImpl &&
+            (identical(other.totalSale, totalSale) ||
+                other.totalSale == totalSale) &&
+            (identical(other.totalReturn, totalReturn) ||
+                other.totalReturn == totalReturn) &&
+            (identical(other.netSale, netSale) || other.netSale == netSale) &&
+            (identical(other.ratio, ratio) || other.ratio == ratio));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, totalSale, totalReturn, netSale, ratio);
+
+  /// Create a copy of SaleReturnRatioSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$SaleReturnRatioSummaryImplCopyWith<_$SaleReturnRatioSummaryImpl>
+  get copyWith =>
+      __$$SaleReturnRatioSummaryImplCopyWithImpl<_$SaleReturnRatioSummaryImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$SaleReturnRatioSummaryImplToJson(this);
+  }
+}
+
+abstract class _SaleReturnRatioSummary implements SaleReturnRatioSummary {
+  const factory _SaleReturnRatioSummary({
+    final double totalSale,
+    final double totalReturn,
+    final double netSale,
+    final double ratio,
+  }) = _$SaleReturnRatioSummaryImpl;
+
+  factory _SaleReturnRatioSummary.fromJson(Map<String, dynamic> json) =
+      _$SaleReturnRatioSummaryImpl.fromJson;
+
+  @override
+  double get totalSale;
+  @override
+  double get totalReturn;
+  @override
+  double get netSale;
+  @override
+  double get ratio;
+
+  /// Create a copy of SaleReturnRatioSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$SaleReturnRatioSummaryImplCopyWith<_$SaleReturnRatioSummaryImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+PartyWiseReturnRatio _$PartyWiseReturnRatioFromJson(Map<String, dynamic> json) {
+  return _PartyWiseReturnRatio.fromJson(json);
+}
+
+/// @nodoc
+mixin _$PartyWiseReturnRatio {
+  String get partyName => throw _privateConstructorUsedError;
+  double get totalSale => throw _privateConstructorUsedError;
+  double get totalReturn => throw _privateConstructorUsedError;
+  double get netSale => throw _privateConstructorUsedError;
+  double get ratio => throw _privateConstructorUsedError;
+
+  /// Serializes this PartyWiseReturnRatio to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of PartyWiseReturnRatio
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $PartyWiseReturnRatioCopyWith<PartyWiseReturnRatio> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $PartyWiseReturnRatioCopyWith<$Res> {
+  factory $PartyWiseReturnRatioCopyWith(
+    PartyWiseReturnRatio value,
+    $Res Function(PartyWiseReturnRatio) then,
+  ) = _$PartyWiseReturnRatioCopyWithImpl<$Res, PartyWiseReturnRatio>;
+  @useResult
+  $Res call({
+    String partyName,
+    double totalSale,
+    double totalReturn,
+    double netSale,
+    double ratio,
+  });
+}
+
+/// @nodoc
+class _$PartyWiseReturnRatioCopyWithImpl<
+  $Res,
+  $Val extends PartyWiseReturnRatio
+>
+    implements $PartyWiseReturnRatioCopyWith<$Res> {
+  _$PartyWiseReturnRatioCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of PartyWiseReturnRatio
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? partyName = null,
+    Object? totalSale = null,
+    Object? totalReturn = null,
+    Object? netSale = null,
+    Object? ratio = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            partyName: null == partyName
+                ? _value.partyName
+                : partyName // ignore: cast_nullable_to_non_nullable
+                      as String,
+            totalSale: null == totalSale
+                ? _value.totalSale
+                : totalSale // ignore: cast_nullable_to_non_nullable
+                      as double,
+            totalReturn: null == totalReturn
+                ? _value.totalReturn
+                : totalReturn // ignore: cast_nullable_to_non_nullable
+                      as double,
+            netSale: null == netSale
+                ? _value.netSale
+                : netSale // ignore: cast_nullable_to_non_nullable
+                      as double,
+            ratio: null == ratio
+                ? _value.ratio
+                : ratio // ignore: cast_nullable_to_non_nullable
+                      as double,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$PartyWiseReturnRatioImplCopyWith<$Res>
+    implements $PartyWiseReturnRatioCopyWith<$Res> {
+  factory _$$PartyWiseReturnRatioImplCopyWith(
+    _$PartyWiseReturnRatioImpl value,
+    $Res Function(_$PartyWiseReturnRatioImpl) then,
+  ) = __$$PartyWiseReturnRatioImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String partyName,
+    double totalSale,
+    double totalReturn,
+    double netSale,
+    double ratio,
+  });
+}
+
+/// @nodoc
+class __$$PartyWiseReturnRatioImplCopyWithImpl<$Res>
+    extends _$PartyWiseReturnRatioCopyWithImpl<$Res, _$PartyWiseReturnRatioImpl>
+    implements _$$PartyWiseReturnRatioImplCopyWith<$Res> {
+  __$$PartyWiseReturnRatioImplCopyWithImpl(
+    _$PartyWiseReturnRatioImpl _value,
+    $Res Function(_$PartyWiseReturnRatioImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of PartyWiseReturnRatio
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? partyName = null,
+    Object? totalSale = null,
+    Object? totalReturn = null,
+    Object? netSale = null,
+    Object? ratio = null,
+  }) {
+    return _then(
+      _$PartyWiseReturnRatioImpl(
+        partyName: null == partyName
+            ? _value.partyName
+            : partyName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        totalSale: null == totalSale
+            ? _value.totalSale
+            : totalSale // ignore: cast_nullable_to_non_nullable
+                  as double,
+        totalReturn: null == totalReturn
+            ? _value.totalReturn
+            : totalReturn // ignore: cast_nullable_to_non_nullable
+                  as double,
+        netSale: null == netSale
+            ? _value.netSale
+            : netSale // ignore: cast_nullable_to_non_nullable
+                  as double,
+        ratio: null == ratio
+            ? _value.ratio
+            : ratio // ignore: cast_nullable_to_non_nullable
+                  as double,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$PartyWiseReturnRatioImpl implements _PartyWiseReturnRatio {
+  const _$PartyWiseReturnRatioImpl({
+    required this.partyName,
+    this.totalSale = 0.0,
+    this.totalReturn = 0.0,
+    this.netSale = 0.0,
+    this.ratio = 0.0,
+  });
+
+  factory _$PartyWiseReturnRatioImpl.fromJson(Map<String, dynamic> json) =>
+      _$$PartyWiseReturnRatioImplFromJson(json);
+
+  @override
+  final String partyName;
+  @override
+  @JsonKey()
+  final double totalSale;
+  @override
+  @JsonKey()
+  final double totalReturn;
+  @override
+  @JsonKey()
+  final double netSale;
+  @override
+  @JsonKey()
+  final double ratio;
+
+  @override
+  String toString() {
+    return 'PartyWiseReturnRatio(partyName: $partyName, totalSale: $totalSale, totalReturn: $totalReturn, netSale: $netSale, ratio: $ratio)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PartyWiseReturnRatioImpl &&
+            (identical(other.partyName, partyName) ||
+                other.partyName == partyName) &&
+            (identical(other.totalSale, totalSale) ||
+                other.totalSale == totalSale) &&
+            (identical(other.totalReturn, totalReturn) ||
+                other.totalReturn == totalReturn) &&
+            (identical(other.netSale, netSale) || other.netSale == netSale) &&
+            (identical(other.ratio, ratio) || other.ratio == ratio));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    partyName,
+    totalSale,
+    totalReturn,
+    netSale,
+    ratio,
+  );
+
+  /// Create a copy of PartyWiseReturnRatio
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PartyWiseReturnRatioImplCopyWith<_$PartyWiseReturnRatioImpl>
+  get copyWith =>
+      __$$PartyWiseReturnRatioImplCopyWithImpl<_$PartyWiseReturnRatioImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PartyWiseReturnRatioImplToJson(this);
+  }
+}
+
+abstract class _PartyWiseReturnRatio implements PartyWiseReturnRatio {
+  const factory _PartyWiseReturnRatio({
+    required final String partyName,
+    final double totalSale,
+    final double totalReturn,
+    final double netSale,
+    final double ratio,
+  }) = _$PartyWiseReturnRatioImpl;
+
+  factory _PartyWiseReturnRatio.fromJson(Map<String, dynamic> json) =
+      _$PartyWiseReturnRatioImpl.fromJson;
+
+  @override
+  String get partyName;
+  @override
+  double get totalSale;
+  @override
+  double get totalReturn;
+  @override
+  double get netSale;
+  @override
+  double get ratio;
+
+  /// Create a copy of PartyWiseReturnRatio
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PartyWiseReturnRatioImplCopyWith<_$PartyWiseReturnRatioImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}

@@ -85,6 +85,8 @@ import '../../features/utilities/presentation/pages/shortcut_settings_page.dart'
 import '../../features/company/presentation/pages/modify_company_page.dart';
 import '../../features/reports/presentation/pages/active_dashboard_page.dart';
 import '../../features/reports/presentation/pages/booked_by_activity_report_page.dart';
+import '../../features/reports/presentation/pages/sale_return_ratio_report_page.dart';
+import '../../features/reports/presentation/pages/collection_target_report_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -545,6 +547,11 @@ GoRouter createAppRouter(AuthProvider authProvider) {
           path: '/reports/targets/performance',
           builder: (context, state) => const SaleTargetReportPage(),
         ),
+        // React Alias for Sale Target Report
+        GoRoute(
+          path: '/reports/otherreports/saletargetreport',
+          builder: (context, state) => const SaleTargetReportPage(),
+        ),
         GoRoute(
           path: '/reports/operational/order-to-challan',
           builder: (context, state) => const OrderToChallanTimePage(),
@@ -559,6 +566,11 @@ GoRouter createAppRouter(AuthProvider authProvider) {
         ),
         GoRoute(
           path: '/reports/movement/power',
+          builder: (context, state) => const PowerMovementReportPage(),
+        ),
+        // React Alias for Power Movement Report
+        GoRoute(
+          path: '/reports/otherreports/powermovementreport',
           builder: (context, state) => const PowerMovementReportPage(),
         ),
         GoRoute(
@@ -588,6 +600,14 @@ GoRouter createAppRouter(AuthProvider authProvider) {
         GoRoute(
           path: '/reports/otherreports/bookedbyreport',
           builder: (context, state) => const BookedByActivityReportPage(),
+        ),
+        GoRoute(
+          path: '/reports/otherreports/salereturnratioreport',
+          builder: (context, state) => const SaleReturnRatioReportPage(),
+        ),
+        GoRoute(
+          path: '/reports/otherreports/collectiontargetreport',
+          builder: (context, state) => const CollectionTargetReportPage(),
         ),
         // Audits
         GoRoute(
