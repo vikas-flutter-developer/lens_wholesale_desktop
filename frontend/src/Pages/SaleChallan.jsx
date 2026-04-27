@@ -389,7 +389,7 @@ function SaleChallan() {
       sourceChallanId: o._id,
       billData: {
         billSeries: o.billData?.billSeries || "",
-        billNo: o.billData?.billNo || "",
+        billNo: "",
         billType: o.billData?.billType || "",
         godown: o.billData?.godown || "",
         bookedBy: o.billData?.bookedBy || "",

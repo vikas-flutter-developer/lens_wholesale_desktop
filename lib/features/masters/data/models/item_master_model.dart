@@ -26,6 +26,7 @@ class ItemMasterModel with _$ItemMasterModel {
     double? saleProfit,
     double? salePrice,
     double? mrpPrice,
+    double? gst,
     double? saleDiscount,
     double? purchaseDiscount,
     double? minSalePrice,

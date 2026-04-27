@@ -5,6 +5,7 @@ import LensPurchaseChallan from "../models/LensPurchaseChallan.js";
 import RxSaleOrder from "../models/RxSaleOrder.js";
 import mongoose from "mongoose";
 import { derivePurchaseOrderStatus, deriveOrderStatus } from "../utils/statusManager.js";
+import { generateNextBillNo } from "../utils/billNoHelper.js";
 
 /**
  * PURCHASE CHALLAN TO INVOICE FLOW:
@@ -651,10 +652,13 @@ const createLensPurchaseInvoice = async (req, res) => {
     const totalQty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
     const totalAmount = items.reduce((s, it) => s + (Number(it.totalAmount) || 0), 0);
 
+    // Generate next bill number for this party
+    const nextBillNo = await generateNextBillNo(LensPurchase, data.partyData?.partyAccount, req.user?.companyId);
+
     // Use billData from request, or empty if not provided
     const invoiceBillData = {
       billSeries: data.billData?.billSeries || "",
-      billNo: data.billData?.billNo || "",
+      billNo: nextBillNo,
       billType: data.billData?.billType || "",
       godown: data.billData?.godown || "",
       bookedBy: data.billData?.bookedBy || "",
@@ -977,20 +981,7 @@ const updateCancelReason = async (req, res) => {
   }
 };
 
-export {
-  addLensPurchaseChallan,
-  getLensPurchaseChallan,
-  getAllLensPurchaseChallan,
-  removeLensPurchaseChallan,
-  editLensPurchaseChallan,
-  createLensPurchaseInvoice,
-  createChallanFromInvoice,
-  updatePurchaseChallanStatus,
-  patchLensPurchaseChallanDcId,
-  updateCancelReason,
-};
-
-export async function updatePurchaseChallanItemStatus(req, res) {
+const updatePurchaseChallanItemStatus = async (req, res) => {
   try {
     const { challanId, itemIds, newStatus } = req.body;
     const challan = await LensPurchaseChallan.findById(challanId);
@@ -1027,7 +1018,7 @@ export async function updatePurchaseChallanItemStatus(req, res) {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
-}
+};
 
 const patchLensPurchaseChallanDcId = async (req, res) => {
   try {
@@ -1045,4 +1036,18 @@ const patchLensPurchaseChallanDcId = async (req, res) => {
     console.error("Error patching challan dcId:", err);
     return res.status(500).json({ success: false, message: "Failed to update DC ID", error: err.message });
   }
+};
+
+export {
+  addLensPurchaseChallan,
+  getLensPurchaseChallan,
+  getAllLensPurchaseChallan,
+  removeLensPurchaseChallan,
+  editLensPurchaseChallan,
+  createLensPurchaseInvoice,
+  createChallanFromInvoice,
+  updatePurchaseChallanStatus,
+  updatePurchaseChallanItemStatus,
+  patchLensPurchaseChallanDcId,
+  updateCancelReason,
 };

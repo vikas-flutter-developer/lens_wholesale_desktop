@@ -43,6 +43,7 @@ const addRxSaleReturn = async (req, res) => {
     const netAmount = subtotal + taxesAmount;
     const paidAmount = Number(data.paidAmount) || 0;
     const dueAmount = netAmount - paidAmount;
+    const orderQty = items.reduce((s, it) => s + it.qty, 0);
 
     const saleReturn = new RxSaleReturn({
       billData: data.billData || {},
@@ -57,6 +58,9 @@ const addRxSaleReturn = async (req, res) => {
       dueAmount,
       remark: data.remark || "",
       status: data.status || "Pending",
+      orderQty,
+      usedQty: 0,
+      balQty: orderQty,
       returnType: "RX",
       companyId: req.user?.companyId || null,
     });
@@ -150,6 +154,10 @@ const editRxSaleReturn = async (req, res) => {
     existing.remark = data.remark || existing.remark;
     existing.status = data.status || existing.status;
 
+    const orderQty = (data.items || existing.items).reduce((s, it) => s + (Number(it.qty) || 0), 0);
+    existing.orderQty = orderQty;
+    existing.balQty = Math.max(0, orderQty - (existing.usedQty || 0));
+
     const updated = await existing.save();
 
     return res.status(200).json({
@@ -233,11 +241,55 @@ const getNextBillNumber = async (req, res) => {
   }
 };
 
+const updateRxReturnFields = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { orderQty, usedQty, status } = req.body;
+    const companyId = req.user?.companyId;
+
+    const existing = await RxSaleReturn.findOne({ _id: id, companyId });
+    if (!existing) return res.status(404).json({ success: false, message: "Not found" });
+
+    if (orderQty !== undefined) existing.orderQty = Number(orderQty);
+    if (usedQty !== undefined) existing.usedQty = Number(usedQty);
+    if (status !== undefined) existing.status = status;
+
+    const o = existing.orderQty || 0;
+    const u = existing.usedQty || 0;
+    existing.balQty = Math.max(0, o - u);
+
+    await existing.save();
+    return res.status(200).json({ success: true, message: "Fields updated", data: existing });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+const updateStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const companyId = req.user?.companyId;
+
+    const existing = await RxSaleReturn.findOne({ _id: id, companyId });
+    if (!existing) return res.status(404).json({ success: false, message: "Not found" });
+
+    if (status !== undefined) existing.status = status;
+
+    await existing.save();
+    return res.status(200).json({ success: true, message: "Status updated", data: existing });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 export {
   getAllRxSaleReturn,
   editRxSaleReturn,
   addRxSaleReturn,
   removeRxSaleReturn,
   getRxSaleReturn,
-  getNextBillNumber
-}
+  getNextBillNumber,
+  updateRxReturnFields,
+  updateStatus,
+};

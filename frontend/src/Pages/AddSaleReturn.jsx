@@ -322,7 +322,7 @@ function AddSaleReturn() {
 
   const selectLens = (lens, index) => {
     setItems(prev => {
-      const copy = [...prev]; copy[index] = { ...copy[index], itemName: lens.productName, salePrice: getSalePriceForCategory(lens, category), eye: lens.eye || copy[index].eye || "" };
+      const copy = [...prev]; copy[index] = { ...copy[index], itemName: lens.productName, billItemName: lens.billItemName || "", salePrice: getSalePriceForCategory(lens, category), eye: lens.eye || copy[index].eye || "" };
       const qty = parseFloat(copy[index].qty) || 0, price = parseFloat(copy[index].salePrice) || 0, disc = parseFloat(copy[index].discount) || 0;
       copy[index].totalAmount = roundAmount(qty * price - qty * price * (disc / 100)).toString(); return copy;
     });
@@ -417,6 +417,7 @@ function AddSaleReturn() {
           const c = [...prev];
           const row = c[rowIndex];
           row.itemName = barcodeData.itemName || row.itemName;
+          row.billItemName = barcodeData.billItemName || "";
           row.eye = barcodeData.eye || row.eye;
           row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
           row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;

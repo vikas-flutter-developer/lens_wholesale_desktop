@@ -24,6 +24,7 @@ mixin _$OrderToChallanReport {
   bool get success => throw _privateConstructorUsedError;
   OrderToChallanSummary get summary => throw _privateConstructorUsedError;
   List<OrderToChallanDetail> get details => throw _privateConstructorUsedError;
+  List<OrderToChallanTrend> get trend => throw _privateConstructorUsedError;
 
   /// Serializes this OrderToChallanReport to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -46,6 +47,7 @@ abstract class $OrderToChallanReportCopyWith<$Res> {
     bool success,
     OrderToChallanSummary summary,
     List<OrderToChallanDetail> details,
+    List<OrderToChallanTrend> trend,
   });
 
   $OrderToChallanSummaryCopyWith<$Res> get summary;
@@ -72,6 +74,7 @@ class _$OrderToChallanReportCopyWithImpl<
     Object? success = null,
     Object? summary = null,
     Object? details = null,
+    Object? trend = null,
   }) {
     return _then(
       _value.copyWith(
@@ -87,6 +90,10 @@ class _$OrderToChallanReportCopyWithImpl<
                 ? _value.details
                 : details // ignore: cast_nullable_to_non_nullable
                       as List<OrderToChallanDetail>,
+            trend: null == trend
+                ? _value.trend
+                : trend // ignore: cast_nullable_to_non_nullable
+                      as List<OrderToChallanTrend>,
           )
           as $Val,
     );
@@ -116,6 +123,7 @@ abstract class _$$OrderToChallanReportImplCopyWith<$Res>
     bool success,
     OrderToChallanSummary summary,
     List<OrderToChallanDetail> details,
+    List<OrderToChallanTrend> trend,
   });
 
   @override
@@ -139,6 +147,7 @@ class __$$OrderToChallanReportImplCopyWithImpl<$Res>
     Object? success = null,
     Object? summary = null,
     Object? details = null,
+    Object? trend = null,
   }) {
     return _then(
       _$OrderToChallanReportImpl(
@@ -154,6 +163,10 @@ class __$$OrderToChallanReportImplCopyWithImpl<$Res>
             ? _value._details
             : details // ignore: cast_nullable_to_non_nullable
                   as List<OrderToChallanDetail>,
+        trend: null == trend
+            ? _value._trend
+            : trend // ignore: cast_nullable_to_non_nullable
+                  as List<OrderToChallanTrend>,
       ),
     );
   }
@@ -166,7 +179,9 @@ class _$OrderToChallanReportImpl implements _OrderToChallanReport {
     required this.success,
     required this.summary,
     required final List<OrderToChallanDetail> details,
-  }) : _details = details;
+    final List<OrderToChallanTrend> trend = const [],
+  }) : _details = details,
+       _trend = trend;
 
   factory _$OrderToChallanReportImpl.fromJson(Map<String, dynamic> json) =>
       _$$OrderToChallanReportImplFromJson(json);
@@ -183,9 +198,18 @@ class _$OrderToChallanReportImpl implements _OrderToChallanReport {
     return EqualUnmodifiableListView(_details);
   }
 
+  final List<OrderToChallanTrend> _trend;
+  @override
+  @JsonKey()
+  List<OrderToChallanTrend> get trend {
+    if (_trend is EqualUnmodifiableListView) return _trend;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_trend);
+  }
+
   @override
   String toString() {
-    return 'OrderToChallanReport(success: $success, summary: $summary, details: $details)';
+    return 'OrderToChallanReport(success: $success, summary: $summary, details: $details, trend: $trend)';
   }
 
   @override
@@ -195,7 +219,8 @@ class _$OrderToChallanReportImpl implements _OrderToChallanReport {
             other is _$OrderToChallanReportImpl &&
             (identical(other.success, success) || other.success == success) &&
             (identical(other.summary, summary) || other.summary == summary) &&
-            const DeepCollectionEquality().equals(other._details, _details));
+            const DeepCollectionEquality().equals(other._details, _details) &&
+            const DeepCollectionEquality().equals(other._trend, _trend));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -205,6 +230,7 @@ class _$OrderToChallanReportImpl implements _OrderToChallanReport {
     success,
     summary,
     const DeepCollectionEquality().hash(_details),
+    const DeepCollectionEquality().hash(_trend),
   );
 
   /// Create a copy of OrderToChallanReport
@@ -230,6 +256,7 @@ abstract class _OrderToChallanReport implements OrderToChallanReport {
     required final bool success,
     required final OrderToChallanSummary summary,
     required final List<OrderToChallanDetail> details,
+    final List<OrderToChallanTrend> trend,
   }) = _$OrderToChallanReportImpl;
 
   factory _OrderToChallanReport.fromJson(Map<String, dynamic> json) =
@@ -241,6 +268,8 @@ abstract class _OrderToChallanReport implements OrderToChallanReport {
   OrderToChallanSummary get summary;
   @override
   List<OrderToChallanDetail> get details;
+  @override
+  List<OrderToChallanTrend> get trend;
 
   /// Create a copy of OrderToChallanReport
   /// with the given fields replaced by the non-null parameter values.
@@ -505,7 +534,7 @@ mixin _$OrderToChallanDetail {
   String? get challanDate => throw _privateConstructorUsedError;
   String? get challanCreatedAt => throw _privateConstructorUsedError;
   String get partyName => throw _privateConstructorUsedError;
-  double get timeDifference => throw _privateConstructorUsedError;
+  double? get timeDifference => throw _privateConstructorUsedError;
   String get status => throw _privateConstructorUsedError;
 
   /// Serializes this OrderToChallanDetail to a JSON map.
@@ -533,7 +562,7 @@ abstract class $OrderToChallanDetailCopyWith<$Res> {
     String? challanDate,
     String? challanCreatedAt,
     String partyName,
-    double timeDifference,
+    double? timeDifference,
     String status,
   });
 }
@@ -563,7 +592,7 @@ class _$OrderToChallanDetailCopyWithImpl<
     Object? challanDate = freezed,
     Object? challanCreatedAt = freezed,
     Object? partyName = null,
-    Object? timeDifference = null,
+    Object? timeDifference = freezed,
     Object? status = null,
   }) {
     return _then(
@@ -596,10 +625,10 @@ class _$OrderToChallanDetailCopyWithImpl<
                 ? _value.partyName
                 : partyName // ignore: cast_nullable_to_non_nullable
                       as String,
-            timeDifference: null == timeDifference
+            timeDifference: freezed == timeDifference
                 ? _value.timeDifference
                 : timeDifference // ignore: cast_nullable_to_non_nullable
-                      as double,
+                      as double?,
             status: null == status
                 ? _value.status
                 : status // ignore: cast_nullable_to_non_nullable
@@ -627,7 +656,7 @@ abstract class _$$OrderToChallanDetailImplCopyWith<$Res>
     String? challanDate,
     String? challanCreatedAt,
     String partyName,
-    double timeDifference,
+    double? timeDifference,
     String status,
   });
 }
@@ -653,7 +682,7 @@ class __$$OrderToChallanDetailImplCopyWithImpl<$Res>
     Object? challanDate = freezed,
     Object? challanCreatedAt = freezed,
     Object? partyName = null,
-    Object? timeDifference = null,
+    Object? timeDifference = freezed,
     Object? status = null,
   }) {
     return _then(
@@ -686,10 +715,10 @@ class __$$OrderToChallanDetailImplCopyWithImpl<$Res>
             ? _value.partyName
             : partyName // ignore: cast_nullable_to_non_nullable
                   as String,
-        timeDifference: null == timeDifference
+        timeDifference: freezed == timeDifference
             ? _value.timeDifference
             : timeDifference // ignore: cast_nullable_to_non_nullable
-                  as double,
+                  as double?,
         status: null == status
             ? _value.status
             : status // ignore: cast_nullable_to_non_nullable
@@ -703,25 +732,28 @@ class __$$OrderToChallanDetailImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$OrderToChallanDetailImpl implements _OrderToChallanDetail {
   const _$OrderToChallanDetailImpl({
-    required this.orderNo,
-    required this.orderDate,
-    required this.orderCreatedAt,
+    this.orderNo = '',
+    this.orderDate = '',
+    this.orderCreatedAt = '',
     this.challanNo,
     this.challanDate,
     this.challanCreatedAt,
-    required this.partyName,
-    required this.timeDifference,
-    required this.status,
+    this.partyName = '',
+    this.timeDifference,
+    this.status = '',
   });
 
   factory _$OrderToChallanDetailImpl.fromJson(Map<String, dynamic> json) =>
       _$$OrderToChallanDetailImplFromJson(json);
 
   @override
+  @JsonKey()
   final String orderNo;
   @override
+  @JsonKey()
   final String orderDate;
   @override
+  @JsonKey()
   final String orderCreatedAt;
   @override
   final String? challanNo;
@@ -730,10 +762,12 @@ class _$OrderToChallanDetailImpl implements _OrderToChallanDetail {
   @override
   final String? challanCreatedAt;
   @override
+  @JsonKey()
   final String partyName;
   @override
-  final double timeDifference;
+  final double? timeDifference;
   @override
+  @JsonKey()
   final String status;
 
   @override
@@ -799,15 +833,15 @@ class _$OrderToChallanDetailImpl implements _OrderToChallanDetail {
 
 abstract class _OrderToChallanDetail implements OrderToChallanDetail {
   const factory _OrderToChallanDetail({
-    required final String orderNo,
-    required final String orderDate,
-    required final String orderCreatedAt,
+    final String orderNo,
+    final String orderDate,
+    final String orderCreatedAt,
     final String? challanNo,
     final String? challanDate,
     final String? challanCreatedAt,
-    required final String partyName,
-    required final double timeDifference,
-    required final String status,
+    final String partyName,
+    final double? timeDifference,
+    final String status,
   }) = _$OrderToChallanDetailImpl;
 
   factory _OrderToChallanDetail.fromJson(Map<String, dynamic> json) =
@@ -828,7 +862,7 @@ abstract class _OrderToChallanDetail implements OrderToChallanDetail {
   @override
   String get partyName;
   @override
-  double get timeDifference;
+  double? get timeDifference;
   @override
   String get status;
 
@@ -838,6 +872,180 @@ abstract class _OrderToChallanDetail implements OrderToChallanDetail {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$OrderToChallanDetailImplCopyWith<_$OrderToChallanDetailImpl>
   get copyWith => throw _privateConstructorUsedError;
+}
+
+OrderToChallanTrend _$OrderToChallanTrendFromJson(Map<String, dynamic> json) {
+  return _OrderToChallanTrend.fromJson(json);
+}
+
+/// @nodoc
+mixin _$OrderToChallanTrend {
+  String get period => throw _privateConstructorUsedError;
+  double get avgTime => throw _privateConstructorUsedError;
+
+  /// Serializes this OrderToChallanTrend to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of OrderToChallanTrend
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $OrderToChallanTrendCopyWith<OrderToChallanTrend> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $OrderToChallanTrendCopyWith<$Res> {
+  factory $OrderToChallanTrendCopyWith(
+    OrderToChallanTrend value,
+    $Res Function(OrderToChallanTrend) then,
+  ) = _$OrderToChallanTrendCopyWithImpl<$Res, OrderToChallanTrend>;
+  @useResult
+  $Res call({String period, double avgTime});
+}
+
+/// @nodoc
+class _$OrderToChallanTrendCopyWithImpl<$Res, $Val extends OrderToChallanTrend>
+    implements $OrderToChallanTrendCopyWith<$Res> {
+  _$OrderToChallanTrendCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of OrderToChallanTrend
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? period = null, Object? avgTime = null}) {
+    return _then(
+      _value.copyWith(
+            period: null == period
+                ? _value.period
+                : period // ignore: cast_nullable_to_non_nullable
+                      as String,
+            avgTime: null == avgTime
+                ? _value.avgTime
+                : avgTime // ignore: cast_nullable_to_non_nullable
+                      as double,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$OrderToChallanTrendImplCopyWith<$Res>
+    implements $OrderToChallanTrendCopyWith<$Res> {
+  factory _$$OrderToChallanTrendImplCopyWith(
+    _$OrderToChallanTrendImpl value,
+    $Res Function(_$OrderToChallanTrendImpl) then,
+  ) = __$$OrderToChallanTrendImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String period, double avgTime});
+}
+
+/// @nodoc
+class __$$OrderToChallanTrendImplCopyWithImpl<$Res>
+    extends _$OrderToChallanTrendCopyWithImpl<$Res, _$OrderToChallanTrendImpl>
+    implements _$$OrderToChallanTrendImplCopyWith<$Res> {
+  __$$OrderToChallanTrendImplCopyWithImpl(
+    _$OrderToChallanTrendImpl _value,
+    $Res Function(_$OrderToChallanTrendImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of OrderToChallanTrend
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? period = null, Object? avgTime = null}) {
+    return _then(
+      _$OrderToChallanTrendImpl(
+        period: null == period
+            ? _value.period
+            : period // ignore: cast_nullable_to_non_nullable
+                  as String,
+        avgTime: null == avgTime
+            ? _value.avgTime
+            : avgTime // ignore: cast_nullable_to_non_nullable
+                  as double,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$OrderToChallanTrendImpl implements _OrderToChallanTrend {
+  const _$OrderToChallanTrendImpl({
+    required this.period,
+    required this.avgTime,
+  });
+
+  factory _$OrderToChallanTrendImpl.fromJson(Map<String, dynamic> json) =>
+      _$$OrderToChallanTrendImplFromJson(json);
+
+  @override
+  final String period;
+  @override
+  final double avgTime;
+
+  @override
+  String toString() {
+    return 'OrderToChallanTrend(period: $period, avgTime: $avgTime)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$OrderToChallanTrendImpl &&
+            (identical(other.period, period) || other.period == period) &&
+            (identical(other.avgTime, avgTime) || other.avgTime == avgTime));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, period, avgTime);
+
+  /// Create a copy of OrderToChallanTrend
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$OrderToChallanTrendImplCopyWith<_$OrderToChallanTrendImpl> get copyWith =>
+      __$$OrderToChallanTrendImplCopyWithImpl<_$OrderToChallanTrendImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$OrderToChallanTrendImplToJson(this);
+  }
+}
+
+abstract class _OrderToChallanTrend implements OrderToChallanTrend {
+  const factory _OrderToChallanTrend({
+    required final String period,
+    required final double avgTime,
+  }) = _$OrderToChallanTrendImpl;
+
+  factory _OrderToChallanTrend.fromJson(Map<String, dynamic> json) =
+      _$OrderToChallanTrendImpl.fromJson;
+
+  @override
+  String get period;
+  @override
+  double get avgTime;
+
+  /// Create a copy of OrderToChallanTrend
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$OrderToChallanTrendImplCopyWith<_$OrderToChallanTrendImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
 CancelledOrderRatioReport _$CancelledOrderRatioReportFromJson(
@@ -1462,7 +1670,7 @@ mixin _$CancelledOrderRatioDetail {
   String get partyName => throw _privateConstructorUsedError;
   String get status => throw _privateConstructorUsedError;
   double get netAmount => throw _privateConstructorUsedError;
-  bool get cancelledOrders => throw _privateConstructorUsedError;
+  int get cancelledOrders => throw _privateConstructorUsedError;
 
   /// Serializes this CancelledOrderRatioDetail to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -1488,7 +1696,7 @@ abstract class $CancelledOrderRatioDetailCopyWith<$Res> {
     String partyName,
     String status,
     double netAmount,
-    bool cancelledOrders,
+    int cancelledOrders,
   });
 }
 
@@ -1547,7 +1755,7 @@ class _$CancelledOrderRatioDetailCopyWithImpl<
             cancelledOrders: null == cancelledOrders
                 ? _value.cancelledOrders
                 : cancelledOrders // ignore: cast_nullable_to_non_nullable
-                      as bool,
+                      as int,
           )
           as $Val,
     );
@@ -1570,7 +1778,7 @@ abstract class _$$CancelledOrderRatioDetailImplCopyWith<$Res>
     String partyName,
     String status,
     double netAmount,
-    bool cancelledOrders,
+    int cancelledOrders,
   });
 }
 
@@ -1629,7 +1837,7 @@ class __$$CancelledOrderRatioDetailImplCopyWithImpl<$Res>
         cancelledOrders: null == cancelledOrders
             ? _value.cancelledOrders
             : cancelledOrders // ignore: cast_nullable_to_non_nullable
-                  as bool,
+                  as int,
       ),
     );
   }
@@ -1664,7 +1872,7 @@ class _$CancelledOrderRatioDetailImpl implements _CancelledOrderRatioDetail {
   @override
   final double netAmount;
   @override
-  final bool cancelledOrders;
+  final int cancelledOrders;
 
   @override
   String toString() {
@@ -1727,7 +1935,7 @@ abstract class _CancelledOrderRatioDetail implements CancelledOrderRatioDetail {
     required final String partyName,
     required final String status,
     required final double netAmount,
-    required final bool cancelledOrders,
+    required final int cancelledOrders,
   }) = _$CancelledOrderRatioDetailImpl;
 
   factory _CancelledOrderRatioDetail.fromJson(Map<String, dynamic> json) =
@@ -1746,7 +1954,7 @@ abstract class _CancelledOrderRatioDetail implements CancelledOrderRatioDetail {
   @override
   double get netAmount;
   @override
-  bool get cancelledOrders;
+  int get cancelledOrders;
 
   /// Create a copy of CancelledOrderRatioDetail
   /// with the given fields replaced by the non-null parameter values.
@@ -2926,4 +3134,946 @@ abstract class _PartyWiseReturnRatio implements PartyWiseReturnRatio {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PartyWiseReturnRatioImplCopyWith<_$PartyWiseReturnRatioImpl>
   get copyWith => throw _privateConstructorUsedError;
+}
+
+SalesGrowthReport _$SalesGrowthReportFromJson(Map<String, dynamic> json) {
+  return _SalesGrowthReport.fromJson(json);
+}
+
+/// @nodoc
+mixin _$SalesGrowthReport {
+  bool get success => throw _privateConstructorUsedError;
+  SalesGrowthSummary get summary => throw _privateConstructorUsedError;
+  List<SalesGrowthDetail> get data => throw _privateConstructorUsedError;
+
+  /// Serializes this SalesGrowthReport to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of SalesGrowthReport
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $SalesGrowthReportCopyWith<SalesGrowthReport> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $SalesGrowthReportCopyWith<$Res> {
+  factory $SalesGrowthReportCopyWith(
+    SalesGrowthReport value,
+    $Res Function(SalesGrowthReport) then,
+  ) = _$SalesGrowthReportCopyWithImpl<$Res, SalesGrowthReport>;
+  @useResult
+  $Res call({
+    bool success,
+    SalesGrowthSummary summary,
+    List<SalesGrowthDetail> data,
+  });
+
+  $SalesGrowthSummaryCopyWith<$Res> get summary;
+}
+
+/// @nodoc
+class _$SalesGrowthReportCopyWithImpl<$Res, $Val extends SalesGrowthReport>
+    implements $SalesGrowthReportCopyWith<$Res> {
+  _$SalesGrowthReportCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of SalesGrowthReport
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? success = null,
+    Object? summary = null,
+    Object? data = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            success: null == success
+                ? _value.success
+                : success // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            summary: null == summary
+                ? _value.summary
+                : summary // ignore: cast_nullable_to_non_nullable
+                      as SalesGrowthSummary,
+            data: null == data
+                ? _value.data
+                : data // ignore: cast_nullable_to_non_nullable
+                      as List<SalesGrowthDetail>,
+          )
+          as $Val,
+    );
+  }
+
+  /// Create a copy of SalesGrowthReport
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $SalesGrowthSummaryCopyWith<$Res> get summary {
+    return $SalesGrowthSummaryCopyWith<$Res>(_value.summary, (value) {
+      return _then(_value.copyWith(summary: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$SalesGrowthReportImplCopyWith<$Res>
+    implements $SalesGrowthReportCopyWith<$Res> {
+  factory _$$SalesGrowthReportImplCopyWith(
+    _$SalesGrowthReportImpl value,
+    $Res Function(_$SalesGrowthReportImpl) then,
+  ) = __$$SalesGrowthReportImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    bool success,
+    SalesGrowthSummary summary,
+    List<SalesGrowthDetail> data,
+  });
+
+  @override
+  $SalesGrowthSummaryCopyWith<$Res> get summary;
+}
+
+/// @nodoc
+class __$$SalesGrowthReportImplCopyWithImpl<$Res>
+    extends _$SalesGrowthReportCopyWithImpl<$Res, _$SalesGrowthReportImpl>
+    implements _$$SalesGrowthReportImplCopyWith<$Res> {
+  __$$SalesGrowthReportImplCopyWithImpl(
+    _$SalesGrowthReportImpl _value,
+    $Res Function(_$SalesGrowthReportImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of SalesGrowthReport
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? success = null,
+    Object? summary = null,
+    Object? data = null,
+  }) {
+    return _then(
+      _$SalesGrowthReportImpl(
+        success: null == success
+            ? _value.success
+            : success // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        summary: null == summary
+            ? _value.summary
+            : summary // ignore: cast_nullable_to_non_nullable
+                  as SalesGrowthSummary,
+        data: null == data
+            ? _value._data
+            : data // ignore: cast_nullable_to_non_nullable
+                  as List<SalesGrowthDetail>,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$SalesGrowthReportImpl implements _SalesGrowthReport {
+  const _$SalesGrowthReportImpl({
+    required this.success,
+    required this.summary,
+    required final List<SalesGrowthDetail> data,
+  }) : _data = data;
+
+  factory _$SalesGrowthReportImpl.fromJson(Map<String, dynamic> json) =>
+      _$$SalesGrowthReportImplFromJson(json);
+
+  @override
+  final bool success;
+  @override
+  final SalesGrowthSummary summary;
+  final List<SalesGrowthDetail> _data;
+  @override
+  List<SalesGrowthDetail> get data {
+    if (_data is EqualUnmodifiableListView) return _data;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_data);
+  }
+
+  @override
+  String toString() {
+    return 'SalesGrowthReport(success: $success, summary: $summary, data: $data)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$SalesGrowthReportImpl &&
+            (identical(other.success, success) || other.success == success) &&
+            (identical(other.summary, summary) || other.summary == summary) &&
+            const DeepCollectionEquality().equals(other._data, _data));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    success,
+    summary,
+    const DeepCollectionEquality().hash(_data),
+  );
+
+  /// Create a copy of SalesGrowthReport
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$SalesGrowthReportImplCopyWith<_$SalesGrowthReportImpl> get copyWith =>
+      __$$SalesGrowthReportImplCopyWithImpl<_$SalesGrowthReportImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$SalesGrowthReportImplToJson(this);
+  }
+}
+
+abstract class _SalesGrowthReport implements SalesGrowthReport {
+  const factory _SalesGrowthReport({
+    required final bool success,
+    required final SalesGrowthSummary summary,
+    required final List<SalesGrowthDetail> data,
+  }) = _$SalesGrowthReportImpl;
+
+  factory _SalesGrowthReport.fromJson(Map<String, dynamic> json) =
+      _$SalesGrowthReportImpl.fromJson;
+
+  @override
+  bool get success;
+  @override
+  SalesGrowthSummary get summary;
+  @override
+  List<SalesGrowthDetail> get data;
+
+  /// Create a copy of SalesGrowthReport
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$SalesGrowthReportImplCopyWith<_$SalesGrowthReportImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+SalesGrowthSummary _$SalesGrowthSummaryFromJson(Map<String, dynamic> json) {
+  return _SalesGrowthSummary.fromJson(json);
+}
+
+/// @nodoc
+mixin _$SalesGrowthSummary {
+  String get currLabel => throw _privateConstructorUsedError;
+  String get prevLabel => throw _privateConstructorUsedError;
+  String get lyLabel => throw _privateConstructorUsedError;
+  double get currTotal => throw _privateConstructorUsedError;
+  double get prevTotal => throw _privateConstructorUsedError;
+  double get lyTotal => throw _privateConstructorUsedError;
+  double get momGrowthPct => throw _privateConstructorUsedError;
+  double get yoyGrowthPct => throw _privateConstructorUsedError;
+  int get growingParties => throw _privateConstructorUsedError;
+  int get degrowingParties => throw _privateConstructorUsedError;
+
+  /// Serializes this SalesGrowthSummary to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of SalesGrowthSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $SalesGrowthSummaryCopyWith<SalesGrowthSummary> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $SalesGrowthSummaryCopyWith<$Res> {
+  factory $SalesGrowthSummaryCopyWith(
+    SalesGrowthSummary value,
+    $Res Function(SalesGrowthSummary) then,
+  ) = _$SalesGrowthSummaryCopyWithImpl<$Res, SalesGrowthSummary>;
+  @useResult
+  $Res call({
+    String currLabel,
+    String prevLabel,
+    String lyLabel,
+    double currTotal,
+    double prevTotal,
+    double lyTotal,
+    double momGrowthPct,
+    double yoyGrowthPct,
+    int growingParties,
+    int degrowingParties,
+  });
+}
+
+/// @nodoc
+class _$SalesGrowthSummaryCopyWithImpl<$Res, $Val extends SalesGrowthSummary>
+    implements $SalesGrowthSummaryCopyWith<$Res> {
+  _$SalesGrowthSummaryCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of SalesGrowthSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? currLabel = null,
+    Object? prevLabel = null,
+    Object? lyLabel = null,
+    Object? currTotal = null,
+    Object? prevTotal = null,
+    Object? lyTotal = null,
+    Object? momGrowthPct = null,
+    Object? yoyGrowthPct = null,
+    Object? growingParties = null,
+    Object? degrowingParties = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            currLabel: null == currLabel
+                ? _value.currLabel
+                : currLabel // ignore: cast_nullable_to_non_nullable
+                      as String,
+            prevLabel: null == prevLabel
+                ? _value.prevLabel
+                : prevLabel // ignore: cast_nullable_to_non_nullable
+                      as String,
+            lyLabel: null == lyLabel
+                ? _value.lyLabel
+                : lyLabel // ignore: cast_nullable_to_non_nullable
+                      as String,
+            currTotal: null == currTotal
+                ? _value.currTotal
+                : currTotal // ignore: cast_nullable_to_non_nullable
+                      as double,
+            prevTotal: null == prevTotal
+                ? _value.prevTotal
+                : prevTotal // ignore: cast_nullable_to_non_nullable
+                      as double,
+            lyTotal: null == lyTotal
+                ? _value.lyTotal
+                : lyTotal // ignore: cast_nullable_to_non_nullable
+                      as double,
+            momGrowthPct: null == momGrowthPct
+                ? _value.momGrowthPct
+                : momGrowthPct // ignore: cast_nullable_to_non_nullable
+                      as double,
+            yoyGrowthPct: null == yoyGrowthPct
+                ? _value.yoyGrowthPct
+                : yoyGrowthPct // ignore: cast_nullable_to_non_nullable
+                      as double,
+            growingParties: null == growingParties
+                ? _value.growingParties
+                : growingParties // ignore: cast_nullable_to_non_nullable
+                      as int,
+            degrowingParties: null == degrowingParties
+                ? _value.degrowingParties
+                : degrowingParties // ignore: cast_nullable_to_non_nullable
+                      as int,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$SalesGrowthSummaryImplCopyWith<$Res>
+    implements $SalesGrowthSummaryCopyWith<$Res> {
+  factory _$$SalesGrowthSummaryImplCopyWith(
+    _$SalesGrowthSummaryImpl value,
+    $Res Function(_$SalesGrowthSummaryImpl) then,
+  ) = __$$SalesGrowthSummaryImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String currLabel,
+    String prevLabel,
+    String lyLabel,
+    double currTotal,
+    double prevTotal,
+    double lyTotal,
+    double momGrowthPct,
+    double yoyGrowthPct,
+    int growingParties,
+    int degrowingParties,
+  });
+}
+
+/// @nodoc
+class __$$SalesGrowthSummaryImplCopyWithImpl<$Res>
+    extends _$SalesGrowthSummaryCopyWithImpl<$Res, _$SalesGrowthSummaryImpl>
+    implements _$$SalesGrowthSummaryImplCopyWith<$Res> {
+  __$$SalesGrowthSummaryImplCopyWithImpl(
+    _$SalesGrowthSummaryImpl _value,
+    $Res Function(_$SalesGrowthSummaryImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of SalesGrowthSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? currLabel = null,
+    Object? prevLabel = null,
+    Object? lyLabel = null,
+    Object? currTotal = null,
+    Object? prevTotal = null,
+    Object? lyTotal = null,
+    Object? momGrowthPct = null,
+    Object? yoyGrowthPct = null,
+    Object? growingParties = null,
+    Object? degrowingParties = null,
+  }) {
+    return _then(
+      _$SalesGrowthSummaryImpl(
+        currLabel: null == currLabel
+            ? _value.currLabel
+            : currLabel // ignore: cast_nullable_to_non_nullable
+                  as String,
+        prevLabel: null == prevLabel
+            ? _value.prevLabel
+            : prevLabel // ignore: cast_nullable_to_non_nullable
+                  as String,
+        lyLabel: null == lyLabel
+            ? _value.lyLabel
+            : lyLabel // ignore: cast_nullable_to_non_nullable
+                  as String,
+        currTotal: null == currTotal
+            ? _value.currTotal
+            : currTotal // ignore: cast_nullable_to_non_nullable
+                  as double,
+        prevTotal: null == prevTotal
+            ? _value.prevTotal
+            : prevTotal // ignore: cast_nullable_to_non_nullable
+                  as double,
+        lyTotal: null == lyTotal
+            ? _value.lyTotal
+            : lyTotal // ignore: cast_nullable_to_non_nullable
+                  as double,
+        momGrowthPct: null == momGrowthPct
+            ? _value.momGrowthPct
+            : momGrowthPct // ignore: cast_nullable_to_non_nullable
+                  as double,
+        yoyGrowthPct: null == yoyGrowthPct
+            ? _value.yoyGrowthPct
+            : yoyGrowthPct // ignore: cast_nullable_to_non_nullable
+                  as double,
+        growingParties: null == growingParties
+            ? _value.growingParties
+            : growingParties // ignore: cast_nullable_to_non_nullable
+                  as int,
+        degrowingParties: null == degrowingParties
+            ? _value.degrowingParties
+            : degrowingParties // ignore: cast_nullable_to_non_nullable
+                  as int,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$SalesGrowthSummaryImpl implements _SalesGrowthSummary {
+  const _$SalesGrowthSummaryImpl({
+    required this.currLabel,
+    required this.prevLabel,
+    required this.lyLabel,
+    required this.currTotal,
+    required this.prevTotal,
+    required this.lyTotal,
+    required this.momGrowthPct,
+    required this.yoyGrowthPct,
+    required this.growingParties,
+    required this.degrowingParties,
+  });
+
+  factory _$SalesGrowthSummaryImpl.fromJson(Map<String, dynamic> json) =>
+      _$$SalesGrowthSummaryImplFromJson(json);
+
+  @override
+  final String currLabel;
+  @override
+  final String prevLabel;
+  @override
+  final String lyLabel;
+  @override
+  final double currTotal;
+  @override
+  final double prevTotal;
+  @override
+  final double lyTotal;
+  @override
+  final double momGrowthPct;
+  @override
+  final double yoyGrowthPct;
+  @override
+  final int growingParties;
+  @override
+  final int degrowingParties;
+
+  @override
+  String toString() {
+    return 'SalesGrowthSummary(currLabel: $currLabel, prevLabel: $prevLabel, lyLabel: $lyLabel, currTotal: $currTotal, prevTotal: $prevTotal, lyTotal: $lyTotal, momGrowthPct: $momGrowthPct, yoyGrowthPct: $yoyGrowthPct, growingParties: $growingParties, degrowingParties: $degrowingParties)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$SalesGrowthSummaryImpl &&
+            (identical(other.currLabel, currLabel) ||
+                other.currLabel == currLabel) &&
+            (identical(other.prevLabel, prevLabel) ||
+                other.prevLabel == prevLabel) &&
+            (identical(other.lyLabel, lyLabel) || other.lyLabel == lyLabel) &&
+            (identical(other.currTotal, currTotal) ||
+                other.currTotal == currTotal) &&
+            (identical(other.prevTotal, prevTotal) ||
+                other.prevTotal == prevTotal) &&
+            (identical(other.lyTotal, lyTotal) || other.lyTotal == lyTotal) &&
+            (identical(other.momGrowthPct, momGrowthPct) ||
+                other.momGrowthPct == momGrowthPct) &&
+            (identical(other.yoyGrowthPct, yoyGrowthPct) ||
+                other.yoyGrowthPct == yoyGrowthPct) &&
+            (identical(other.growingParties, growingParties) ||
+                other.growingParties == growingParties) &&
+            (identical(other.degrowingParties, degrowingParties) ||
+                other.degrowingParties == degrowingParties));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    currLabel,
+    prevLabel,
+    lyLabel,
+    currTotal,
+    prevTotal,
+    lyTotal,
+    momGrowthPct,
+    yoyGrowthPct,
+    growingParties,
+    degrowingParties,
+  );
+
+  /// Create a copy of SalesGrowthSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$SalesGrowthSummaryImplCopyWith<_$SalesGrowthSummaryImpl> get copyWith =>
+      __$$SalesGrowthSummaryImplCopyWithImpl<_$SalesGrowthSummaryImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$SalesGrowthSummaryImplToJson(this);
+  }
+}
+
+abstract class _SalesGrowthSummary implements SalesGrowthSummary {
+  const factory _SalesGrowthSummary({
+    required final String currLabel,
+    required final String prevLabel,
+    required final String lyLabel,
+    required final double currTotal,
+    required final double prevTotal,
+    required final double lyTotal,
+    required final double momGrowthPct,
+    required final double yoyGrowthPct,
+    required final int growingParties,
+    required final int degrowingParties,
+  }) = _$SalesGrowthSummaryImpl;
+
+  factory _SalesGrowthSummary.fromJson(Map<String, dynamic> json) =
+      _$SalesGrowthSummaryImpl.fromJson;
+
+  @override
+  String get currLabel;
+  @override
+  String get prevLabel;
+  @override
+  String get lyLabel;
+  @override
+  double get currTotal;
+  @override
+  double get prevTotal;
+  @override
+  double get lyTotal;
+  @override
+  double get momGrowthPct;
+  @override
+  double get yoyGrowthPct;
+  @override
+  int get growingParties;
+  @override
+  int get degrowingParties;
+
+  /// Create a copy of SalesGrowthSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$SalesGrowthSummaryImplCopyWith<_$SalesGrowthSummaryImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+SalesGrowthDetail _$SalesGrowthDetailFromJson(Map<String, dynamic> json) {
+  return _SalesGrowthDetail.fromJson(json);
+}
+
+/// @nodoc
+mixin _$SalesGrowthDetail {
+  String get partyName => throw _privateConstructorUsedError;
+  double get currSales => throw _privateConstructorUsedError;
+  double get prevSales => throw _privateConstructorUsedError;
+  double get lySales => throw _privateConstructorUsedError;
+  double? get momGrowth => throw _privateConstructorUsedError;
+  double? get yoyGrowth => throw _privateConstructorUsedError;
+  String get momStatus => throw _privateConstructorUsedError;
+  String get yoyStatus => throw _privateConstructorUsedError;
+  int get currInvoices => throw _privateConstructorUsedError;
+
+  /// Serializes this SalesGrowthDetail to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of SalesGrowthDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $SalesGrowthDetailCopyWith<SalesGrowthDetail> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $SalesGrowthDetailCopyWith<$Res> {
+  factory $SalesGrowthDetailCopyWith(
+    SalesGrowthDetail value,
+    $Res Function(SalesGrowthDetail) then,
+  ) = _$SalesGrowthDetailCopyWithImpl<$Res, SalesGrowthDetail>;
+  @useResult
+  $Res call({
+    String partyName,
+    double currSales,
+    double prevSales,
+    double lySales,
+    double? momGrowth,
+    double? yoyGrowth,
+    String momStatus,
+    String yoyStatus,
+    int currInvoices,
+  });
+}
+
+/// @nodoc
+class _$SalesGrowthDetailCopyWithImpl<$Res, $Val extends SalesGrowthDetail>
+    implements $SalesGrowthDetailCopyWith<$Res> {
+  _$SalesGrowthDetailCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of SalesGrowthDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? partyName = null,
+    Object? currSales = null,
+    Object? prevSales = null,
+    Object? lySales = null,
+    Object? momGrowth = freezed,
+    Object? yoyGrowth = freezed,
+    Object? momStatus = null,
+    Object? yoyStatus = null,
+    Object? currInvoices = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            partyName: null == partyName
+                ? _value.partyName
+                : partyName // ignore: cast_nullable_to_non_nullable
+                      as String,
+            currSales: null == currSales
+                ? _value.currSales
+                : currSales // ignore: cast_nullable_to_non_nullable
+                      as double,
+            prevSales: null == prevSales
+                ? _value.prevSales
+                : prevSales // ignore: cast_nullable_to_non_nullable
+                      as double,
+            lySales: null == lySales
+                ? _value.lySales
+                : lySales // ignore: cast_nullable_to_non_nullable
+                      as double,
+            momGrowth: freezed == momGrowth
+                ? _value.momGrowth
+                : momGrowth // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            yoyGrowth: freezed == yoyGrowth
+                ? _value.yoyGrowth
+                : yoyGrowth // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            momStatus: null == momStatus
+                ? _value.momStatus
+                : momStatus // ignore: cast_nullable_to_non_nullable
+                      as String,
+            yoyStatus: null == yoyStatus
+                ? _value.yoyStatus
+                : yoyStatus // ignore: cast_nullable_to_non_nullable
+                      as String,
+            currInvoices: null == currInvoices
+                ? _value.currInvoices
+                : currInvoices // ignore: cast_nullable_to_non_nullable
+                      as int,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$SalesGrowthDetailImplCopyWith<$Res>
+    implements $SalesGrowthDetailCopyWith<$Res> {
+  factory _$$SalesGrowthDetailImplCopyWith(
+    _$SalesGrowthDetailImpl value,
+    $Res Function(_$SalesGrowthDetailImpl) then,
+  ) = __$$SalesGrowthDetailImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String partyName,
+    double currSales,
+    double prevSales,
+    double lySales,
+    double? momGrowth,
+    double? yoyGrowth,
+    String momStatus,
+    String yoyStatus,
+    int currInvoices,
+  });
+}
+
+/// @nodoc
+class __$$SalesGrowthDetailImplCopyWithImpl<$Res>
+    extends _$SalesGrowthDetailCopyWithImpl<$Res, _$SalesGrowthDetailImpl>
+    implements _$$SalesGrowthDetailImplCopyWith<$Res> {
+  __$$SalesGrowthDetailImplCopyWithImpl(
+    _$SalesGrowthDetailImpl _value,
+    $Res Function(_$SalesGrowthDetailImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of SalesGrowthDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? partyName = null,
+    Object? currSales = null,
+    Object? prevSales = null,
+    Object? lySales = null,
+    Object? momGrowth = freezed,
+    Object? yoyGrowth = freezed,
+    Object? momStatus = null,
+    Object? yoyStatus = null,
+    Object? currInvoices = null,
+  }) {
+    return _then(
+      _$SalesGrowthDetailImpl(
+        partyName: null == partyName
+            ? _value.partyName
+            : partyName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        currSales: null == currSales
+            ? _value.currSales
+            : currSales // ignore: cast_nullable_to_non_nullable
+                  as double,
+        prevSales: null == prevSales
+            ? _value.prevSales
+            : prevSales // ignore: cast_nullable_to_non_nullable
+                  as double,
+        lySales: null == lySales
+            ? _value.lySales
+            : lySales // ignore: cast_nullable_to_non_nullable
+                  as double,
+        momGrowth: freezed == momGrowth
+            ? _value.momGrowth
+            : momGrowth // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        yoyGrowth: freezed == yoyGrowth
+            ? _value.yoyGrowth
+            : yoyGrowth // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        momStatus: null == momStatus
+            ? _value.momStatus
+            : momStatus // ignore: cast_nullable_to_non_nullable
+                  as String,
+        yoyStatus: null == yoyStatus
+            ? _value.yoyStatus
+            : yoyStatus // ignore: cast_nullable_to_non_nullable
+                  as String,
+        currInvoices: null == currInvoices
+            ? _value.currInvoices
+            : currInvoices // ignore: cast_nullable_to_non_nullable
+                  as int,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$SalesGrowthDetailImpl implements _SalesGrowthDetail {
+  const _$SalesGrowthDetailImpl({
+    required this.partyName,
+    required this.currSales,
+    required this.prevSales,
+    required this.lySales,
+    this.momGrowth,
+    this.yoyGrowth,
+    required this.momStatus,
+    required this.yoyStatus,
+    required this.currInvoices,
+  });
+
+  factory _$SalesGrowthDetailImpl.fromJson(Map<String, dynamic> json) =>
+      _$$SalesGrowthDetailImplFromJson(json);
+
+  @override
+  final String partyName;
+  @override
+  final double currSales;
+  @override
+  final double prevSales;
+  @override
+  final double lySales;
+  @override
+  final double? momGrowth;
+  @override
+  final double? yoyGrowth;
+  @override
+  final String momStatus;
+  @override
+  final String yoyStatus;
+  @override
+  final int currInvoices;
+
+  @override
+  String toString() {
+    return 'SalesGrowthDetail(partyName: $partyName, currSales: $currSales, prevSales: $prevSales, lySales: $lySales, momGrowth: $momGrowth, yoyGrowth: $yoyGrowth, momStatus: $momStatus, yoyStatus: $yoyStatus, currInvoices: $currInvoices)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$SalesGrowthDetailImpl &&
+            (identical(other.partyName, partyName) ||
+                other.partyName == partyName) &&
+            (identical(other.currSales, currSales) ||
+                other.currSales == currSales) &&
+            (identical(other.prevSales, prevSales) ||
+                other.prevSales == prevSales) &&
+            (identical(other.lySales, lySales) || other.lySales == lySales) &&
+            (identical(other.momGrowth, momGrowth) ||
+                other.momGrowth == momGrowth) &&
+            (identical(other.yoyGrowth, yoyGrowth) ||
+                other.yoyGrowth == yoyGrowth) &&
+            (identical(other.momStatus, momStatus) ||
+                other.momStatus == momStatus) &&
+            (identical(other.yoyStatus, yoyStatus) ||
+                other.yoyStatus == yoyStatus) &&
+            (identical(other.currInvoices, currInvoices) ||
+                other.currInvoices == currInvoices));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    partyName,
+    currSales,
+    prevSales,
+    lySales,
+    momGrowth,
+    yoyGrowth,
+    momStatus,
+    yoyStatus,
+    currInvoices,
+  );
+
+  /// Create a copy of SalesGrowthDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$SalesGrowthDetailImplCopyWith<_$SalesGrowthDetailImpl> get copyWith =>
+      __$$SalesGrowthDetailImplCopyWithImpl<_$SalesGrowthDetailImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$SalesGrowthDetailImplToJson(this);
+  }
+}
+
+abstract class _SalesGrowthDetail implements SalesGrowthDetail {
+  const factory _SalesGrowthDetail({
+    required final String partyName,
+    required final double currSales,
+    required final double prevSales,
+    required final double lySales,
+    final double? momGrowth,
+    final double? yoyGrowth,
+    required final String momStatus,
+    required final String yoyStatus,
+    required final int currInvoices,
+  }) = _$SalesGrowthDetailImpl;
+
+  factory _SalesGrowthDetail.fromJson(Map<String, dynamic> json) =
+      _$SalesGrowthDetailImpl.fromJson;
+
+  @override
+  String get partyName;
+  @override
+  double get currSales;
+  @override
+  double get prevSales;
+  @override
+  double get lySales;
+  @override
+  double? get momGrowth;
+  @override
+  double? get yoyGrowth;
+  @override
+  String get momStatus;
+  @override
+  String get yoyStatus;
+  @override
+  int get currInvoices;
+
+  /// Create a copy of SalesGrowthDetail
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$SalesGrowthDetailImplCopyWith<_$SalesGrowthDetailImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }

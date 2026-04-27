@@ -92,6 +92,7 @@ import SaleReturnRatioReport from "./Pages/SaleReturnRatioReport";
 import SaleTargetReport from "./Pages/SaleTargetReport";
 import CancelledOrderRatioReport from "./Pages/CancelledOrderRatioReport";
 import OrderToChallanTimeReport from "./Pages/OrderToChallanTimeReport";
+import PurchaseOrderToChallanTimeReport from "./Pages/PurchaseOrderToChallanTimeReport";
 import CustomerVendorCollectionReport from "./Pages/CustomerVendorCollectionReport";
 import CustomerItemSalesReport from "./Pages/CustomerItemSalesReport";
 import ItemStockSummaryReport from "./Pages/ItemStockSummaryReport";
@@ -220,7 +221,7 @@ function AppLayout() {
                 <Route path="/lenstransaction/lensgroupcreation" element={<LensGroupCreation />} />
                 <Route path="/lenstransaction/sale/saleinvoice" element={<LensSaleInvoice />} />
                 <Route path="/lenstransaction/sale/AddLensSale/:id?" element={<AddLensSale />} />
-                <Route path="/lenstransaction/sale/saleorder" element={<SaleOrder />} />
+                <Route path="/sale-orders" element={<SaleOrder />} />
                 <Route path="/lenstransaction/sale/AddLensSaleOrder/:id?" element={<AddLensSaleOrder />} />
                 <Route path="/lenstransaction/sale/salechallan" element={<SaleChallan />} />
                 <Route path="/lenstransaction/sale/AddLensSaleChallan/:id?" element={<AddLensSaleChallan />} />
@@ -296,6 +297,7 @@ function AppLayout() {
                 <Route path="/reports/otherreports/saletargetreport" element={<SaleTargetReport />} />
                 <Route path="/reports/otherreports/cancelledorderratioreport" element={<CancelledOrderRatioReport />} />
                 <Route path="/reports/otherreports/ordertochallantimereport" element={<OrderToChallanTimeReport />} />
+                <Route path="/reports/otherreports/purchaseordertochallantimereport" element={<PurchaseOrderToChallanTimeReport />} />
                 <Route path="/reports/otherreports/collectiontargetreport" element={<CustomerVendorCollectionReport />} />
 
 

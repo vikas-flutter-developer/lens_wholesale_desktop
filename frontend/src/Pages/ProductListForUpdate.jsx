@@ -14,7 +14,8 @@ import {
   X,
   FileText,
   Save,
-  Trash
+  Trash,
+  Copy
 } from "lucide-react";
 import { getAllItems, bulkUpdateItems, deleteItem, updateItem } from "../controllers/itemcontroller";
 import { getAllGroups } from "../controllers/groupcontroller";
@@ -231,6 +232,73 @@ function ProductListForUpdate() {
     }
   };
 
+  const handleGstBlur = async (itemId) => {
+    const updates = editData[itemId];
+    if (!updates || updates.gst === undefined) return;
+
+    const gst = parseFloat(updates.gst) || 0;
+    const originalItem = items.find((i) => i._id === itemId);
+    if (originalItem && (originalItem.gst || 0) === gst) return;
+
+    try {
+      await updateItem(itemId, { gst });
+      toast.success(`GST updated to ${gst}%`);
+      
+      // Update local state
+      setItems((prev) =>
+        prev.map((i) => (i._id === itemId ? { ...i, gst } : i))
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || "Failed to update GST");
+    }
+  };
+
+  const handleCopyGstToAll = async () => {
+    if (filteredItems.length === 0) return;
+    
+    // Get GST from the first visible item
+    const firstItem = filteredItems[0];
+    const sourceGst = getEffectiveValue(firstItem, "gst");
+    const gstValue = parseFloat(sourceGst) || 0;
+
+    const newEditData = { ...editData };
+    const itemsToUpdate = [];
+
+    filteredItems.forEach(item => {
+      newEditData[item._id] = {
+        ...(newEditData[item._id] || {}),
+        gst: gstValue
+      };
+      
+      if ((item.gst || 0) !== gstValue) {
+        itemsToUpdate.push({
+          id: item._id,
+          gst: gstValue
+        });
+      }
+    });
+    
+    setEditData(newEditData);
+
+    if (itemsToUpdate.length === 0) {
+      toast.success(`All visible items already have GST ${gstValue}%`);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await bulkUpdateItems(itemsToUpdate);
+      toast.success(`GST ${gstValue}% applied to ${itemsToUpdate.length} items`);
+      await fetchData(); // Refresh to reflect DB state
+    } catch (err) {
+      toast.error("Failed to copy GST to all items");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpdateBulk = async () => {
     const itemsToUpdate = Object.entries(editData)
       .filter(([id]) => selectedIds.has(id))
@@ -375,6 +443,16 @@ function ProductListForUpdate() {
                   <th className="px-3 py-3 border-r border-slate-300 w-10">SN</th>
                   <th className="px-3 py-3 border-r border-slate-300 min-w-[200px]">Item Name</th>
                   <th className="px-3 py-3 border-r border-slate-300 min-w-[150px]">Item Group</th>
+                  <th className="px-3 py-3 border-r border-slate-300 w-24 text-right">
+                    GST (%)
+                    <button
+                      onClick={handleCopyGstToAll}
+                      className="ml-1 text-blue-600 hover:text-blue-800"
+                      title="Copy first row GST to all visible rows"
+                    >
+                      <Copy className="w-3 h-3 inline" />
+                    </button>
+                  </th>
                   <th className="px-3 py-3 border-r border-slate-300 w-20 text-right">Pur Price</th>
                   <th className="px-3 py-3 border-r border-slate-300 w-20 text-right">Sale Price</th>
                   <th className="px-3 py-3 border-r border-slate-300 w-20 text-right">Mrp Price</th>
@@ -415,14 +493,15 @@ function ProductListForUpdate() {
                         />
                       </td>
                       <td className="px-3 py-2 border-r border-slate-200 font-bold text-slate-700">{item.groupName}</td>
-                      {/* <td className="px-3 py-2 border-r border-slate-200">
+                      <td className="px-3 py-2 border-r border-slate-200">
                         <input
-                          type="text"
-                          className="w-full border border-slate-200 rounded px-1.5 py-1 outline-none focus:border-blue-400 bg-transparent font-medium"
-                          value={getEffectiveValue(item, "groupName")}
-                          onChange={(e) => handleInputChange(item._id, "groupName", e.target.value)}
+                          type="number"
+                          className="w-full text-right border border-slate-200 rounded px-1.5 py-1 outline-none focus:border-blue-400 bg-transparent font-bold text-slate-800"
+                          value={getEffectiveValue(item, "gst")}
+                          onChange={(e) => handleInputChange(item._id, "gst", e.target.value)}
+                          onBlur={() => handleGstBlur(item._id)}
                         />
-                      </td> */}
+                      </td>
                       <td className="px-3 py-2 border-r border-slate-200">
                         <input
                           type="number"

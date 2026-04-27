@@ -19,6 +19,7 @@ import {
   Mail,
   X,
   FileSpreadsheet,
+  Copy,
 } from "lucide-react";
 import BulkLensMatrixV2 from "../Components/BulkLensMatrixV2";
 import { getAllAccounts } from "../controllers/Account.controller";
@@ -1007,6 +1008,14 @@ function AddRxOrder() {
           copy[index].vendorItemName = selectedItem.vendorItemName || "";
           copy[index].eye = selectedItem.eye ?? copy[index].eye ?? "";
           
+          if (selectedItem.gst > 0) {
+            setTaxes([
+              { id: genTaxId("_cgst"), taxName: "CGST", type: "Additive", percentage: String(selectedItem.gst / 2), amount: "0.00" },
+              { id: genTaxId("_sgst"), taxName: "SGST", type: "Additive", percentage: String(selectedItem.gst / 2), amount: "0.00" },
+              { id: genTaxId("_igst"), taxName: "IGST", type: "Additive", percentage: String(selectedItem.gst), amount: "0.00" },
+            ]);
+          }
+          
           // Default qty to 1 if empty or 0
           const currentQty = parseFloat(copy[index].qty);
           if (isNaN(currentQty) || currentQty <= 0) {
@@ -1045,11 +1054,19 @@ function AddRxOrder() {
                 setItems(prevItems => {
                   const itemsCopy = [...prevItems];
                   if (itemsCopy[index]) {
+                    const fetchedPrice = stockRes.sPrice !== undefined ? stockRes.sPrice : itemsCopy[index].salePrice;
                     itemsCopy[index] = { 
                       ...itemsCopy[index], 
                       avlStk: stockRes.stock,
-                      barcode: stockRes.barcode || itemsCopy[index].barcode || "" 
+                      barcode: stockRes.barcode || itemsCopy[index].barcode || "",
+                      salePrice: fetchedPrice 
                     };
+
+                    // Recalculate totalAmount
+                    const qty = parseFloat(itemsCopy[index].qty) || 0;
+                    const price = parseFloat(itemsCopy[index].salePrice) || 0;
+                    const disc = Number(itemsCopy[index].discount) || 0;
+                    itemsCopy[index].totalAmount = (qty * price - qty * price * (disc / 100)).toFixed(2);
                   }
                   return itemsCopy;
                 });
@@ -1097,6 +1114,29 @@ function AddRxOrder() {
     });
   };
 
+  const copyQtyToAll = () => {
+    const firstQty = Number(items[0]?.qty) || 0;
+    if (firstQty === 0) {
+      toast.error("Enter quantity in first row");
+      return;
+    }
+
+    setItems((prev) => {
+      return prev.map((it, idx) => {
+        if (idx === 0) return it;
+
+        const qty = firstQty;
+        const price = parseFloat(it.salePrice) || 0;
+        const disc = Number(it.discount) || 0;
+        const discountAmount = qty * price * (disc / 100);
+        const totalAmount = (qty * price - discountAmount).toFixed(2);
+
+        return { ...it, qty, totalAmount };
+      });
+    });
+    toast.success(`Copied quantity ${firstQty} to all rows`);
+  };
+
   const handleBarcodeBlur = async (barcode, rowIndex) => {
     if (!barcode || barcode.trim() === "") return;
     try {
@@ -1106,6 +1146,7 @@ function AddRxOrder() {
           const c = [...prev];
           const row = c[rowIndex];
           row.itemName = barcodeData.itemName || row.itemName;
+          row.billItemName = barcodeData.billItemName || "";
           row.eye = barcodeData.eye || row.eye;
           row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
           row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
@@ -1306,7 +1347,7 @@ function AddRxOrder() {
           }
        } catch (e) {}
 
-      navigate("/lenstransaction/sale/saleorder"); // Redirect to Sale Order page
+      navigate("/sale-orders?tab=rx"); // Redirect to Sale Order page
     } else {
       toast.error(res.error || res.message || "Failed to save");
     }
@@ -1529,7 +1570,16 @@ function AddRxOrder() {
                   <th className="w-16 px-2 py-2 text-[10px] font-black text-blue-600 uppercase tracking-wider text-center border-b border-blue-100 bg-blue-50/30">Cyl</th>
                   <th className="w-16 px-2 py-2 text-[10px] font-black text-blue-600 uppercase tracking-wider text-center border-b border-blue-100 bg-blue-50/30">Axis</th>
                   <th className="w-16 px-2 py-2 text-[10px] font-black text-blue-600 uppercase tracking-wider text-center border-b border-blue-100 bg-blue-50/30">Add</th>
-                  <th className="w-20 px-2 py-2 text-[10px] font-black text-emerald-600 uppercase tracking-wider text-right border-b border-emerald-100 bg-emerald-50/30 font-mono">Qty</th>
+                  <th className="w-20 px-2 py-2 text-[10px] font-black text-emerald-600 uppercase tracking-wider text-right border-b border-emerald-100 bg-emerald-50/30 font-mono">
+                    <div className="flex items-center justify-end gap-1">
+                      Qty
+                      {!isReadOnly && (
+                        <button onClick={copyQtyToAll} title="Copy first row quantity to all" className="p-0.5 hover:bg-emerald-100 rounded transition-colors text-emerald-700">
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </th>
                   <th className="w-24 px-2 py-2 text-[10px] font-black text-slate-500 uppercase tracking-wider text-right border-b border-slate-100 font-mono">Price</th>
                   <th className="w-16 px-2 py-2 text-[10px] font-black text-red-500 uppercase tracking-wider text-right border-b border-red-100 bg-red-50/30 font-mono">Disc%</th>
                   <th className="w-28 px-2 py-2 text-[10px] font-black text-slate-800 uppercase tracking-wider text-right border-b border-slate-100 font-mono">Total Amnt</th>

@@ -26,6 +26,8 @@ const ContactLensPurchaseOrderSchema = new mongoose.Schema(
             {
                 barcode: { type: String, default: "" },
                 itemName: { type: String, default: "" },
+                billItemName: { type: String, default: "" },
+                vendorItemName: { type: String, default: "" },
                 unit: { type: String, default: "" },
                 qty: { type: Number, default: 0 },
                 importDate: { type: Date, default: null },

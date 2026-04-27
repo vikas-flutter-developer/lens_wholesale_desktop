@@ -77,16 +77,78 @@ class _ProductListForUpdatePageState extends State<ProductListForUpdatePage> {
     return val % 1 == 0 ? val.toInt().toString() : val.toString();
   }
 
-  dynamic _getEffectiveValue(ItemMasterModel item, String field) {
+  String _getEffectiveValue(ItemMasterModel item, String field) {
     if (_editData.containsKey(item.id) && _editData[item.id]!.containsKey(field)) {
-      return _editData[item.id]![field];
+      return _editData[item.id]![field].toString();
     }
     switch (field) {
       case 'itemName': return item.itemName;
       case 'purchasePrice': return _formatPrice(item.purchasePrice);
       case 'salePrice': return _formatPrice(item.salePrice);
       case 'mrpPrice': return _formatPrice(item.mrpPrice);
+      case 'gst': return _formatPrice(item.gst);
       default: return '';
+    }
+  }
+
+  Future<void> _handleCopyGstToAll(List<ItemMasterModel> visibleItems) async {
+    if (visibleItems.isEmpty) return;
+    
+    // Get GST from the first visible item
+    final firstItem = visibleItems[0];
+    final sourceGstStr = _getEffectiveValue(firstItem, 'gst');
+    final gstValue = double.tryParse(sourceGstStr) ?? 0.0;
+
+    final List<Map<String, dynamic>> itemsToUpdate = [];
+    
+    setState(() {
+      for (var item in visibleItems) {
+        // 1. Update local edit state (merge like React)
+        if (!_editData.containsKey(item.id)) {
+          _editData[item.id!] = {};
+        }
+        _editData[item.id!]!['gst'] = gstValue;
+
+        // 2. Build partial update list for backend
+        if ((item.gst ?? 0.0) != gstValue) {
+          itemsToUpdate.add({
+            'id': item.id,
+            'gst': gstValue,
+          });
+        }
+      }
+    });
+
+    if (itemsToUpdate.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("All visible items already have GST $gstValue%"),
+        backgroundColor: Colors.blue,
+      ));
+      return;
+    }
+
+    setState(() => _isOperationLoading = true);
+    try {
+      final provider = context.read<ItemMasterProvider>();
+      await provider.bulkUpdateItems(itemsToUpdate);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("GST $gstValue% applied to ${itemsToUpdate.length} items"),
+          backgroundColor: Colors.green,
+        ));
+      }
+      // Re-fetch to sync master list, but keep local edit state for other unsaved changes
+      await _fetchData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Failed to copy GST: $e"),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      setState(() => _isOperationLoading = false);
     }
   }
 
@@ -110,6 +172,7 @@ class _ProductListForUpdatePageState extends State<ProductListForUpdatePage> {
           purchasePrice: double.tryParse(updates['purchasePrice']?.toString() ?? '') ?? originalItem.purchasePrice,
           salePrice: double.tryParse(updates['salePrice']?.toString() ?? '') ?? originalItem.salePrice,
           mrpPrice: double.tryParse(updates['mrpPrice']?.toString() ?? '') ?? originalItem.mrpPrice,
+          gst: double.tryParse(updates['gst']?.toString() ?? '') ?? originalItem.gst,
         ));
       }
 
@@ -533,9 +596,24 @@ class _ProductListForUpdatePageState extends State<ProductListForUpdatePage> {
                             const DataColumn(label: Text('SN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
                             const DataColumn(label: Text('ITEM NAME', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
                             const DataColumn(label: Text('ITEM GROUP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
-                            const DataColumn(label: Text('PUR PRICE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
-                            const DataColumn(label: Text('SALE PRICE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
-                            const DataColumn(label: Text('MRP PRICE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
+                             DataColumn(
+                               label: Row(
+                                 children: [
+                                   const Text('GST (%)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                                   const SizedBox(width: 4),
+                                   InkWell(
+                                     onTap: () => _handleCopyGstToAll(items),
+                                     child: Tooltip(
+                                       message: "Copy first row GST to all visible rows",
+                                       child: const Icon(LucideIcons.copy, size: 12, color: Colors.blue),
+                                     ),
+                                   ),
+                                 ],
+                               ),
+                             ),
+                             const DataColumn(label: Text('PUR PRICE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
+                             const DataColumn(label: Text('SALE PRICE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
+                             const DataColumn(label: Text('MRP PRICE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)))),
                             DataColumn(
                               label: SizedBox(
                                 width: 24,
@@ -581,6 +659,7 @@ class _ProductListForUpdatePageState extends State<ProductListForUpdatePage> {
                                   ),
                                 ),
                                 DataCell(Text(item.groupName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF475569)))),
+                                _priceCell(item, 'gst'),
                                 _priceCell(item, 'purchasePrice'),
                                 _priceCell(item, 'salePrice'),
                                 _priceCell(item, 'mrpPrice'),

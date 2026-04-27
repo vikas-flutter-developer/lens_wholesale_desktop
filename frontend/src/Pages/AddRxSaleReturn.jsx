@@ -566,6 +566,7 @@ function AddRxSaleReturn() {
       copy[index] = {
         ...copy[index],
         itemName: lens.productName || "",
+        billItemName: lens.billItemName || "",
         salePrice: computedPrice,
         eye: lens.eye ?? copy[index].eye ?? "",
       };
@@ -733,6 +734,8 @@ function AddRxSaleReturn() {
           (lens) => lens.productName === value
         );
         if (selectedItem) {
+          copy[index].itemName = selectedItem.productName || "";
+          copy[index].billItemName = selectedItem.billItemName || "";
           const computedPrice = getSalePriceForCategory(selectedItem, category);
           copy[index].salePrice = computedPrice;
           copy[index].eye = selectedItem.eye ?? copy[index].eye ?? "";

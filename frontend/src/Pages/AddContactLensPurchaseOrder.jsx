@@ -178,6 +178,7 @@ function AddContactLensPurchaseOrder() {
             const c = [...prev];
             const row = c[rowIndex];
             row.itemName = barcodeData.itemName || row.itemName;
+            row.billItemName = barcodeData.billItemName || "";
             row.eye = barcodeData.eye || row.eye;
             row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
             row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
@@ -443,6 +444,14 @@ function AddContactLensPurchaseOrder() {
         setItems(prev => {
             const copy = [...prev];
             copy[index] = { ...copy[index], [field]: value };
+
+            if (field === "itemName") {
+              const selectedItem = allLens.find((lens) => lens.productName === value);
+              if (selectedItem) {
+                copy[index].billItemName = selectedItem.billItemName || "";
+              }
+            }
+
             const qty = parseFloat(copy[index].qty) || 0;
             const price = parseFloat(copy[index].purchasePrice) || 0;
             const disc = parseFloat(copy[index].discount) || 0;
@@ -489,6 +498,7 @@ function AddContactLensPurchaseOrder() {
 
     const selectLens = (lens, index) => {
         updateItem(index, "itemName", lens.productName);
+        updateItem(index, "billItemName", lens.billItemName || "");
         if (lens.eye) updateItem(index, "eye", lens.eye);
         updateItem(index, "purchasePrice", lens.purchasePrice || 0);
         updateItem(index, "salePrice", lens.salePrice?.default || lens.salePrice || 0);
@@ -632,6 +642,10 @@ function AddContactLensPurchaseOrder() {
     const handleReset = () => window.location.reload();
 
     const handleSave = async () => {
+        if (!partyData?.partyAccount) {
+            toast.error("Please select vendor name");
+            return;
+        }
         const { newItems } = validateAllRows();
 
         // Basic validation for essential fields

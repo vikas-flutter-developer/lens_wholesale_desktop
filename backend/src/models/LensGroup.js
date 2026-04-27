@@ -30,7 +30,9 @@ const CombinationSchema = new mongoose.Schema({
   locationQty: String,
   isVerified: { type: Boolean, default: false },
   lastVerifiedDate: { type: Date },
-  verifiedQty: { type: Number }
+  verifiedQty: { type: Number },
+  // NEW: Reference to the power group this combination belongs to
+  powerGroupId: { type: mongoose.Schema.Types.ObjectId, default: null }
 });
 
 
@@ -41,7 +43,9 @@ const AddGroupSchema = new mongoose.Schema({
 
 const LensGroupSchema = new mongoose.Schema({
   groupName: { type: String, required: true },
-  productName: { type: String, required: true, unique: true },
+  // NOTE: unique: true removed — was enforcing global uniqueness across ALL companies (wrong for multi-tenant).
+  // Uniqueness is now enforced per-company via the compound index below.
+  productName: { type: String, required: true },
   vendorItemName: { type: String, default: "" },
   billItemName: { type: String, default: "" },
   visionType: {
@@ -74,6 +78,7 @@ const LensGroupSchema = new mongoose.Schema({
 
   addGroups: [AddGroupSchema],
   powerGroups: [{
+    _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
     sphMin: Number,
     sphMax: Number,
     sphStep: { type: Number, default: 0.25 },
@@ -94,5 +99,11 @@ const LensGroupSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Compound unique index: same productName allowed across different companies,
+// but NOT duplicated within the same company.
+// { sparse: true } handles the case where companyId is null (legacy data).
+LensGroupSchema.index({ productName: 1, companyId: 1 }, { unique: true, sparse: true });
+
 const LensGroup = mongoose.model("LensGroup", LensGroupSchema);
 export default LensGroup;
+

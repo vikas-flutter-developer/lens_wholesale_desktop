@@ -69,7 +69,7 @@ const ShortcutKeysPage = () => {
     
     // Sale
     { name: "Sale Invoice", url: "/lenstransaction/sale/saleinvoice", module: "Sale" },
-    { name: "Sale Order", url: "/lenstransaction/sale/saleorder", module: "Sale" },
+    { name: "Sale Order", url: "/sale-orders", module: "Sale" },
     { name: "Sale Challan", url: "/lenstransaction/sale/salechallan", module: "Sale" },
     { name: "Sale Return", url: "/lenstransaction/salereturn", module: "Sale" },
     { name: "Lens Rate Master", url: "/lenstransaction/lensratemaster", module: "Sale" },

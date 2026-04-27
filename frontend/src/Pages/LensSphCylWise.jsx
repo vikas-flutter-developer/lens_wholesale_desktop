@@ -323,7 +323,7 @@ function LensSPhCYLWise() {
             addMax: data.addMax ?? "",
             addStep: data.addStep ?? "0.25",
             axis: data.axis ?? "",
-            eye: data.eye ?? "",
+            eye: (data.eye === "RL" || data.eye === "R/L") ? "RL" : (data.eye === "BOTH_RL" || data.eye === "BOTH") ? "BOTH" : (data.eye || ""),
             powerGroups: mergedPowerGroups
           }));
           setNewData(data);
@@ -359,7 +359,7 @@ function LensSPhCYLWise() {
       addMax: pg.addMax ?? "",
       addStep: pg.addStep ?? "0.25",
       axis: pg.axis ?? "",
-      eye: pg.eye ?? "",
+      eye: (pg.eye === "RL" || pg.eye === "R/L") ? "RL" : (pg.eye === "BOTH" || pg.eye === "BOTH_RL") ? "BOTH" : (pg.eye || ""),
     }));
     toast.success(`Filter switched to: ${pg.label || "Group " + (idx + 1)}`);
   };
@@ -587,11 +587,14 @@ function LensSPhCYLWise() {
       }
 
       if (eyeFilter !== null) {
-        const rowEye = (row.eye ?? dataToUse.eye ?? "").toString();
+        const rowEye = (row.eye ?? dataToUse.eye ?? "").toString().toUpperCase();
         if (eyeFilter === "RL") {
-          // Show R, L and R/L variant items when "Both (RL)" is selected
-          if (rowEye !== "R" && rowEye !== "L" && rowEye !== "R/L" && rowEye !== "RL") return false;
-        } else if (rowEye !== eyeFilter) return false;
+          // Combined: Allow R, L, RL, R/L through so they can be merged into a single RL row via pivot logic
+          if (rowEye !== "RL" && rowEye !== "R/L" && rowEye !== "R" && rowEye !== "L") return false;
+        } else if (eyeFilter === "BOTH") {
+          // Separate: Allow R, L, RL, R/L through (R and L will be separate, RL will be its own row)
+          if (rowEye !== "R" && rowEye !== "L" && rowEye !== "RL" && rowEye !== "R/L") return false;
+        } else if (rowEye !== eyeFilter.toUpperCase()) return false;
       }
 
       // (Filtered primarily by numeric inputs above)
@@ -673,18 +676,49 @@ function LensSPhCYLWise() {
     sourceRows.forEach((r) => {
       const sph = Number(r.sph);
       const cyl = Number(r.cyl);
-      const eye = (r.eye ?? newData?.eye ?? "").toString();
+      
+      const rawEye = (r.eye ?? newData?.eye ?? "").toString().toUpperCase();
+      const filterEye = (formData.eye || "").toUpperCase();
+      const itemConfigEye = (newData?.eye || "").toUpperCase();
+      
+      let groupingEye = rawEye;
+      if (filterEye === "RL" || itemConfigEye === "RL") {
+        if (["RL", "R/L", "R", "L"].includes(rawEye)) groupingEye = "RL";
+      }
+
       const axis = (r.axis ?? newData?.axis ?? "").toString();
-      const key = `${sph}__${cyl}__${eye}__${axis}`;
-      if (!comboMap.has(key)) comboMap.set(key, { sph, cyl, eye, axis, stocks: {}, barcodes: {} });
+      const key = `${sph}__${cyl}__${groupingEye}__${axis}`;
+      if (!comboMap.has(key)) comboMap.set(key, { 
+        sph, 
+        cyl, 
+        eye: groupingEye, 
+        axis, 
+        stocks: {}, 
+        barcodes: {},
+        eyeStocks: {} // Temp storage to handle R/L merging without doubling
+      });
 
       const entry = comboMap.get(key);
       const add = parseFloat(r.addValue);
-      if (isNaN(add)) return; // skip bad add
+      if (isNaN(add)) return;
       const stockVal = Number(r.initStock ?? 0);
-      entry.stocks[add] = (entry.stocks[add] || 0) + (isNaN(stockVal) ? 0 : stockVal);
-      // Store barcode – if multiple exist for same key (unlikely in this context), take latest
+      
+      if (!entry.eyeStocks[add]) entry.eyeStocks[add] = {};
+      entry.eyeStocks[add][rawEye] = (entry.eyeStocks[add][rawEye] || 0) + stockVal;
+
       if (r.barcode) entry.barcodes[add] = r.barcode;
+    });
+
+    // Finalize stocks: If eye is RL, take MAX of eye variants (don't double 96+96), else SUM
+    comboMap.forEach((entry) => {
+      Object.keys(entry.eyeStocks).forEach((add) => {
+        const eyeVals = Object.values(entry.eyeStocks[add]);
+        if (entry.eye === "RL") {
+          entry.stocks[add] = Math.max(...eyeVals, 0);
+        } else {
+          entry.stocks[add] = eyeVals.reduce((sum, v) => sum + v, 0);
+        }
+      });
     });
 
     // build rows array including total (sum over addValues)
@@ -726,17 +760,27 @@ function LensSPhCYLWise() {
     sourceRows.forEach((r) => {
       const sph = Number(r.sph);
       const cyl = Number(r.cyl);
-      const eye = (r.eye ?? newData?.eye ?? "").toString();
+      
+      const rawEye = (r.eye ?? newData?.eye ?? "").toString().toUpperCase();
+      const filterEye = (formData.eye || "").toUpperCase();
+      const itemConfigEye = (newData?.eye || "").toUpperCase();
+      
+      let groupingEye = rawEye;
+      if (filterEye === "RL" || itemConfigEye === "RL") {
+        if (["RL", "R/L", "R", "L"].includes(rawEye)) groupingEye = "RL";
+      }
+
       const axis = (r.axis ?? newData?.axis ?? "").toString();
-      const key = `${sph}__${cyl}__${eye}__${axis}`;
+      const key = `${sph}__${cyl}__${groupingEye}__${axis}`;
 
       if (!comboMap.has(key)) comboMap.set(key, {
         sph,
         cyl,
-        eye,
+        eye: groupingEye,
         axis,
         stocks: {},
-        keys: {} // Map addValue -> uniqueStateKey for editing
+        keys: {}, // Map addValue -> uniqueStateKey for editing
+        eyeStocks: {}
       });
 
       const entry = comboMap.get(key);
@@ -747,12 +791,25 @@ function LensSPhCYLWise() {
       const alert = Number(r.alertQty ?? 0);
       const shortage = Math.max(alert - stock, 0);
 
-      entry.stocks[add] = (entry.stocks[add] || 0) + shortage;
+      if (!entry.eyeStocks[add]) entry.eyeStocks[add] = {};
+      entry.eyeStocks[add][rawEye] = (entry.eyeStocks[add][rawEye] || 0) + shortage;
 
       // key for editing state
       if (r.groupId) {
         entry.keys[add] = `${r.groupId}_${sph}_${cyl}`;
       }
+    });
+
+    // Finalize Reorder stocks (MAX for RL, SUM for others)
+    comboMap.forEach((entry) => {
+      Object.keys(entry.eyeStocks).forEach((add) => {
+        const eyeVals = Object.values(entry.eyeStocks[add]);
+        if (entry.eye === "RL") {
+          entry.stocks[add] = Math.max(...eyeVals, 0);
+        } else {
+          entry.stocks[add] = eyeVals.reduce((sum, v) => sum + v, 0);
+        }
+      });
     });
 
     const rows = Array.from(comboMap.values()).map((entry) => {
@@ -791,16 +848,26 @@ function LensSPhCYLWise() {
     sourceRows.forEach((r) => {
       const sph = Number(r.sph);
       const cyl = Number(r.cyl);
-      const eye = (r.eye ?? newData?.eye ?? "").toString();
+      
+      const rawEye = (r.eye ?? newData?.eye ?? "").toString().toUpperCase();
+      const filterEye = (formData.eye || "").toUpperCase();
+      const itemConfigEye = (newData?.eye || "").toUpperCase();
+      
+      let groupingEye = rawEye;
+      if (filterEye === "RL" || itemConfigEye === "RL") {
+        if (["RL", "R/L", "R", "L"].includes(rawEye)) groupingEye = "RL";
+      }
+
       const axis = (r.axis ?? newData?.axis ?? "").toString();
-      const key = `${sph}__${cyl}__${eye}__${axis}`;
+      const key = `${sph}__${cyl}__${groupingEye}__${axis}`;
 
       if (!comboMap.has(key)) comboMap.set(key, {
         sph,
         cyl,
-        eye,
+        eye: groupingEye,
         axis,
         stocks: {},
+        eyeStocks: {}
       });
 
       const entry = comboMap.get(key);
@@ -810,7 +877,21 @@ function LensSPhCYLWise() {
       const stock = Number(r.initStock ?? 0);
       const alert = Number(r.alertQty ?? 0);
       const diff = Math.max(stock - alert, 0);
-      entry.stocks[add] = (entry.stocks[add] || 0) + (isNaN(diff) ? 0 : diff);
+
+      if (!entry.eyeStocks[add]) entry.eyeStocks[add] = {};
+      entry.eyeStocks[add][rawEye] = (entry.eyeStocks[add][rawEye] || 0) + (isNaN(diff) ? 0 : diff);
+    });
+
+    // Finalize Excess stocks (MAX for RL, SUM for others)
+    comboMap.forEach((entry) => {
+      Object.keys(entry.eyeStocks).forEach((add) => {
+        const eyeVals = Object.values(entry.eyeStocks[add]);
+        if (entry.eye === "RL") {
+          entry.stocks[add] = Math.max(...eyeVals, 0);
+        } else {
+          entry.stocks[add] = eyeVals.reduce((sum, v) => sum + v, 0);
+        }
+      });
     });
 
     const rows = Array.from(comboMap.values()).map((entry) => {
@@ -1506,8 +1587,8 @@ function LensSPhCYLWise() {
                   <option value="">Select Eye</option>
                   <option value="R">Right (R)</option>
                   <option value="L">Left (L)</option>
-                  <option value="R/L">RL</option>
-                  <option value="RL">Both (RL)</option>
+                  <option value="RL">RL</option>
+                  <option value="BOTH">Both (RL)</option>
                 </select>
                 <label htmlFor="eye" className="absolute left-3 -top-2.5 text-xs font-medium bg-white px-2 text-gray-500">Eye (RL)</label>
               </div>
@@ -1601,7 +1682,7 @@ function LensSPhCYLWise() {
                         <tr key={`${r.sph}_${r.cyl}_${r.eye}_${idx}`} className="hover:bg-slate-50 border-b border-slate-100">
                           <td className="py-1 px-2 font-medium text-slate-700">{Number(r.sph).toFixed(2)}</td>
                           <td className="py-1 px-2 font-medium text-slate-700">{Number(r.cyl).toFixed(2)}</td>
-                          <td className="py-1 px-2 text-slate-700">{r.eye || "RL"}</td>
+                          <td className="py-1 px-2 text-slate-700">{(r.eye === "RL" || r.eye === "R/L") ? "R/L" : r.eye}</td>
                           <td className="py-1 px-2 text-slate-700 font-mono tracking-tighter">{r.axis || "0"}</td>
 
                           {addPivot.addValues.map((a) => {
@@ -1678,7 +1759,7 @@ function LensSPhCYLWise() {
                           <tr key={`reorder-row-${r.sph}_${r.cyl}_${r.eye}_${idx}`} className="hover:bg-red-50/30 border-b border-red-100">
                             <td className="py-1 px-2 font-bold text-red-900 bg-red-50/30">{Number(r.sph).toFixed(2)}</td>
                             <td className="py-1 px-2 font-bold text-red-900 bg-red-50/30">{Number(r.cyl).toFixed(2)}</td>
-                            <td className="py-1 px-2 font-bold text-red-900 bg-red-50/30">{r.eye || "RL"}</td>
+                            <td className="py-1 px-2 font-bold text-red-900 bg-red-50/30">{(r.eye === "RL" || r.eye === "R/L") ? "R/L" : (r.eye || "RL")}</td>
                             <td className="py-1 px-2 font-bold text-red-900 bg-red-50/30">{r.axis || "0"}</td>
 
                             {reorderPivot.addValues.map((a) => {
@@ -1774,7 +1855,7 @@ function LensSPhCYLWise() {
                           <tr key={`excess-row-${r.sph}_${r.cyl}_${r.eye}_${idx}`} className="hover:bg-emerald-50/30 border-b border-emerald-100">
                             <td className="py-1 px-2 font-bold text-emerald-900 bg-emerald-50/30">{Number(r.sph).toFixed(2)}</td>
                             <td className="py-1 px-2 font-bold text-emerald-900 bg-emerald-50/30">{Number(r.cyl).toFixed(2)}</td>
-                            <td className="py-1 px-2 font-bold text-emerald-900 bg-emerald-50/30">{r.eye || "RL"}</td>
+                            <td className="py-1 px-2 font-bold text-emerald-900 bg-emerald-50/30">{(r.eye === "RL" || r.eye === "R/L") ? "R/L" : (r.eye || "RL")}</td>
                             <td className="py-1 px-2 font-bold text-emerald-900 bg-emerald-50/30">{r.axis || "0"}</td>
 
                             {excessPivot.addValues.map((a) => {

@@ -16,6 +16,11 @@ _$OrderToChallanReportImpl _$$OrderToChallanReportImplFromJson(
   details: (json['details'] as List<dynamic>)
       .map((e) => OrderToChallanDetail.fromJson(e as Map<String, dynamic>))
       .toList(),
+  trend:
+      (json['trend'] as List<dynamic>?)
+          ?.map((e) => OrderToChallanTrend.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$$OrderToChallanReportImplToJson(
@@ -24,6 +29,7 @@ Map<String, dynamic> _$$OrderToChallanReportImplToJson(
   'success': instance.success,
   'summary': instance.summary,
   'details': instance.details,
+  'trend': instance.trend,
 };
 
 _$OrderToChallanSummaryImpl _$$OrderToChallanSummaryImplFromJson(
@@ -47,15 +53,15 @@ Map<String, dynamic> _$$OrderToChallanSummaryImplToJson(
 _$OrderToChallanDetailImpl _$$OrderToChallanDetailImplFromJson(
   Map<String, dynamic> json,
 ) => _$OrderToChallanDetailImpl(
-  orderNo: json['orderNo'] as String,
-  orderDate: json['orderDate'] as String,
-  orderCreatedAt: json['orderCreatedAt'] as String,
+  orderNo: json['orderNo'] as String? ?? '',
+  orderDate: json['orderDate'] as String? ?? '',
+  orderCreatedAt: json['orderCreatedAt'] as String? ?? '',
   challanNo: json['challanNo'] as String?,
   challanDate: json['challanDate'] as String?,
   challanCreatedAt: json['challanCreatedAt'] as String?,
-  partyName: json['partyName'] as String,
-  timeDifference: (json['timeDifference'] as num).toDouble(),
-  status: json['status'] as String,
+  partyName: json['partyName'] as String? ?? '',
+  timeDifference: (json['timeDifference'] as num?)?.toDouble(),
+  status: json['status'] as String? ?? '',
 );
 
 Map<String, dynamic> _$$OrderToChallanDetailImplToJson(
@@ -71,6 +77,17 @@ Map<String, dynamic> _$$OrderToChallanDetailImplToJson(
   'timeDifference': instance.timeDifference,
   'status': instance.status,
 };
+
+_$OrderToChallanTrendImpl _$$OrderToChallanTrendImplFromJson(
+  Map<String, dynamic> json,
+) => _$OrderToChallanTrendImpl(
+  period: json['period'] as String,
+  avgTime: (json['avgTime'] as num).toDouble(),
+);
+
+Map<String, dynamic> _$$OrderToChallanTrendImplToJson(
+  _$OrderToChallanTrendImpl instance,
+) => <String, dynamic>{'period': instance.period, 'avgTime': instance.avgTime};
 
 _$CancelledOrderRatioReportImpl _$$CancelledOrderRatioReportImplFromJson(
   Map<String, dynamic> json,
@@ -131,7 +148,7 @@ _$CancelledOrderRatioDetailImpl _$$CancelledOrderRatioDetailImplFromJson(
   partyName: json['partyName'] as String,
   status: json['status'] as String,
   netAmount: (json['netAmount'] as num).toDouble(),
-  cancelledOrders: json['cancelledOrders'] as bool,
+  cancelledOrders: (json['cancelledOrders'] as num).toInt(),
 );
 
 Map<String, dynamic> _$$CancelledOrderRatioDetailImplToJson(
@@ -232,4 +249,80 @@ Map<String, dynamic> _$$PartyWiseReturnRatioImplToJson(
   'totalReturn': instance.totalReturn,
   'netSale': instance.netSale,
   'ratio': instance.ratio,
+};
+
+_$SalesGrowthReportImpl _$$SalesGrowthReportImplFromJson(
+  Map<String, dynamic> json,
+) => _$SalesGrowthReportImpl(
+  success: json['success'] as bool,
+  summary: SalesGrowthSummary.fromJson(json['summary'] as Map<String, dynamic>),
+  data: (json['data'] as List<dynamic>)
+      .map((e) => SalesGrowthDetail.fromJson(e as Map<String, dynamic>))
+      .toList(),
+);
+
+Map<String, dynamic> _$$SalesGrowthReportImplToJson(
+  _$SalesGrowthReportImpl instance,
+) => <String, dynamic>{
+  'success': instance.success,
+  'summary': instance.summary,
+  'data': instance.data,
+};
+
+_$SalesGrowthSummaryImpl _$$SalesGrowthSummaryImplFromJson(
+  Map<String, dynamic> json,
+) => _$SalesGrowthSummaryImpl(
+  currLabel: json['currLabel'] as String,
+  prevLabel: json['prevLabel'] as String,
+  lyLabel: json['lyLabel'] as String,
+  currTotal: (json['currTotal'] as num).toDouble(),
+  prevTotal: (json['prevTotal'] as num).toDouble(),
+  lyTotal: (json['lyTotal'] as num).toDouble(),
+  momGrowthPct: (json['momGrowthPct'] as num).toDouble(),
+  yoyGrowthPct: (json['yoyGrowthPct'] as num).toDouble(),
+  growingParties: (json['growingParties'] as num).toInt(),
+  degrowingParties: (json['degrowingParties'] as num).toInt(),
+);
+
+Map<String, dynamic> _$$SalesGrowthSummaryImplToJson(
+  _$SalesGrowthSummaryImpl instance,
+) => <String, dynamic>{
+  'currLabel': instance.currLabel,
+  'prevLabel': instance.prevLabel,
+  'lyLabel': instance.lyLabel,
+  'currTotal': instance.currTotal,
+  'prevTotal': instance.prevTotal,
+  'lyTotal': instance.lyTotal,
+  'momGrowthPct': instance.momGrowthPct,
+  'yoyGrowthPct': instance.yoyGrowthPct,
+  'growingParties': instance.growingParties,
+  'degrowingParties': instance.degrowingParties,
+};
+
+_$SalesGrowthDetailImpl _$$SalesGrowthDetailImplFromJson(
+  Map<String, dynamic> json,
+) => _$SalesGrowthDetailImpl(
+  partyName: json['partyName'] as String,
+  currSales: (json['currSales'] as num).toDouble(),
+  prevSales: (json['prevSales'] as num).toDouble(),
+  lySales: (json['lySales'] as num).toDouble(),
+  momGrowth: (json['momGrowth'] as num?)?.toDouble(),
+  yoyGrowth: (json['yoyGrowth'] as num?)?.toDouble(),
+  momStatus: json['momStatus'] as String,
+  yoyStatus: json['yoyStatus'] as String,
+  currInvoices: (json['currInvoices'] as num).toInt(),
+);
+
+Map<String, dynamic> _$$SalesGrowthDetailImplToJson(
+  _$SalesGrowthDetailImpl instance,
+) => <String, dynamic>{
+  'partyName': instance.partyName,
+  'currSales': instance.currSales,
+  'prevSales': instance.prevSales,
+  'lySales': instance.lySales,
+  'momGrowth': instance.momGrowth,
+  'yoyGrowth': instance.yoyGrowth,
+  'momStatus': instance.momStatus,
+  'yoyStatus': instance.yoyStatus,
+  'currInvoices': instance.currInvoices,
 };

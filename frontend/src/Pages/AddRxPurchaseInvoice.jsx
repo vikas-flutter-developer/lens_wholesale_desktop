@@ -665,6 +665,7 @@ function AddRxPurchaseInvoice() {
       copy[index] = {
         ...copy[index],
         itemName: lens.productName || "",
+        billItemName: lens.billItemName || "",
         salePrice: prices.sale,
         purchasePrice: prices.purchase,
         eye: lens.eye ?? copy[index].eye ?? "",

@@ -3,7 +3,8 @@ import LensSale from "../models/LensSale.js";
 import LensSaleOrder from "../models/LensSaleOrder.js";
 import LensPurchaseChallan from "../models/LensPurchaseChallan.js";
 import LensSaleChallan from "../models/LensSaleChallan.js";
-import { purchaseLedgerAggregation, saleLedgerAggregation, saleOrderLedgerAggregation, purchaseChallanLedgerAggregation, saleChallanLedgerAggregation } from "../aggregations/ledger.aggregation.js"
+import { purchaseLedgerAggregation, saleLedgerAggregation, saleOrderLedgerAggregation, purchaseChallanLedgerAggregation, saleChallanLedgerAggregation, voucherLedgerAggregation } from "../aggregations/ledger.aggregation.js"
+import Voucher from "../models/Voucher.model.js";
 
 /**
  * LEDGER ENTRY FLOW:
@@ -113,12 +114,32 @@ async function getAccountLedger(req, res) {
         { $group: { _id: null, opening: { $sum: "$balanceImpact" } } },
       ]);
 
+      // Opening: Vouchers before fromDate
+      const openingAggVoucher = await Voucher.aggregate([
+        {
+          $match: Object.assign(
+            {},
+            partyAccount ? { "rows.account": partyAccount } : {},
+            { "date": { $lt: fromDateObj } }
+          )
+        },
+        { $unwind: "$rows" },
+        { $match: partyAccount ? { "rows.account": partyAccount } : {} },
+        {
+          $project: {
+            balanceImpact: { $subtract: ["$rows.credit", "$rows.debit"] }
+          }
+        },
+        { $group: { _id: null, opening: { $sum: "$balanceImpact" } } }
+      ]);
+
       const opPurch = openingAggPurch?.[0]?.opening || 0;
       const opSale = openingAggSale?.[0]?.opening || 0;
       const opPurchChallan = openingAggPurchChallan?.[0]?.opening || 0;
       const opSaleChallan = openingAggSaleChallan?.[0]?.opening || 0;
+      const opVoucher = openingAggVoucher?.[0]?.opening || 0;
 
-      openingBalance = opPurch + opSale + opPurchChallan + opSaleChallan;
+      openingBalance = opPurch + opSale + opPurchChallan + opSaleChallan + opVoucher;
     }
 
     // fetch purchase and sale ledger rows within date range
@@ -145,8 +166,20 @@ async function getAccountLedger(req, res) {
       saleOrderLedgerAggregation({ partyAccount, fromDate: fromDateObj, toDate: toDateObj })
     );
 
+    // include vouchers
+    const voucherRows = await Voucher.aggregate(
+      voucherLedgerAggregation({ partyAccount, fromDate: fromDateObj, toDate: toDateObj })
+    );
+
     // combine and sort by date (and keep stable order)
-    const ledgerData = [...purchaseRows, ...saleRows, ...purchaseChallanRows, ...saleChallanRows, ...saleOrderRows].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const ledgerData = [
+      ...purchaseRows,
+      ...saleRows,
+      ...purchaseChallanRows,
+      ...saleChallanRows,
+      ...saleOrderRows,
+      ...voucherRows
+    ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     let runningBalance = Number(openingBalance) || 0;
     const result = ledgerData.map((row, index) => {

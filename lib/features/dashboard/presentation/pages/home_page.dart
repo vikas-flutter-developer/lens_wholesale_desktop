@@ -551,6 +551,10 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: 32),
 
+              // Quick Actions
+              _buildQuickShortcutsContainer(),
+              const SizedBox(height: 32),
+
               // Main Row: Party + Barcode
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,10 +590,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-
-              // Quick Actions
-              _buildQuickShortcutsContainer(),
             ],
           ),
         ),

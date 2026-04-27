@@ -368,7 +368,7 @@ function LensPrice() {
                       </td>
                       <td className="py-4 px-3 text-slate-700 align-top text-center">
                         <span className="inline-flex px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-                          {lens.currentPowerGroup?.label || '-'}
+                          {lens.currentPowerGroup?.label ? `${lens.currentPowerGroup.label} AXIS(${lens.currentPowerGroup?.axis || lens.axis || '-'})` : '-'}
                         </span>
                       </td>
                       <td className={`text-center font-bold py-4 px-3 align-top ${lens.isPriceUpdated ? 'bg-yellow-100 text-yellow-900 border-x border-yellow-200 shadow-inner' : 'text-slate-900'}`}>

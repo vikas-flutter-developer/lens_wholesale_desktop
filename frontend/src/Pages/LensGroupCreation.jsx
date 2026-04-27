@@ -595,15 +595,31 @@ function LensGroupCreation({ hideHeader = false }) {
   // { [addGroupId]: { "<sph>_<cyl>": { boxNo, alertQty, pPrice, sPrice, initStock } } }
   const [editValues, setEditValues] = useState({});
 
-  // When clicking pencil, populate editValues for that addGroup and enter edit mode
+  // When clicking pencil, populate editValues ONLY for the active power group's combinations
   const handleEditAdd = (addGroupId) => {
     if (!newData) return;
     const group = newData.addGroups?.find((g) => g._id === addGroupId);
     if (!group) return;
 
+    // Read from newData.powerGroups to get the real MongoDB _id
+    const activePg = newData?.powerGroups?.[formData.activeGroupIdx];
+    const activePgId = activePg?._id?.toString() || null;
+
     const map = {};
-    (group.combinations || []).forEach((c) => {
-      const key = `${c.sph}_${c.cyl}_${c.eye || ''}`;
+    (group.combinations || []).filter(c => {
+      // Only load combinations that belong to the currently active power group
+      if (!activePgId) return true; // legacy: no powerGroupId filtering
+      const cPgId = c.powerGroupId?.toString();
+      if (!cPgId) return true; // legacy combination — include
+      return cPgId === activePgId;
+    }).forEach((c) => {
+      // Standardize key: SPH(2dp)_CYL(2dp)_AXIS(2dp)_EYE(upper)
+      const s = parseFloat(c.sph).toFixed(2);
+      const cv = parseFloat(c.cyl).toFixed(2);
+      const ax = parseFloat(c.axis !== undefined ? c.axis : 0).toFixed(2);
+      const e = String(c.eye || "").trim().toUpperCase();
+      
+      const key = `${s}_${cv}_${ax}_${e}`;
       map[key] = {
         barcode: c.barcode ?? "",
         boxNo: c.boxNo ?? "",
@@ -629,13 +645,17 @@ function LensGroupCreation({ hideHeader = false }) {
     toast("Edit cancelled", { icon: "✖️" });
   };
 
-  // Save edits to frontend-only newData state
+  // Save edits — SCOPED to the active power group only
   const handleSaveEdit = async () => {
-    if (!newData) return; // Removed !editingGroupId check to allow saving globally if triggered
+    if (!newData) return;
+
+    // Identify which power group is currently active — use newData for real _id
+    const activePg = newData?.powerGroups?.[formData.activeGroupIdx];
+    const activePgId = activePg?._id?.toString() || null;
+    const pgAxisNum = parseFloat(activePg?.axis !== undefined ? activePg.axis : 0);
 
     const updated = { ...newData };
     updated.addGroups = (updated.addGroups || []).map((g) => {
-      // Check if this group has edits in editValues
       const groupMap = editValues[g._id];
 
       // If no edits for this group, return unchanged
@@ -643,38 +663,48 @@ function LensGroupCreation({ hideHeader = false }) {
         return { ...g, combinations: [...(g.combinations || [])] };
       }
 
-      // This group has edits - merge them
+      // Apply edits — but ONLY to combinations belonging to the active power group
       return {
         ...g,
         combinations: (g.combinations || []).map((c) => {
-          const s = parseFloat(c.sph);
-          const cyl = parseFloat(c.cyl);
-          const e = String(c.eye || "").trim().toUpperCase();
+          const cPgId = c.powerGroupId?.toString();
+          const cAxis = parseFloat(c.axis !== undefined ? c.axis : 0);
 
-          // Robust key matching using both raw and numeric formats
-          let possibleKeys = [
-            `${c.sph}_${c.cyl}_${e}`,
-            `${s}_${cyl}_${e}`,
-            `${s.toFixed(2)}_${cyl.toFixed(2)}_${e}`,
-          ];
-
-          // FALLBACK FOR DUAL EYES: If database has R/L or RL, check for R or L in editValues
-          const DUAL_VARIANTS = ["RL", "R/L", "BOTH"];
-          if (DUAL_VARIANTS.includes(e)) {
-             possibleKeys = [
-               ...possibleKeys,
-               `${c.sph}_${c.cyl}_R`,
-               `${c.sph}_${c.cyl}_L`,
-               `${s}_${cyl}_R`,
-               `${s}_${cyl}_L`,
-             ];
+          // ── ISOLATION CHECK: skip combinations from OTHER power groups ──
+          if (activePgId) {
+            if (cPgId) {
+              if (cPgId !== activePgId) return { ...c };
+            } else {
+              // Legacy combination (no pgId) -> check axis
+              if (Math.abs(cAxis - pgAxisNum) > 0.01) return { ...c };
+            }
           }
 
-          let vals = null;
-          for (const key of possibleKeys) {
-            if (groupMap[key]) {
-              vals = groupMap[key];
-              break;
+          const sNum = parseFloat(c.sph);
+          const cylNum = parseFloat(c.cyl);
+          const s = sNum.toFixed(2);
+          const cyl = cylNum.toFixed(2);
+          const e = String(c.eye || "").trim().toUpperCase();
+          const ax = cAxis.toFixed(2);
+
+          // Standardized lookup key
+          const primaryKey = `${s}_${cyl}_${ax}_${e}`;
+          
+          let vals = groupMap[primaryKey];
+
+          // Robust fallback matching for different eye representations if primary fails
+          if (!vals) {
+            const possibleKeys = [
+              `${c.sph}_${c.cyl}_${ax}_${e}`,
+              `${sNum}_${cylNum}_${ax}_${e}`,
+              `${s}_${cyl}_${ax}_R`,
+              `${s}_${cyl}_${ax}_L`,
+            ];
+            for (const key of possibleKeys) {
+              if (groupMap[key]) {
+                vals = groupMap[key];
+                break;
+              }
             }
           }
 
@@ -683,11 +713,10 @@ function LensGroupCreation({ hideHeader = false }) {
           const updatedComb = { ...c };
           if (vals.barcode !== undefined) updatedComb.barcode = vals.barcode || (c.barcode ?? "");
           if (vals.boxNo !== undefined) updatedComb.boxNo = vals.boxNo || (c.boxNo ?? "");
-          
+
           if (vals.alertQty !== undefined && vals.alertQty !== "" && vals.alertQty != null) {
             updatedComb.alertQty = Number(vals.alertQty);
           }
-
           if (vals.pPrice !== undefined && vals.pPrice !== "" && vals.pPrice != null) {
             updatedComb.pPrice = Number(vals.pPrice);
           }
@@ -721,12 +750,13 @@ function LensGroupCreation({ hideHeader = false }) {
         axis: updated.axis,
         eye: updated.eye,
         addGroups: updated.addGroups,
+        // ✅ Tell backend WHICH power group is being edited so it preserves all others
+        editingPowerGroupId: activePgId || null,
       };
 
       const res = await editLensPower(updatePayload);
       if (res && res.success) {
         setNewData(res.data);
-        // Clear all edit values
         setEditValues({});
         setEditingGroupId(null);
         toast.success("Saved successfully!", { id: "save-db" });
@@ -742,24 +772,42 @@ function LensGroupCreation({ hideHeader = false }) {
   const copyPriceToAll = (field, sourceGroupId) => {
     if (!sourceGroupId || !editValues[sourceGroupId]) return;
 
+    // Scope copy-to-all to the active power group only — use newData for real _id
+    const activePg = newData?.powerGroups?.[formData.activeGroupIdx];
+    const activePgId = activePg?._id?.toString() || null;
+    const pgAxisNum = parseFloat(activePg?.axis !== undefined ? activePg.axis : 0);
+
     const sourceGroupMap = editValues[sourceGroupId];
     const sourceGroup = newData.addGroups.find((g) => g._id === sourceGroupId);
 
     if (!sourceGroup || !sourceGroup.combinations.length) return;
 
-    // The table might be using R/L merged keys or specific eye keys.
-    // We search the first combination's possible keys to find the source value.
-    const firstComb = sourceGroup.combinations[0];
+    // Find the first combination from the ACTIVE power group to read the source value
+    const firstComb = (sourceGroup.combinations || []).find(c => {
+      const cPgId = c.powerGroupId?.toString();
+      const cAxis = parseFloat(c.axis !== undefined ? c.axis : 0);
+      if (activePgId && cPgId) return cPgId === activePgId;
+      if (activePgId && !cPgId) return Math.abs(cAxis - pgAxisNum) < 0.01;
+      return true;
+    });
+
+    if (!firstComb) {
+      toast.error("No combinations found for the active power group.");
+      return;
+    }
+
     const s = parseFloat(firstComb.sph);
     const c = parseFloat(firstComb.cyl);
 
-    // Check possible keys in order of likelihood
     const possibleKeys = [
+      `${s.toFixed(2)}_${c.toFixed(2)}_${pgAxisNum.toFixed(2)}_R`,
+      `${s.toFixed(2)}_${c.toFixed(2)}_${pgAxisNum.toFixed(2)}_L`,
+      `${s.toFixed(2)}_${c.toFixed(2)}_${pgAxisNum.toFixed(2)}_${firstComb.eye || ''}`,
+      `${s.toFixed(2)}_${c.toFixed(2)}_${pgAxisNum.toFixed(2)}_RL`,
+      `${s.toFixed(2)}_${c.toFixed(2)}_${pgAxisNum.toFixed(2)}_R/L`,
+      // Legacy fallbacks
       `${s}_${c}_R`,
-      `${s}_${c}_L`,
-      `${s}_${c}_${firstComb.eye || ''}`,
-      `${s}_${c}_RL`,
-      `${s}_${c}_R/L`
+      `${s}_${c}_L`
     ];
 
     let valueToCopy = undefined;
@@ -775,23 +823,34 @@ function LensGroupCreation({ hideHeader = false }) {
       return;
     }
 
-    // Create a copy of the entire editValues state
     const newEditValues = { ...editValues };
 
-    // Iterate through ALL add groups
+    // Apply ONLY to combinations of the active power group
     newData.addGroups.forEach((group) => {
       const groupId = group._id;
       if (!newEditValues[groupId]) newEditValues[groupId] = {};
       const groupMap = newEditValues[groupId];
 
-      // Apply to all combinations in this group, covering all possible eye variants
       group.combinations.forEach((comb) => {
-        const cs = parseFloat(comb.sph);
-        const cc = parseFloat(comb.cyl);
+        const cPgId = comb.powerGroupId?.toString();
+        const cAxis = parseFloat(comb.axis !== undefined ? comb.axis : 0);
+
+        // ── ISOLATION: skip combinations from other power groups ──
+        if (activePgId) {
+          if (cPgId) {
+            if (cPgId !== activePgId) return;
+          } else {
+            if (Math.abs(cAxis - pgAxisNum) > 0.01) return;
+          }
+        }
+
+        const cs = parseFloat(comb.sph).toFixed(2);
+        const cc = parseFloat(comb.cyl).toFixed(2);
+        const ca = cAxis.toFixed(2);
         const eyes = ["R", "L", String(comb.eye || "").trim().toUpperCase(), "RL", "R/L"];
 
         eyes.forEach(e => {
-          const key = `${cs}_${cc}_${e}`;
+          const key = `${cs}_${cc}_${ca}_${e}`;
           if (!groupMap[key]) groupMap[key] = {};
           groupMap[key][field] = valueToCopy;
         });
@@ -799,7 +858,7 @@ function LensGroupCreation({ hideHeader = false }) {
     });
 
     setEditValues(newEditValues);
-    toast.success(`Copied to ALL items! Click Save to apply.`);
+    toast.success(`Copied to all rows in this power group! Click Save to apply.`);
   };
 
   const handleReset = () => {
@@ -857,24 +916,34 @@ function LensGroupCreation({ hideHeader = false }) {
   }, []);
 
   const fetchLibrary = async (groupName) => {
+    // Clear stale data IMMEDIATELY so previous group's ranges never bleed through
+    setLibraryRanges([]);
+    setSelectedLibraryRanges([]);
     setLoadingLibrary(true);
     try {
       const res = await getPowerRangeLibrary(groupName);
       if (res && res.success) {
         setLibraryRanges(res.data || []);
+      } else {
+        // Explicit clear on API failure — do NOT keep old group's data
+        setLibraryRanges([]);
+        console.warn(`[fetchLibrary] No data returned for group "${groupName}"`);
       }
     } catch (err) {
       console.error("Error fetching library:", err);
+      setLibraryRanges([]); // Clear on network/parse error
     } finally {
       setLoadingLibrary(false);
     }
   };
 
   useEffect(() => {
-    if (formData.groupName) {
-      fetchLibrary(formData.groupName);
+    if (formData.groupName && formData.groupName.trim() !== "") {
+      fetchLibrary(formData.groupName.trim());
     } else {
+      // No group selected → always show empty library
       setLibraryRanges([]);
+      setSelectedLibraryRanges([]);
     }
   }, [formData.groupName]);
 
@@ -900,6 +969,7 @@ function LensGroupCreation({ hideHeader = false }) {
       sphStep: selectedLibraryRanges[0]?.sphStep ?? 0.25,
       cylStep: selectedLibraryRanges[0]?.cylStep ?? 0.25,
       addStep: selectedLibraryRanges[0]?.addStep ?? 0.25,
+      axis: selectedLibraryRanges[0]?.axis ?? 0,
     };
   };
 
@@ -923,6 +993,7 @@ function LensGroupCreation({ hideHeader = false }) {
       addMin: libraryCheckboxes.add ? merged.addMin : prev.addMin,
       addMax: libraryCheckboxes.add ? merged.addMax : prev.addMax,
       addStep: libraryCheckboxes.add ? merged.addStep : prev.addStep,
+      axis: merged.axis ?? prev.axis,
     }));
 
     const msg = selectedLibraryRanges.length > 1
@@ -1039,7 +1110,7 @@ function LensGroupCreation({ hideHeader = false }) {
             addMax: data.addMax ?? prev.addMax,
             addStep: data.addStep ?? prev.addStep,
             axis: data.axis ?? prev.axis,
-            eye: data.eye ?? prev.eye,
+            eye: (data.eye === "R/L" || data.eye === "rl" || data.eye === "RL") ? "RL" : (data.eye === "Both" || data.eye === "BOTH" || data.eye === "BOTH_RL") ? "BOTH" : (data.eye || "RL"),
             productName: data.productName ?? prev.productName,
             powerGroups: mergedPowerGroups
           }));
@@ -1099,7 +1170,7 @@ function LensGroupCreation({ hideHeader = false }) {
             addMax: data.addMax ?? "",
             addStep: data.addStep ?? "0.25",
             axis: data.axis ?? "",
-            eye: data.eye ?? "",
+            eye: (data.eye === "R/L" || data.eye === "rl" || data.eye === "RL") ? "RL" : (data.eye === "Both" || data.eye === "BOTH" || data.eye === "BOTH_RL") ? "BOTH" : (data.eye || "RL"),
             powerGroups: mergedPowerGroups
           }));
           setNewData(data);
@@ -1136,7 +1207,7 @@ function LensGroupCreation({ hideHeader = false }) {
       addMax: pg.addMax ?? "",
       addStep: pg.addStep ?? "0.25",
       axis: pg.axis ?? "",
-      eye: pg.eye ?? "",
+      eye: (pg.eye === "R/L" || pg.eye === "rl" || pg.eye === "RL") ? "RL" : (pg.eye === "Both" || pg.eye === "BOTH" || pg.eye === "BOTH_RL") ? "BOTH" : (pg.eye || "RL"),
     }));
     toast.success(`Filter switched to: ${pg.label || "Group " + (idx + 1)}`);
   };
@@ -1263,7 +1334,7 @@ function LensGroupCreation({ hideHeader = false }) {
         addMax: data.addMax ?? prev.addMax,
         addStep: data.addStep ?? prev.addStep,
         axis: data.axis ?? prev.axis,
-        eye: data.eye ?? prev.eye,
+        eye: (data.eye === "R/L" || data.eye === "rl" || data.eye === "RL") ? "RL" : (data.eye === "Both" || data.eye === "BOTH" || data.eye === "BOTH_RL") ? "BOTH" : (data.eye || "RL"),
         groupName: data.groupName ?? prev.groupName,
         vendorItemName: data.vendorItemName ?? "",
         billItemName: data.billItemName ?? "",
@@ -1655,8 +1726,8 @@ function LensGroupCreation({ hideHeader = false }) {
                 <option value="">Select Eye</option>
                 <option value="R">Right (R)</option>
                 <option value="L">Left (L)</option>
-                <option value="R/L">RL</option>
-                <option value="RL">Both (RL)</option>
+                <option value="RL">RL</option>
+                <option value="BOTH">Both (RL)</option>
               </select>
               <label
                 htmlFor="eye"
@@ -1754,6 +1825,8 @@ function LensGroupCreation({ hideHeader = false }) {
                                   <span className="font-bold text-purple-700">CYL</span> ({range.cylMin},{range.cylMax})
                                   {" | "}
                                   <span className="font-bold text-emerald-700">ADD</span> ({range.addMin},{range.addMax})
+                                  {" | "}
+                                  <span className="font-bold text-amber-700">AXIS</span> {range.axis ?? 0}
                                 </span>
                               </div>
                             </label>
@@ -1845,6 +1918,10 @@ function LensGroupCreation({ hideHeader = false }) {
                           <p className="text-[9px] font-black text-emerald-400 uppercase tracking-tighter">ADD Range</p>
                           <p className="text-sm font-bold text-emerald-700">{merged.addMin} to {merged.addMax}</p>
                         </div>
+                        <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-100 shadow-sm">
+                          <p className="text-[9px] font-black text-amber-400 uppercase tracking-tighter">AXIS Value</p>
+                          <p className="text-sm font-bold text-amber-700">{merged.axis ?? 0}</p>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1870,7 +1947,7 @@ function LensGroupCreation({ hideHeader = false }) {
                   <option value="">Select a Power Group</option>
                   {(formData.powerGroups || []).map((pg, idx) => (
                     <option key={idx} value={idx}>
-                      {pg.label || `Range ${idx + 1}`}
+                      {pg.label ? (pg.label.includes("AXIS") ? pg.label : `${pg.label} AXIS(${pg.axis ?? 0})`) : `Range ${idx + 1}`}
                     </option>
                   ))}
                 </select>
@@ -1985,21 +2062,47 @@ function LensGroupCreation({ hideHeader = false }) {
           }
 
           return groupsToRender.map((pg, pgIdx) => {
-            const sMin = (pg.sphMin === "" || pg.sphMin === undefined || isNaN(pg.sphMin)) ? -Infinity : parseFloat(pg.sphMin);
-            const sMax = (pg.sphMax === "" || pg.sphMax === undefined || isNaN(pg.sphMax)) ? Infinity : parseFloat(pg.sphMax);
-            const cMin = (pg.cylMin === "" || pg.cylMin === undefined || isNaN(pg.cylMin)) ? -Infinity : parseFloat(pg.cylMin);
-            const cMax = (pg.cylMax === "" || pg.cylMax === undefined || isNaN(pg.cylMax)) ? Infinity : parseFloat(pg.cylMax);
-            const aMin = (pg.addMin === "" || pg.addMin === undefined || isNaN(pg.addMin)) ? -Infinity : parseFloat(pg.addMin);
-            const aMax = (pg.addMax === "" || pg.addMax === undefined || isNaN(pg.addMax)) ? Infinity : parseFloat(pg.addMax);
-            const eyeVal = pg.eye || formData.eye;
-            const isDual = eyeVal === "RL" || eyeVal === "R/L" || !eyeVal;
-            // After backend splitting, show R and L rows explicitly; keep RL/R/L as fallback
-            const eyeFilter = isDual ? ["R", "L", "RL", "R/L"] : [eyeVal];
+            const getVal = (val, fallback) => {
+                const parsed = parseFloat(val);
+                if (val === "" || val === undefined || isNaN(parsed)) return parseFloat(fallback) || (parsed === Infinity ? Infinity : -Infinity);
+                return parsed;
+            };
 
-            const filteredAddGroups = (newData?.addGroups || []).filter(g => {
+            // Use pg values if they exist, otherwise fallback to global formData values
+            const sMin = getVal(pg.sphMin, formData.sphMin);
+            const sMax = getVal(pg.sphMax, formData.sphMax);
+            const cMin = getVal(pg.cylMin, formData.cylMin);
+            const cMax = getVal(pg.cylMax, formData.cylMax);
+            const aMin = getVal(pg.addMin, formData.addMin);
+            const aMax = getVal(pg.addMax, formData.addMax);
+            const eyeVal = pg.eye || formData.eye;
+            // Mode RL = Combined view (R/L). Mode BOTH = Separate view (R and L rows).
+            const isDual = eyeVal === "BOTH" || eyeVal === "RL" || eyeVal === "R/L" || eyeVal === "Both" || !eyeVal;
+            const eyeFilter = isDual ? ["R", "L", "RL", "R/L", "BOTH", "Both"] : [eyeVal];
+
+          const filteredAddGroups = (newData?.addGroups || []).filter(g => {
               const val = parseFloat(g.addValue);
               return val >= aMin - 0.001 && val <= aMax + 0.001;
-            });
+            }).map(g => {
+              const pgIdStr = pg._id ? pg._id.toString() : null;
+              // Axis of this power group — used as fallback when powerGroupId is missing
+              const pgAxisNum = parseFloat(pg.axis !== undefined ? pg.axis : 0);
+
+              const scopedCombinations = (g.combinations || []).filter(c => {
+                const cPgId = c.powerGroupId ? c.powerGroupId.toString() : null;
+
+                if (cPgId) {
+                  // Has powerGroupId → strict match only
+                  return cPgId === pgIdStr;
+                }
+                // Legacy combination (null powerGroupId) → use AXIS as discriminator.
+                // This prevents PG1(AXIS=0) data from showing in PG2(AXIS=180) table.
+                const cAxis = parseFloat(c.axis !== undefined ? c.axis : 0);
+                return Math.abs(cAxis - pgAxisNum) < 0.01;
+              });
+              return { ...g, combinations: scopedCombinations };
+            }).filter(g => (g.combinations || []).length > 0);
+
 
             if (filteredAddGroups.length === 0) return null;
 
@@ -2193,9 +2296,16 @@ function LensGroupCreation({ hideHeader = false }) {
                               const matchEye = eyeFilter.includes(cEye);
 
                               if (matchSph && matchCyl && matchEye) {
-                                // Group by SPH, CYL, AXIS, EYE
-                                const key = `${s.toFixed(2)}_${cv.toFixed(2)}_${(c.axis || 0)}_${cEye}`;
-                                if (!uniqueRowsMap.has(key)) uniqueRowsMap.set(key, c);
+                                // Group by SPH, CYL, AXIS (merge R/L when displaying combined mode)
+                                // Use combined key if displaying dual eyes (R/L, BOTH, etc)
+                                const useCombined = (eyeVal === "BOTH") || (eyeVal === "RL") || (eyeVal === "R/L") || (eyeVal === "Both") || !eyeVal;
+                                const key = useCombined 
+                                  ? `${s.toFixed(2)}_${cv.toFixed(2)}_${parseFloat(c.axis || 0).toFixed(2)}`
+                                  : `${s.toFixed(2)}_${cv.toFixed(2)}_${parseFloat(c.axis || 0).toFixed(2)}_${cEye}`;
+
+                                if (!uniqueRowsMap.has(key)) {
+                                  uniqueRowsMap.set(key, c);
+                                }
                               }
                             });
 
@@ -2250,7 +2360,12 @@ function LensGroupCreation({ hideHeader = false }) {
                                     const comb = findComb(g, sphVal, cylVal, base.eye);
 
                                     const renderCell = (field, type = "text", prefix = "") => {
-                                      const key = `${comb?.sph ?? sphVal}_${comb?.cyl ?? cylVal}_${comb?.eye ?? base.eye}`;
+                                      const s = parseFloat(comb?.sph ?? sphVal).toFixed(2);
+                                      const cv = parseFloat(comb?.cyl ?? cylVal).toFixed(2);
+                                      const ax = parseFloat(comb?.axis ?? axisVal ?? 0).toFixed(2);
+                                      const e = String(comb?.eye ?? base.eye ?? "").trim().toUpperCase();
+
+                                      const key = `${s}_${cv}_${ax}_${e}`;
                                       const val = comb?.[field] ?? "";
                                       const displayVal = editValues[g._id]?.[key]?.[field] ?? val;
 
@@ -2268,11 +2383,13 @@ function LensGroupCreation({ hideHeader = false }) {
                                       return (displayVal !== undefined && displayVal !== "" && displayVal !== null) ? `${prefix}${displayVal}` : "";
                                     };
 
+                                    const displayEye = (eyeVal === "RL" || eyeVal === "R/L") ? "R/L" : (comb?.eye || base?.eye || "RL");
+
                                     return (
                                       <React.Fragment key={`cells-${rowIndex}-${gIdx}`}>
                                         <td className="text-center py-3 px-3 w-40" style={{ minWidth: 150 }}>{renderCell("barcode")}</td>
-                                        <td className="text-center py-3 px-3 font-bold text-slate-700" style={{ minWidth: 70 }}>{comb?.eye || base?.eye || "RL"}</td>
-                                        <td className="text-center py-3 px-3" style={{ minWidth: 70 }}>{comb?.axis ?? base?.axis ?? ""}</td>
+                                        <td className="text-center py-3 px-3 font-bold text-slate-700" style={{ minWidth: 70 }}>{displayEye}</td>
+                                        <td className="text-center py-3 px-3" style={{ minWidth: 70 }}>{pg?.axis ?? comb?.axis ?? base?.axis ?? ""}</td>
                                         <td className="text-center py-3 px-3" style={{ minWidth: 80 }}>{renderCell("alertQty", "number")}</td>
                                         <td className="text-center py-3 px-3 font-medium text-slate-900" style={{ minWidth: 85 }}>{renderCell("pPrice", "number", "₹")}</td>
                                         <td className="text-center py-3 px-3 font-medium text-slate-900" style={{ minWidth: 85 }}>{renderCell("sPrice", "number", "₹")}</td>

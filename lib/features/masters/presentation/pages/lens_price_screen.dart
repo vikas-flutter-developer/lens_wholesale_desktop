@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/providers/inventory_providers.dart';
+import '../../../../core/utils/color_utils.dart';
 
 class LensPriceScreen extends StatefulWidget {
   const LensPriceScreen({super.key});
@@ -350,7 +351,15 @@ class _LensPriceScreenState extends State<LensPriceScreen> {
                                       children: [
                                         _cellText('${index + 1}', width: 50, center: true),
                                         Expanded(flex: 3, child: _cellText(lens['productName']?.toString() ?? '-', bold: true)),
-                                        Expanded(flex: 2, child: Center(child: _badge(lens['groupName']?.toString() ?? '-', const Color(0xFFDBEAFE), const Color(0xFF1E40AF)))), // blue-100/blue-800
+                                        Expanded(
+                                          flex: 2, 
+                                          child: Center(
+                                            child: () {
+                                              final gColor = getGroupColor(lens['groupName']?.toString() ?? '-');
+                                              return _badge(lens['groupName']?.toString() ?? '-', gColor.background, gColor.text);
+                                            }(),
+                                          ),
+                                        ),
                                         Expanded(flex: 2, child: Center(child: _badge(pg?['label']?.toString() ?? '-', const Color(0xFFF3E8FF), const Color(0xFF6B21A8)))), // purple-100/purple-800
                                         Expanded(
                                           flex: 1, 

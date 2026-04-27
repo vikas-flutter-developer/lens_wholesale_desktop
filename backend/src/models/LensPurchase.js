@@ -27,6 +27,8 @@ const LensPurchaseSchema = new mongoose.Schema(
       {
         barcode: { type: String, default: "" },
         itemName: { type: String, default: "" },
+        billItemName: { type: String, default: "" },
+        vendorItemName: { type: String, default: "" },
         unit: { type: String, default: "" },
         dia: { type: String, default: "" },
         eye: { type: String, default: "" },
@@ -84,7 +86,7 @@ const LensPurchaseSchema = new mongoose.Schema(
       default: "Pending",
       enum: ["Pending", "In Progress", "Done", "Cancelled"],
     },
-    sourceChallanId: { type: String, default: null }, // Reference to source challan if created from challan
+    sourceChallanId: { type: mongoose.Schema.Types.ObjectId, ref: "PurchaseChallan", default: null }, // Reference to source challan if created from challan
     sourcePurchaseId: { type: String, default: null }, // Reference to source purchase order
     orderType: { type: String, enum: ['LENS', 'RX', 'CONTACT'], default: 'LENS' },
     dcId: { type: String, default: "" },

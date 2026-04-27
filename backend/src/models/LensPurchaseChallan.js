@@ -28,6 +28,8 @@ const PurchaseChallanSchema = new mongoose.Schema(
       {
         barcode: { type: String, default: "" },
         itemName: { type: String, default: "" },
+        billItemName: { type: String, default: "" },
+        vendorItemName: { type: String, default: "" },
         unit: { type: String, default: "" },
         dia: { type: String, default: "" },
         eye: { type: String, default: "" },

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getLensStockReport, getItemStockSummaryReport, getPartyWiseItemReport, getLensMovementReport, getDayBookReport, getCashBankBookReport, getBankAccounts, getProfitAndLossReport, getParentGroups, getProfitAndLossAccountReport, getTransactionSummaryReport, getTransactionDetailReport, getSaleSummaryFormatReport, getBalanceSheetReport, getCollectionReport, getSaleItemGroupWiseReport, getCustomerAnalysisReport, getPowerMovementReport, getBankVerificationTransactions, getSaleReturnRatioReport, saveSaleTarget, getSaleTargetReport, getPartyTargetHistory, getCancelledOrderRatioReport, getOrderToChallanTimeReport, saveCollectionTarget, getCollectionTargetReport, getCollectionTargetHistory, getCustomerItemSalesReport, getSalesGrowthComparisonReport, getDashboardPulse } from '../controllers/reports.controller.js';
+import { getLensStockReport, getItemStockSummaryReport, getPartyWiseItemReport, getLensMovementReport, getDayBookReport, getCashBankBookReport, getBankAccounts, getProfitAndLossReport, getParentGroups, getProfitAndLossAccountReport, getTransactionSummaryReport, getTransactionDetailReport, getSaleSummaryFormatReport, getBalanceSheetReport, getCollectionReport, getSaleItemGroupWiseReport, getCustomerAnalysisReport, getPowerMovementReport, getBankVerificationTransactions, getSaleReturnRatioReport, saveSaleTarget, getSaleTargetReport, getPartyTargetHistory, getCancelledOrderRatioReport, getOrderToChallanTimeReport, getPurchaseOrderToChallanTimeReport, saveCollectionTarget, getCollectionTargetReport, getCollectionTargetHistory, getCustomerItemSalesReport, getSalesGrowthComparisonReport, getDashboardPulse } from '../controllers/reports.controller.js';
 
 
 
@@ -32,6 +32,7 @@ router.post('/sale-target/report', authMiddleware, getSaleTargetReport);
 router.get('/sale-target/history/:partyName', authMiddleware, getPartyTargetHistory);
 router.post('/cancelled-order-ratio', authMiddleware, getCancelledOrderRatioReport);
 router.post('/order-to-challan-time', authMiddleware, getOrderToChallanTimeReport);
+router.post('/purchase-order-to-challan-time', authMiddleware, getPurchaseOrderToChallanTimeReport);
 
 // Collection Target routes
 router.post('/collection-target/save', authMiddleware, saveCollectionTarget);

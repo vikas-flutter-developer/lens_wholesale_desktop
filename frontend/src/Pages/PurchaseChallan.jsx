@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
-
+import { generateBulkPrint, handleExportToExcel } from "../utils/PrintUtils";
 import {
   createLensInvoice,
   getAllLensPurchaseChallan,
@@ -52,8 +52,88 @@ function PurchaseChallan() {
   const [allItems, setAllItems] = useState([]);
 
   // Cancel Reason State
+  const ALL_COLUMNS_CHALLAN = [
+    { id: "srNo", label: "Sr. No." },
+    { id: "billDate", label: "Bill Date" },
+    { id: "billSeries", label: "Bill Series" },
+    { id: "billNo", label: "Bill No." },
+    { id: "partyName", label: "Party Name" },
+    { id: "dcId", label: "DC ID" },
+    { id: "netAmt", label: "Net Amt" },
+    { id: "usedIn", label: "Used In" },
+    { id: "status", label: "Status" },
+    { id: "reason", label: "Reason" },
+    { id: "time", label: "Time" },
+    { id: "ordQ", label: "Ord Q" },
+    { id: "usdQ", label: "Usd Q" },
+    { id: "balQ", label: "Bal Q" },
+  ];
+
+  const [selectedChallans, setSelectedChallans] = useState([]);
   const [cancelModal, setCancelModal] = useState({ isOpen: false, challanId: null, reason: "", status: "" });
   const [cancelReasonValues, setCancelReasonValues] = useState({});
+
+  const handleSelectChallan = (id) => {
+    setSelectedChallans(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedChallans(filteredChallans.map(o => o._id));
+    } else {
+      setSelectedChallans([]);
+    }
+  };
+
+  const handlePrintClick = () => {
+    const items = selectedChallans.length > 0
+      ? filteredChallans.filter(o => selectedChallans.includes(String(o._id)))
+      : filteredChallans;
+
+    const itemsToPrint = items.map(o => ({
+      ...o,
+      billDate: o.billData?.date,
+      billSeries: o.billData?.billSeries || o.billSeries,
+      billNo: o.billData?.billNo || o.billNo,
+      partyName: o.partyData?.partyAccount,
+      netAmt: o.netAmount || o.netAmt,
+      usedIn: Array.isArray(o.usedIn) && o.usedIn.length > 0
+        ? o.usedIn.map(u => `${u.type}(${u.number})`).join(", ")
+        : (Array.isArray(o?.usageHistory) && o.usageHistory.length > 0 ? `PI(${o.usageHistory[0].billNo})` : "-"),
+      time: o.time || "-",
+      ordQ: (o.orderQty ?? o.orderQuantity ?? 0) || (o.items?.reduce((s, i) => s + (Number(i.qty) || 0), 0) || 0),
+      usdQ: o.usedQty || 0,
+      balQ: o.balQty || 0,
+    }));
+
+    generateBulkPrint("Purchase Challan Report", itemsToPrint, visibleColumns, ALL_COLUMNS_CHALLAN);
+  };
+
+  const handleExportToExcelClick = () => {
+    const items = selectedChallans.length > 0
+      ? filteredChallans.filter(o => selectedChallans.includes(String(o._id)))
+      : filteredChallans;
+
+    const itemsToExport = items.map(o => ({
+      ...o,
+      billDate: o.billData?.date,
+      billSeries: o.billData?.billSeries || o.billSeries,
+      billNo: o.billData?.billNo || o.billNo,
+      partyName: o.partyData?.partyAccount,
+      netAmt: o.netAmount || o.netAmt,
+      usedIn: Array.isArray(o.usedIn) && o.usedIn.length > 0
+        ? o.usedIn.map(u => `${u.type}(${u.number})`).join(", ")
+        : (Array.isArray(o?.usageHistory) && o.usageHistory.length > 0 ? `PI(${o.usageHistory[0].billNo})` : "-"),
+      time: o.time || "-",
+      ordQ: (o.orderQty ?? o.orderQuantity ?? 0) || (o.items?.reduce((s, i) => s + (Number(i.qty) || 0), 0) || 0),
+      usdQ: o.usedQty || 0,
+      balQ: o.balQty || 0,
+    }));
+
+    handleExportToExcel(XLSX, "PurchaseChallans", itemsToExport, visibleColumns, ALL_COLUMNS_CHALLAN);
+  };
 
   const handleCancelReasonChange = (id, value) => {
     setCancelReasonValues(prev => ({ ...prev, [id]: value }));
@@ -352,6 +432,24 @@ function PurchaseChallan() {
     return item.itemName || "-";
   };
 
+  const getPrintItemName = (item) => {
+    if (item.billItemName && item.billItemName.trim() !== "") return item.billItemName;
+    const target = (item.itemName || "").trim().toLowerCase();
+    if (!target) return item.itemName || "-";
+
+    const foundLens = (allLenses || []).find(l => 
+      (l.productName || "").trim().toLowerCase() === target
+    );
+    if (foundLens?.billItemName) return foundLens.billItemName;
+
+    const foundItem = (allItems || []).find(i => 
+      (i.itemName || "").trim().toLowerCase() === target
+    );
+    if (foundItem?.billItemName) return foundItem.billItemName;
+
+    return item.itemName || "-";
+  };
+
 
   const handleShareWhatsApp = (order) => {
     const mobile = order.partyData?.contactNumber || "";
@@ -395,7 +493,7 @@ function PurchaseChallan() {
           return `
       <tr>
         <td style="border: 1px solid #000; padding: 8px; text-align: center;">${i + 1}</td>
-        <td style="border: 1px solid #000; padding: 8px;">${item.itemName || "-"}</td>
+        <td style="border: 1px solid #000; padding: 8px;">${getPrintItemName(item)}</td>
         <td style="border: 1px solid #000; padding: 8px; text-align: center;">${item.orderNo || invoice.billData?.billNo || "-"}</td>
         <td style="border: 1px solid #000; padding: 8px; text-align: center;">${item.eye || "-"}</td>
         <td style="border: 1px solid #000; padding: 8px; text-align: center;">${item.sph ?? "-"}</td>
@@ -588,7 +686,7 @@ function PurchaseChallan() {
       sourceChallanId: o._id,
       billData: {
         billSeries: o.billData?.billSeries || "",
-        billNo: o.billData?.billNo || "",
+        billNo: "",
         billType: o.billData?.billType || "",
         godown: o.billData?.godown || "",
         bookedBy: o.billData?.bookedBy || "",
@@ -898,10 +996,18 @@ function PurchaseChallan() {
                 </div>
               )}
             </div>
-            <button className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors duration-200 hover:shadow-sm">
+            <button
+              onClick={handleExportToExcelClick}
+              className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors duration-200 hover:shadow-sm"
+              title="Export to Excel"
+            >
               <FileSpreadsheet className="w-4 h-4" />
             </button>
-            <button className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 hover:shadow-sm">
+            <button
+              onClick={handlePrintClick}
+              className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 hover:shadow-sm"
+              title="Print Report"
+            >
               <Printer className="w-4 h-4" />
             </button>
             <button className="p-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors duration-200 hover:shadow-sm">
@@ -918,7 +1024,15 @@ function PurchaseChallan() {
                 <tr>
                   {visibleColumns.srNo && (
                     <th className="w-20 text-center border-gray-300 border-r py-4 px-3 text-slate-700 font-bold text-sm">
-                      Sr. No.
+                      <div className="flex items-center justify-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          checked={filteredChallans.length > 0 && selectedChallans.length === filteredChallans.length}
+                          onChange={handleSelectAll}
+                        />
+                        <span>Sr</span>
+                      </div>
                     </th>
                   )}
                   {visibleColumns.billDate && (
@@ -1035,11 +1149,17 @@ function PurchaseChallan() {
 
                     return (
                       <React.Fragment key={idStr}>
-                        <tr className="hover:bg-slate-50 transition-colors duration-150 group text-sm">
+                        <tr className={`hover:bg-slate-50 transition-colors duration-150 group text-sm ${selectedChallans.includes(idStr) ? "bg-blue-50" : ""}`}>
                           {visibleColumns.srNo && (
                             <td className="w-20 text-center border-gray-300 border-r text-slate-600 font-medium py-5 px-2 align-top whitespace-nowrap">
-                              <div className="flex flex-col items-center justify-center gap-2">
-                                <span className="text-base">{i + 1}</span>
+                              <div className="flex items-center justify-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                  checked={selectedChallans.includes(idStr)}
+                                  onChange={() => handleSelectChallan(o._id)}
+                                />
+                                {i + 1}
                               </div>
                             </td>
                           )}

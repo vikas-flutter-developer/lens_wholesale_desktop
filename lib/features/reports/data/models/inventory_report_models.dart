@@ -155,7 +155,9 @@ class PartyWiseItem with _$PartyWiseItem {
     @Default(0) double totalPrice,
     double? purchasePrice,
     String? combinationId,
-    String? docId,
+    String? dcId,
+    String? vendorName,
+    @JsonKey(name: 'dc_id') String? dc_id,
     String? remark,
   }) = _PartyWiseItem;
 
@@ -246,4 +248,76 @@ class BookedByReportItem with _$BookedByReportItem {
   }) = _BookedByReportItem;
 
   factory BookedByReportItem.fromJson(Map<String, dynamic> json) => _$BookedByReportItemFromJson(json);
+}
+// --- Customer Item Sales Report Models ---
+
+@freezed
+class CustomerItemSalesResponse with _$CustomerItemSalesResponse {
+  const factory CustomerItemSalesResponse({
+    required bool success,
+    required CustomerItemSalesSummary summary,
+    required List<CustomerItemSalesItem> data,
+  }) = _CustomerItemSalesResponse;
+
+  factory CustomerItemSalesResponse.fromJson(Map<String, dynamic> json) => _$CustomerItemSalesResponseFromJson(json);
+}
+
+@freezed
+class CustomerItemSalesSummary with _$CustomerItemSalesSummary {
+  const factory CustomerItemSalesSummary({
+    required int totalItems,
+    required double totalQty,
+    required double totalRevenue,
+    int? totalOrders,
+  }) = _CustomerItemSalesSummary;
+
+  factory CustomerItemSalesSummary.fromJson(Map<String, dynamic> json) => _$CustomerItemSalesSummaryFromJson(json);
+}
+
+@freezed
+class CustomerItemSalesItem with _$CustomerItemSalesItem {
+  const factory CustomerItemSalesItem({
+    required String itemName,
+    String? eye,
+    dynamic sph,
+    dynamic cyl,
+    dynamic axis,
+    dynamic add,
+    required double totalQty,
+    required double totalRevenue,
+    String? lastSoldDate,
+    required int orderCount,
+  }) = _CustomerItemSalesItem;
+
+  factory CustomerItemSalesItem.fromJson(Map<String, dynamic> json) => _$CustomerItemSalesItemFromJson(json);
+}
+// --- Item Stock Summary Report Models ---
+
+@freezed
+class ItemStockSummaryResponse with _$ItemStockSummaryResponse {
+  const factory ItemStockSummaryResponse({
+    required bool success,
+    required List<ItemStockSummaryItem> data,
+  }) = _ItemStockSummaryResponse;
+
+  factory ItemStockSummaryResponse.fromJson(Map<String, dynamic> json) => _$ItemStockSummaryResponseFromJson(json);
+}
+
+@freezed
+class ItemStockSummaryItem with _$ItemStockSummaryItem {
+  const factory ItemStockSummaryItem({
+    required String productName,
+    required String groupName,
+    @Default(0) double totalStockQty,
+    @Default(0) double avgPurchasePrice,
+    @Default(0) double avgSellingPrice,
+    @Default(0) double totalPurchaseValue,
+    @Default(0) double totalSellingValue,
+    @Default(0) double expectedProfit,
+    @Default(0.0) double? liveProfit,
+    @Default(0) double turnover,
+    @Default(0) int combinationCount,
+  }) = _ItemStockSummaryItem;
+
+  factory ItemStockSummaryItem.fromJson(Map<String, dynamic> json) => _$ItemStockSummaryItemFromJson(json);
 }

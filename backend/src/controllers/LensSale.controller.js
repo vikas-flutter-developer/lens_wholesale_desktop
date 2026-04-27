@@ -11,6 +11,7 @@ import {
   restoreStock, 
   adjustStockForEdit 
 } from "../utils/stockDeductionHelper.js";
+import { generateNextBillNo } from "../utils/billNoHelper.js";
 
 const aggregateItems = (items) => {
   const m = new Map();
@@ -96,8 +97,14 @@ const addLensSale = async (req, res) => {
     // Create and save sale document with summary
     const invoiceStatus = deriveOrderStatus(items, data.status || "Pending");
 
+    // Ensure party-wise incremental bill number
+    const billData = { ...(data.billData || {}) };
+    if (!billData.billNo) {
+      billData.billNo = await generateNextBillNo(LensSale, data.partyData?.partyAccount, req.user?.companyId);
+    }
+
     const newSale = new LensSale({
-      billData: data.billData || {},
+      billData,
       partyData: data.partyData || {},
       items,
       taxes,
@@ -187,7 +194,7 @@ const getAllLensSale = async (req, res) => {
         { companyId },
         { companyId: null }
       ]
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).populate("sourceChallanId", "billData");
     return res.status(200).json({
       success: true,
       data: sales,
@@ -210,7 +217,7 @@ const getLensSale = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Sale ID is required" });
     }
-    const sale = await LensSale.findOne({ _id: id, companyId: req.user?.companyId });
+    const sale = await LensSale.findOne({ _id: id, companyId: req.user?.companyId }).populate("sourceChallanId", "billData");
     if (!sale) {
       return res
         .status(404)

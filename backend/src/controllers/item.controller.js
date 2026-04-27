@@ -117,7 +117,7 @@ const addItem = async (req, res) => {
         taxSetting, openingStockQty, openingStockValue, purchasePrice, saleProfit,
         salePrice, mrpPrice, saleDiscount, purchaseDiscount, minSalePrice, hsnCode,
         barcode, stockable, godown, loyaltyPoints, refAmn, refAmntIndia,
-        forLensProduct, typeOfsupply, location, boxNo
+        forLensProduct, typeOfsupply, location, boxNo, gst
     } = req.body;
 
     // Basic validation for a required field (itemName is required and unique in your schema)
@@ -145,7 +145,7 @@ const addItem = async (req, res) => {
             taxSetting, openingStockQty, openingStockValue, purchasePrice, saleProfit,
             salePrice, mrpPrice, saleDiscount, purchaseDiscount, minSalePrice, hsnCode, TaxCategory: req.body.TaxCategory,
             barcode, stockable, godown, loyaltyPoints, refAmn, refAmntIndia,
-            forLensProduct, typeOfsupply, location, boxNo
+            forLensProduct, typeOfsupply, location, boxNo, gst: gst || 0
         });
 
         // 3. Save the new item to the database
@@ -170,7 +170,7 @@ const updateItem = async (req, res) => {
         taxSetting, openingStockQty, openingStockValue, purchasePrice, saleProfit,
         salePrice, mrpPrice, saleDiscount, purchaseDiscount, minSalePrice, hsnCode,
         barcode, stockable, godown, loyaltyPoints, refAmn, refAmntIndia,
-        forLensProduct, typeOfsupply, location, boxNo
+        forLensProduct, typeOfsupply, location, boxNo, gst
     } = req.body;
 
     // 2. Basic validation – at least one field must be sent
@@ -235,6 +235,7 @@ const updateItem = async (req, res) => {
         if (typeOfsupply !== undefined) updates.typeOfsupply = typeOfsupply;
         if (location !== undefined) updates.location = location;
         if (boxNo !== undefined) updates.boxNo = boxNo;
+        if (gst !== undefined) updates.gst = gst;
         if (req.body.TaxCategory !== undefined) updates.TaxCategory = req.body.TaxCategory;
 
         // 6. Perform the update
@@ -295,23 +296,22 @@ const bulkUpdateItems = async (req, res) => {
             return res.status(400).json({ message: "Invalid items data" });
         }
 
-        const updatePromises = items.map(async (itemData) => {
+        for (const itemData of items) {
             const { id, ...updates } = itemData;
-            if (!id) return;
+            if (!id) continue;
+            
             const updated = await Item.findByIdAndUpdate(id, { $set: updates }, { new: true });
 
-            // SYNC: If this is a lens product, sync price to LensGroup
-            if (updated) {
+            // SYNC: Only sync if fields that affect the LensGroup were actually changed
+            if (updated && (updates.purchasePrice !== undefined || updates.salePrice !== undefined || updates.minStock !== undefined)) {
                 await syncItemToLensCombination(updated);
             }
-            return updated;
-        });
+        }
 
-        await Promise.all(updatePromises);
         res.status(200).json({ message: "Items updated successfully" });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal Server Error during bulk update" });
+        console.error("bulkUpdateItems error:", error);
+        res.status(500).json({ message: "Internal Server Error during bulk update", error: error.message, stack: error.stack });
     }
 };
 

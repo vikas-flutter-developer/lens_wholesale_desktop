@@ -1,6 +1,7 @@
 import LensPurchase from "../models/LensPurchase.js";
 import LensGroup from "../models/LensGroup.js";
 import mongoose from "mongoose";
+import { generateNextBillNo } from "../utils/billNoHelper.js";
 
 const aggregateItems = (items) => {
   const m = new Map();
@@ -117,9 +118,15 @@ const addLensPurchase = async (req, res) => {
       console.log(`PURCHASE ADD: ${combId} ${oldStock} -> ${matched.initStock} (added ${addQty})`);
     }
 
+    // Ensure party-wise incremental bill number
+    const billData = { ...(data.billData || {}) };
+    if (!billData.billNo) {
+      billData.billNo = await generateNextBillNo(LensPurchase, data.partyData?.partyAccount, req.user?.companyId);
+    }
+
     // Create purchase doc with summary
     const newPurchase = new LensPurchase({
-      billData: data.billData || {},
+      billData,
       partyData: data.partyData || {},
       items,
       taxes,
@@ -154,7 +161,7 @@ const addLensPurchase = async (req, res) => {
 
 const getAllLensPurchase = async (req, res) => {
   try {
-    const purchases = await LensPurchase.find().sort({ createdAt: -1 }); // latest first
+    const purchases = await LensPurchase.find().sort({ createdAt: -1 }).populate("sourceChallanId", "billData"); // latest first
     res.status(200).json({
       success: true,
       data: purchases,
@@ -179,7 +186,7 @@ const getLensPurchase = async (req, res) => {
         .json({ success: false, message: "Purchase ID is required" });
     }
 
-    const purchase = await LensPurchase.findById(id);
+    const purchase = await LensPurchase.findById(id).populate("sourceChallanId", "billData");
 
     if (!purchase) {
       return res

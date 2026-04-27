@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { printBarcodeStickers } from "../utils/BarcodeStickerHelper";
 import { printAuthenticityCard } from "../utils/AuthenticityCardHelper";
 import * as XLSX from "xlsx";
+import { generateBulkPrint, handleExportToExcel as exportToExcel } from "../utils/PrintUtils";
 import {
   Plus,
   Printer,
@@ -20,17 +21,24 @@ import {
   getAllLensSaleReturn,
   removeLensSaleReturn,
   updateReturnQuantities,
+  updateReturnStatus as updateLensStatus,
 } from "../controllers/SaleReturn.controller";
 import {
   removeRxSaleReturn,
   getAllRxSaleReturn,
+  updateRxReturnFields,
+  updateReturnStatus as updateRxStatus,
 } from "../controllers/RxSaleReturn.controller.js";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "react-hot-toast";
 import { roundAmount } from "../utils/amountUtils";
 import { numberToWords } from "../utils/numberToWords";
+import { getAllLensPower } from "../controllers/LensGroupCreationController";
+import { getAllItems } from "../controllers/itemcontroller";
 function SaleReturnVoucher() {
   const [saleReturns, setSaleReturns] = useState([]);
+  const [allLenses, setAllLenses] = useState([]);
+  const [allItems, setAllItems] = useState([]);
   const [expandedRow, setExpandedRow] = useState(null);
   const [quantitiesValues, setQuantitiesValues] = useState({});
   const [filters, setFilters] = useState({
@@ -39,6 +47,102 @@ function SaleReturnVoucher() {
     dateTo: "",
     searchText: "",
   });
+
+  // Selective Print State
+  const [selectedReturns, setSelectedReturns] = useState([]);
+
+  const handleSelectReturn = (returnId, isChecked) => {
+    setSelectedReturns(prev =>
+      isChecked ? [...prev, returnId] : prev.filter(id => id !== returnId)
+    );
+  };
+
+  const handleSelectAllReturns = (isChecked) => {
+    if (isChecked) {
+      setSelectedReturns(filteredVouchers.map(v => String(v._id)));
+    } else {
+      setSelectedReturns([]);
+    }
+  };
+
+  const handlePrintClick = () => {
+    const dataToPrint = selectedReturns.length > 0 
+      ? filteredVouchers.filter(v => selectedReturns.includes(String(v._id)))
+      : filteredVouchers;
+    
+    const isSingleType = dataToPrint.every(v => v.returnType === dataToPrint[0].returnType);
+    let title = "Sale Return Voucher List";
+    if (isSingleType && dataToPrint.length > 0) {
+        title = dataToPrint[0].returnType === "rx" ? "Rx Sale Return" : "Lens Sale Return";
+    }
+
+    const printItems = dataToPrint.map((v, i) => ({
+      ...v,
+      srNo: i + 1,
+      date: v.billData?.date,
+      series: v.billData?.billSeries || "-",
+      billNo: v.billData?.billNo || "-",
+      partyName: v.partyData?.partyAccount || "-",
+      netAmt: v.netAmount,
+    }));
+
+    const visibleColumnsMapped = {
+        srNo: true,
+        date: true,
+        series: true,
+        billNo: true,
+        partyName: true,
+        netAmt: true,
+    };
+
+    const ALL_COLUMNS = [
+        { id: "srNo", label: "S.N." },
+        { id: "date", label: "Bill Date" },
+        { id: "series", label: "Bill Series" },
+        { id: "billNo", label: "Bill No." },
+        { id: "partyName", label: "Party Name" },
+        { id: "netAmt", label: "Net Amount" },
+    ];
+
+    generateBulkPrint(title, printItems, visibleColumnsMapped, ALL_COLUMNS);
+  };
+
+  const handleExcelExportClick = () => {
+    const fileName = "SaleReturns";
+    const dataToExport = selectedReturns.length > 0 
+      ? filteredVouchers.filter(v => selectedReturns.includes(String(v._id)))
+      : filteredVouchers;
+
+    const exportItems = dataToExport.map((v, i) => ({
+      ...v,
+      srNo: i + 1,
+      date: v.billData?.date,
+      series: v.billData?.billSeries || "-",
+      billNo: v.billData?.billNo || "-",
+      partyName: v.partyData?.partyAccount || "-",
+      netAmt: v.netAmount,
+    }));
+
+    const visibleColumnsMapped = {
+        srNo: true,
+        date: true,
+        series: true,
+        billNo: true,
+        partyName: true,
+        netAmt: true,
+    };
+
+    const ALL_COLUMNS = [
+        { id: "srNo", label: "S.N." },
+        { id: "date", label: "Bill Date" },
+        { id: "series", label: "Bill Series" },
+        { id: "billNo", label: "Bill No." },
+        { id: "partyName", label: "Party Name" },
+        { id: "netAmt", label: "Net Amount" },
+    ];
+
+    exportToExcel(XLSX, fileName, exportItems, visibleColumnsMapped, ALL_COLUMNS);
+  };
 
   const navigate = useNavigate();
 
@@ -57,6 +161,13 @@ function SaleReturnVoucher() {
       combinedData.sort((a, b) => new Date(b.billData?.date) - new Date(a.billData?.date));
 
       setSaleReturns(combinedData);
+      
+      const [lenses, items] = await Promise.all([
+        getAllLensPower(),
+        getAllItems()
+      ]);
+      setAllLenses(lenses?.data || []);
+      setAllItems(items?.items || items?.data || []);
     } catch (err) {
       console.error("Error fetching sale return data:", err);
       toast.error("Failed to load some data");
@@ -85,7 +196,27 @@ function SaleReturnVoucher() {
     });
   };
 
-  const saveQuantities = async (id) => {
+  const handleStatusChange = async (id, returnType, status) => {
+    try {
+      let res;
+      if (returnType === "lens") {
+        res = await updateLensStatus(id, status);
+      } else {
+        res = await updateRxStatus(id, status);
+      }
+
+      if (res.success) {
+        toast.success("Status updated");
+        setSaleReturns(prev => prev.map(v => v._id === id ? { ...v, status } : v));
+      } else {
+        toast.error(res.error || "Failed to update status");
+      }
+    } catch (err) {
+      toast.error("Error updating status");
+    }
+  };
+
+  const saveQuantities = async (id, returnType) => {
     const vals = quantitiesValues[id];
     if (!vals) return;
     const o = Number(vals.ordQty || 0);
@@ -94,15 +225,18 @@ function SaleReturnVoucher() {
       toast.error("Used Qty cannot exceed Order Qty");
       return;
     }
-    // We assume the type is stored on the object or we can find it. 
-    // Since we merged them and added returnType, we can find it in saleReturns.
-    // For simplicity, we just use the API that works for both if available, 
-    // but the current controller only has updateReturnQuantities for lens?
-    // Let's assume for now it works or the user only wants it for lens.
-    const res = await updateReturnQuantities(id, { orderQty: o, usedQty: u });
+
+    let res;
+    if (returnType === "lens") {
+      res = await updateReturnQuantities(id, { orderQty: o, usedQty: u });
+    } else {
+      res = await updateRxReturnFields(id, { orderQty: o, usedQty: u });
+    }
+
     if (res.success) {
       toast.success("Quantities updated");
-      fetchdata();
+      // Update local state to avoid full fetch
+      setSaleReturns(prev => prev.map(v => v._id === id ? { ...v, orderQty: o, usedQty: u, balQty: Math.max(0, o - u) } : v));
     } else {
       toast.error("Failed to update");
     }
@@ -158,6 +292,24 @@ function SaleReturnVoucher() {
     } catch {
       return "-";
     }
+  };
+
+  const getPrintItemName = (item) => {
+    if (item.billItemName && item.billItemName.trim() !== "") return item.billItemName;
+    const target = (item.itemName || "").trim().toLowerCase();
+    if (!target) return item.itemName || "-";
+
+    const foundLens = (allLenses || []).find(l => 
+      (l.productName || "").trim().toLowerCase() === target
+    );
+    if (foundLens?.billItemName) return foundLens.billItemName;
+
+    const foundItem = (allItems || []).find(i => 
+      (i.itemName || "").trim().toLowerCase() === target
+    );
+    if (foundItem?.billItemName) return foundItem.billItemName;
+
+    return item.itemName || "-";
   };
 
   // Print Template Components
@@ -245,7 +397,7 @@ function SaleReturnVoucher() {
             {order?.items?.map((item, idx) => (
               <tr key={idx} className="h-8">
                 <td className="border border-slate-400 p-1 text-center">{idx + 1}</td>
-                <td className="border border-slate-400 p-1 font-bold">{item.itemName || "-"}</td>
+                <td className="border border-slate-400 p-1 font-bold">{getPrintItemName(item)}</td>
                 <td className="border border-slate-400 p-1 text-center">{item.orderNo || item.refId || "-"}</td>
                 <td className="border border-slate-400 p-1 text-center">{item.eye || "-"}</td>
                 <td className="border border-slate-400 p-1 text-center font-mono">{item.sph || "-"}</td>
@@ -499,6 +651,7 @@ function SaleReturnVoucher() {
     pw.focus();
     pw.print();
   };
+  const formatPrice = (price) => `₹${roundAmount(Number(price || 0))}`;
 
   const handleNormalPrint = (order) => {
     const formatDate = (dateStr) => {
@@ -516,7 +669,7 @@ function SaleReturnVoucher() {
       .map(
         (it, idx) => `<tr>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${idx + 1}</td>
-          <td style="border:1px solid #94a3b8;padding:4px;font-weight:bold">${it.itemName || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;font-weight:bold">${getPrintItemName(it)}</td>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.orderNo || it.refId || "-"}</td>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.eye || "-"}</td>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.sph || "-"}</td>
@@ -649,11 +802,11 @@ function SaleReturnVoucher() {
   };
 
   const handleBarcodePrint = (order) => {
-    printBarcodeStickers(order, [], []);
+    printBarcodeStickers(order, allLenses, allItems);
   };
 
   const handleCardPrint = (order) => {
-    printAuthenticityCard(order, [], []);
+    printAuthenticityCard(order, allLenses, allItems);
   };
 
   const handleInfo = (id) => {
@@ -692,13 +845,18 @@ function SaleReturnVoucher() {
   const totals = useMemo(() => {
     let net = 0;
     let ordQty = 0;
+    let usedQty = 0;
+    let balQty = 0;
     filteredVouchers.forEach((v) => {
       net += parseNumber(v.netAmount);
-      // Fallback to item sum for quantity
-      const q = Number(quantitiesValues[v._id]?.ordQty ?? 0) || (v.items?.reduce((s, i) => s + (Number(i.qty) || 0), 0) || 0);
+      const q = Number(quantitiesValues[v._id]?.ordQty ?? 0) || (v.orderQty !== undefined ? v.orderQty : (v.items?.reduce((s, i) => s + (Number(i.qty) || 0), 0) || 0));
+      const u = Number(quantitiesValues[v._id]?.usedQty ?? 0) || (v.usedQty || 0);
+      const b = Math.max(0, q - u);
       ordQty += q;
+      usedQty += u;
+      balQty += b;
     });
-    return { net, ordQty };
+    return { net, ordQty, usedQty, balQty };
   }, [filteredVouchers, quantitiesValues]);
 
   const formatINR = (num) =>
@@ -796,16 +954,16 @@ function SaleReturnVoucher() {
                 Add Sales Return
               </button>
               <button
-                onClick={handleExcelExport}
+                onClick={handleExcelExportClick}
                 className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors duration-200 hover:shadow-sm"
-                title="Download Excel (.xlsx)"
+                title="Export to Excel"
               >
                 <FileSpreadsheet className="w-4 h-4" />
               </button>
               <button
-                onClick={handleTablePrint}
+                onClick={handlePrintClick}
                 className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 hover:shadow-sm"
-                title="Print Voucher List"
+                title="Print Table or Selected"
               >
                 <Printer className="w-4 h-4" />
               </button>
@@ -819,21 +977,34 @@ function SaleReturnVoucher() {
             <table className="min-w-full table-fixed divide-y divide-slate-200">
               <thead className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="w-20 text-center py-4 px-3 text-slate-700 font-bold text-sm">S.N.</th>
+                  <th className="w-24 text-center py-4 px-3 text-slate-700 font-bold text-sm">
+                    <div className="flex items-center justify-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                        checked={filteredVouchers.length > 0 && selectedReturns.length === filteredVouchers.length}
+                        onChange={(e) => handleSelectAllReturns(e.target.checked)}
+                      />
+                      S.N.
+                    </div>
+                  </th>
                   <th className="min-w-[120px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bill Date</th>
                   <th className="min-w-[120px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Time</th>
                   <th className="min-w-[180px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bill Series</th>
                   <th className="min-w-[100px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bill No.</th>
                   <th className="min-w-[280px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Party Name</th>
                   <th className="min-w-[130px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Net Amt</th>
-                  <th className="min-w-[80px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Ord Q</th>
+                  <th className="min-w-[120px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Status</th>
+                  <th className="w-[100px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Ord Q</th>
+                  <th className="w-[100px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Used Q</th>
+                  <th className="w-[100px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bal Q</th>
                   <th className="w-[200px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filteredVouchers.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="p-10 text-center text-slate-500">
+                    <td colSpan="12" className="p-10 text-center text-slate-500">
                       <p className="text-xl">No return vouchers found</p>
                       <p className="text-md">Try adjusting your search criteria</p>
                     </td>
@@ -844,9 +1015,17 @@ function SaleReturnVoucher() {
                     return (
                       <React.Fragment key={idStr}>
                         <tr className="hover:bg-slate-50 transition-colors duration-150 group text-sm">
-                      <td className="w-20 text-center text-slate-600 font-medium py-5 px-2 align-top whitespace-nowrap">
-                        <span className="text-base">{i + 1}</span>
-                      </td>
+                          <td className="w-24 text-center text-slate-600 font-medium py-5 px-2 align-top whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                                checked={selectedReturns.includes(idStr)}
+                                onChange={(e) => handleSelectReturn(idStr, e.target.checked)}
+                              />
+                              <span className="text-base">{i + 1}</span>
+                            </div>
+                          </td>
                       <td className="py-5 px-3 text-slate-800 align-top text-center">{safeDate(v.billData.date)}</td>
                       <td className="py-5 px-3 text-slate-800 align-top text-center">{formatTime(v)}</td>
                       <td className="py-5 px-3 text-slate-800 align-top text-center">{v.billData.billSeries}</td>
@@ -856,13 +1035,41 @@ function SaleReturnVoucher() {
                         {v.netAmount !== "0.00" ? `₹${roundAmount(v.netAmount)}` : "-"}
                       </td>
                       <td className="py-5 px-3 align-top text-center">
+                        <select
+                          value={v.status || "Pending"}
+                          onChange={(e) => handleStatusChange(v._id, v.returnType, e.target.value)}
+                          className={`px-2 py-1 text-xs font-bold rounded border ${
+                            v.status === "Done" 
+                              ? "bg-green-100 text-green-700 border-green-200" 
+                              : "bg-yellow-100 text-yellow-700 border-yellow-200"
+                          } outline-none focus:ring-1 focus:ring-blue-500`}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Done">Done</option>
+                        </select>
+                      </td>
+                      <td className="py-5 px-3 align-top text-center">
                         <input
                           type="number"
-                          value={quantitiesValues[v._id]?.ordQty ?? ""}
+                          value={quantitiesValues[v._id]?.ordQty ?? v.orderQty ?? ""}
                           onChange={(e) => handleQuantityChange(v._id, "ordQty", e.target.value)}
-                          onBlur={() => saveQuantities(v._id)}
-                          className="w-full px-1 py-1 text-sm border border-slate-300 rounded text-center outline-none focus:border-blue-500"
+                          onBlur={() => saveQuantities(v._id, v.returnType)}
+                          style={{ width: `${Math.max(4, String(quantitiesValues[v._id]?.ordQty ?? v.orderQty ?? "").length) + 3}ch` }}
+                          className="px-1 py-1 text-sm border border-slate-300 rounded text-center outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
+                      </td>
+                      <td className="py-5 px-3 align-top text-center">
+                        <input
+                          type="number"
+                          value={quantitiesValues[v._id]?.usedQty ?? v.usedQty ?? ""}
+                          onChange={(e) => handleQuantityChange(v._id, "usedQty", e.target.value)}
+                          onBlur={() => saveQuantities(v._id, v.returnType)}
+                          style={{ width: `${Math.max(4, String(quantitiesValues[v._id]?.usedQty ?? v.usedQty ?? "").length) + 3}ch` }}
+                          className="px-1 py-1 text-sm border border-slate-300 rounded text-center outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </td>
+                      <td className="py-5 px-3 align-top text-center font-bold text-slate-700">
+                        {quantitiesValues[v._id]?.balQty ?? (v.balQty || 0)}
                       </td>
                       <td className="w-[200px] text-center py-5 px-3 align-top">
                         <div className="flex items-center justify-center gap-2">
@@ -891,7 +1098,7 @@ function SaleReturnVoucher() {
                     {expandedRow === idStr && (
                       <tr>
                         <td
-                          colSpan="9"
+                          colSpan="12"
                           className="bg-blue-50 p-6 border-b-2 border-t-2 border-blue-300 shadow-lg"
                         >
                           <div className="bg-white rounded-lg p-4 border border-blue-200">
@@ -919,7 +1126,7 @@ function SaleReturnVoucher() {
                                 <tbody>
                                   {v.items?.map((it, idx) => (
                                     <tr key={idx} className="border-b border-slate-200 hover:bg-slate-50">
-                                      <td className="p-2 font-semibold text-slate-700">{it.itemName || "-"}</td>
+                                      <td className="px-1 py-1 border border-slate-200">{getPrintItemName(it)}</td>
                                       <td className="p-2 text-center">{it.orderNo || "-"}</td>
                                       <td className="p-2 text-center">{it.eye || "-"}</td>
                                       <td className="p-2 text-center">{it.sph || "-"}</td>
@@ -961,8 +1168,15 @@ function SaleReturnVoucher() {
                   <td className="py-4 px-3 text-center text-slate-900 text-lg font-black underline decoration-double decoration-blue-500 underline-offset-4">
                     {`₹${roundAmount(totals.net)}`}
                   </td>
+                  <td className="bg-slate-100/50" /> {/* Status Column */}
                   <td className="py-4 px-3 text-center text-blue-600 text-lg font-black underline decoration-double decoration-blue-500 underline-offset-4">
                     {totals.ordQty}
+                  </td>
+                  <td className="py-4 px-3 text-center text-orange-600 text-lg font-black underline decoration-double decoration-blue-500 underline-offset-4">
+                    {totals.usedQty}
+                  </td>
+                  <td className="py-4 px-3 text-center text-green-600 text-lg font-black underline decoration-double decoration-blue-500 underline-offset-4">
+                    {totals.balQty}
                   </td>
                   <td className="bg-slate-100/50" />
                 </tr>

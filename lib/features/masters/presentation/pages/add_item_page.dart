@@ -13,6 +13,7 @@ import '../../data/models/item_group_model.dart';
 import '../../data/models/tax_category_model.dart';
 import '../../data/providers/inventory_providers.dart';
 import '../../data/providers/tax_category_provider.dart';
+import '../../../../core/utils/color_utils.dart';
 
 class AddItemPage extends StatefulWidget {
   final bool hideHeader;
@@ -58,6 +59,7 @@ class _AddItemPageState extends State<AddItemPage> {
   final _sellStockLevelController = TextEditingController();
   final _batchWiseDetailsController = TextEditingController();
   final _searchController = TextEditingController();
+  final _gstController = TextEditingController();
 
   String? _selectedGroupName;
   String? _selectedTaxCategory;
@@ -124,6 +126,7 @@ class _AddItemPageState extends State<AddItemPage> {
     _barcodeController.dispose(); _godownController.dispose(); _loyaltyPointsController.dispose();
     _refAmnController.dispose(); _refAmntIndiaController.dispose(); _sellStockLevelController.dispose();
     _batchWiseDetailsController.dispose(); _searchController.dispose();
+    _gstController.dispose();
     super.dispose();
   }
 
@@ -160,6 +163,7 @@ class _AddItemPageState extends State<AddItemPage> {
       _sellStockLevelController.text = item.sellStockLevel;
       _batchWiseDetailsController.text = item.batchWiseDetails;
       _selectedTaxCategory = item.taxCategory;
+      _gstController.text = item.gst?.toString() ?? '';
     });
     Scrollable.ensureVisible(_formKey.currentContext!, duration: const Duration(milliseconds: 300));
   }
@@ -178,6 +182,7 @@ class _AddItemPageState extends State<AddItemPage> {
       _loyaltyPointsController.clear(); _refAmnController.clear(); _refAmntIndiaController.clear();
       _forLensProduct = false; _sellStockLevelController.clear(); _batchWiseDetailsController.clear();
       _selectedTaxCategory = null;
+      _gstController.clear();
     });
     _fetchNextAlias();
   }
@@ -217,6 +222,7 @@ class _AddItemPageState extends State<AddItemPage> {
         sellStockLevel: _sellStockLevelController.text.trim(),
         batchWiseDetails: _batchWiseDetailsController.text.trim(),
         taxCategory: _selectedTaxCategory ?? '',
+        gst: double.tryParse(_gstController.text),
       );
       final provider = context.read<ItemMasterProvider>();
       if (_editingId != null) {
@@ -242,7 +248,7 @@ class _AddItemPageState extends State<AddItemPage> {
       excel.Sheet sheetObject = ex['Items'];
       ex.delete('Sheet1');
 
-      List<String> headers = ['Sr No.', 'Created On', 'Group', 'Item Name', 'Unit', 'P. Price', 'S. Price', 'P. Disc%'];
+      List<String> headers = ['Sr No.', 'Created On', 'Group', 'Item Name', 'Unit', 'P. Price', 'S. Price', 'MRP', 'GST%', 'P. Disc%'];
       sheetObject.appendRow(headers.map((h) => excel.TextCellValue(h)).toList());
 
       for (var i = 0; i < items.length; i++) {
@@ -255,6 +261,8 @@ class _AddItemPageState extends State<AddItemPage> {
           excel.TextCellValue(item.unit),
           excel.DoubleCellValue(item.purchasePrice ?? 0),
           excel.DoubleCellValue(item.salePrice ?? 0),
+          excel.DoubleCellValue(item.mrpPrice ?? 0),
+          excel.DoubleCellValue(item.gst ?? 0),
           excel.DoubleCellValue(item.purchaseDiscount ?? 0),
         ]);
       }
@@ -282,9 +290,9 @@ class _AddItemPageState extends State<AddItemPage> {
           pw.Header(level: 0, child: pw.Text("Item Master Report", style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold))),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
-            headers: ['Sr.', 'Group', 'Item Name', 'Unit', 'P. Price', 'S. Price', 'Disc%'],
+            headers: ['Sr.', 'Group', 'Item Name', 'Unit', 'P. Price', 'S. Price', 'MRP', 'GST%', 'Disc%'],
             data: items.asMap().entries.map((e) => [
-              e.key + 1, e.value.groupName, e.value.itemName, e.value.unit, e.value.purchasePrice ?? 0, e.value.salePrice ?? 0, e.value.purchaseDiscount ?? 0
+              e.key + 1, e.value.groupName, e.value.itemName, e.value.unit, e.value.purchasePrice ?? 0, e.value.salePrice ?? 0, e.value.mrpPrice ?? 0, e.value.gst ?? 0, e.value.purchaseDiscount ?? 0
             ]).toList(),
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
             cellPadding: const pw.EdgeInsets.all(5),
@@ -408,6 +416,8 @@ class _AddItemPageState extends State<AddItemPage> {
                     Expanded(child: _buildTextField("HSN CODE", _hsnCodeController, hint: "e.g. 9004")),
                     const SizedBox(width: 24),
                     Expanded(child: _buildDropdown("TAX CATEGORY", _selectedTaxCategory, taxCats.where((t) => t.name.isNotEmpty).map((t) => t.name).toList(), (v) => setState(() => _selectedTaxCategory = v))),
+                    const SizedBox(width: 24),
+                    Expanded(child: _buildTextField("GST (%)", _gstController, hint: "0.00")),
                   ]),
                   const SizedBox(height: 24),
                   Row(children: [
@@ -522,14 +532,17 @@ class _AddItemPageState extends State<AddItemPage> {
       double w(double p) => totalWidth * p;
 
       final widths = {
-        'sr': w(0.08),
-        'date': w(0.12),
-        'group': w(0.15),
-        'item': w(0.25),
-        'unit': w(0.10),
-        'price': w(0.10),
-        'disc': w(0.10),
-        'action': w(0.10),
+        'sr': w(0.04),
+        'date': w(0.08),
+        'group': w(0.08),
+        'item': w(0.24),
+        'unit': w(0.06),
+        'pPrice': w(0.09),
+        'sPrice': w(0.09),
+        'mrp': w(0.10),
+        'gst': w(0.08),
+        'disc': w(0.08),
+        'action': w(0.08),
       };
 
       return Container(
@@ -591,7 +604,10 @@ class _AddItemPageState extends State<AddItemPage> {
                   _buildTableColumn("GROUP", width: widths['group']!),
                   _buildTableColumn("ITEM NAME", width: widths['item']!),
                   _buildTableColumn("UNIT", width: widths['unit']!),
-                  _buildTableColumn("S. PRICE", width: widths['price']!, centered: true),
+                  _buildTableColumn("P. PRICE", width: widths['pPrice']!, centered: true),
+                  _buildTableColumn("S. PRICE", width: widths['sPrice']!, centered: true),
+                  _buildTableColumn("MRP", width: widths['mrp']!, centered: true),
+                  _buildTableColumn("GST%", width: widths['gst']!, centered: true),
                   _buildTableColumn("P. DISC%", width: widths['disc']!, centered: true),
                   _buildTableColumn("ACTION", width: widths['action']!, centered: true),
                 ],
@@ -618,11 +634,25 @@ class _AddItemPageState extends State<AddItemPage> {
                         width: widths['date']!,
                       ),
                       _buildTableCell(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: const Color(0xFFEEF2FF), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE0E7FF))),
-                          child: Text(item.groupName, style: const TextStyle(color: Color(0xFF4F46E5), fontSize: 10, fontWeight: FontWeight.w900)),
-                        ),
+                        child: () {
+                          final gColor = getGroupColor(item.groupName);
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: gColor.background,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: gColor.border),
+                            ),
+                            child: Text(
+                              item.groupName,
+                              style: TextStyle(
+                                color: gColor.text,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          );
+                        }(),
                         width: widths['group']!,
                       ),
                       _buildTableCell(
@@ -633,7 +663,18 @@ class _AddItemPageState extends State<AddItemPage> {
                         width: widths['item']!,
                       ),
                       _buildTableCell(child: Text(item.unit.isEmpty ? "---" : item.unit.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF64748B))), width: widths['unit']!),
-                      _buildTableCell(child: Text("₹${item.salePrice ?? 0}", style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2563EB), fontSize: 13)), width: widths['price']!, centered: true),
+                      _buildTableCell(child: Text("₹${item.purchasePrice ?? 0}", style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF64748B), fontSize: 13)), width: widths['pPrice']!, centered: true),
+                      _buildTableCell(child: Text("₹${item.salePrice ?? 0}", style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2563EB), fontSize: 13)), width: widths['sPrice']!, centered: true),
+                      _buildTableCell(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFDCFCE7))),
+                          child: Text("₹${item.mrpPrice ?? 0}", style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF16A34A), fontSize: 13)),
+                        ),
+                        width: widths['mrp']!,
+                        centered: true,
+                      ),
+                      _buildTableCell(child: Text("${item.gst ?? 0}%", style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF6366F1), fontSize: 13)), width: widths['gst']!, centered: true),
                       _buildTableCell(child: Text("${item.purchaseDiscount ?? 0}%", style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFD97706), fontSize: 13)), width: widths['disc']!, centered: true),
                       _buildTableCell(
                         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [

@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Clock, 
   Search, 
-  Calendar, 
   Download, 
-  Printer, 
   Filter, 
   Activity,
   User,
@@ -13,13 +12,16 @@ import {
   CheckCircle2,
   Timer,
   Settings2,
-  X as CloseIcon
+  X as CloseIcon,
+  ShoppingCart,
+  TrendingUp
 } from "lucide-react";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
 import ApiClient from "../ApiClient";
 
 const OrderToChallanTimeReport = () => {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState({ 
         summary: { totalOrders: 0, completedOrders: 0, pendingOrders: 0, avgTime: 0 }, 
@@ -209,6 +211,23 @@ const OrderToChallanTimeReport = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    {/* Sale / Purchase Toggle */}
+                    <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                        <button
+                            className="px-4 py-2.5 flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-indigo-600 text-white shadow-sm"
+                        >
+                            <TrendingUp className="w-3.5 h-3.5" />
+                            Sale
+                        </button>
+                        <button
+                            onClick={() => navigate('/reports/otherreports/purchaseordertochallantimereport')}
+                            className="px-4 py-2.5 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all"
+                        >
+                            <ShoppingCart className="w-3.5 h-3.5" />
+                            Purchase
+                        </button>
+                    </div>
+
                     <div className="flex items-center bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm gap-3">
                         <Settings2 className="w-4 h-4 text-slate-400" />
                         <span className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">Threshold (Mins):</span>

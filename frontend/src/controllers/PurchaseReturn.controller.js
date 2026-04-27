@@ -78,3 +78,15 @@ export const updateReturnQuantities = async (id, quantities) => {
     };
   }
 };
+
+export const updateReturnStatus = async (id, status) => {
+  try {
+    const res = await ApiClient.patch(`/PurchaseReturn/status/${id}`, { status });
+    return { success: true, data: res.data };
+  } catch (err) {
+    return {
+      success: false,
+      error: err?.response?.data?.message || "Failed to update status",
+    };
+  }
+};

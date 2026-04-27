@@ -15,25 +15,118 @@ import {
   CreditCard,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
+import { generateBulkPrint, handleExportToExcel } from "../utils/PrintUtils";
 import {
   getAllRxPurchase,
   removeRxPurchase,
 } from "../controllers/RxPurchase.controller";
 import { Toaster, toast } from "react-hot-toast";
 import { roundAmount } from "../utils/amountUtils";
+import { getAllLensPower } from "../controllers/LensGroupCreationController";
+import { getAllItems } from "../controllers/itemcontroller";
 
 function RxPurchase() {
   const [searchText, setSearchText] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [RxPurchases, setRxPurchases] = useState([]);
+  const [allLenses, setAllLenses] = useState([]);
+  const [allItems, setAllItems] = useState([]);
   const [expandedRow, setExpandedRow] = useState(null); // <--- track expanded row
   const navigate = useNavigate();
 
+  const [selectedInvoices, setSelectedInvoices] = useState([]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedInvoices(visibleInvoices.map(inv => String(inv._id)));
+    } else {
+      setSelectedInvoices([]);
+    }
+  };
+
+  const handleSelectInvoice = (id) => {
+    const idStr = String(id);
+    setSelectedInvoices(prev => 
+      prev.includes(idStr) ? prev.filter(i => i !== idStr) : [...prev, idStr]
+    );
+  };
+
+  const ALL_COLUMNS = [
+    { id: "srNo", label: "Sr No." },
+    { id: "date", label: "Bill Date" },
+    { id: "billSeries", label: "Bill Series" },
+    { id: "billNo", label: "Bill No." },
+    { id: "partyName", label: "Party Name" },
+    { id: "netAmt", label: "Net Amount" },
+    { id: "paidAmount", label: "Paid Amount" },
+    { id: "dueAmount", label: "Due Amount" },
+    { id: "remark", label: "Remark" },
+  ];
+
+  const handlePrintTable = () => {
+    const dataToPrint = selectedInvoices.length > 0 
+      ? visibleInvoices.filter(inv => selectedInvoices.includes(String(inv._id)))
+      : visibleInvoices;
+
+    const printItems = dataToPrint.map((inv, i) => {
+      const lp = inv.raw || inv;
+      return {
+        ...inv,
+        srNo: i + 1,
+        date: lp.billData?.date || lp.date || lp.billDate,
+        billSeries: lp.billData?.billSeries || lp.billSeries,
+        billNo: lp.billData?.billNo || lp.billNo,
+        partyName: lp.partyData?.partyAccount || lp.partyName,
+        netAmt: lp.netAmount || lp.netAmt,
+        paidAmount: lp.paidAmount || 0,
+        dueAmount: lp.dueAmount || 0,
+        remark: lp.remark || "-"
+      };
+    });
+
+    const visibleCols = { srNo: true, date: true, billSeries: true, billNo: true, partyName: true, netAmt: true, paidAmount: true, dueAmount: true, remark: true };
+
+    generateBulkPrint("Rx Purchase Invoice Report", printItems, visibleCols, ALL_COLUMNS);
+  };
+
+  const handleExcelExport = () => {
+    const dataToExport = selectedInvoices.length > 0 
+      ? visibleInvoices.filter(inv => selectedInvoices.includes(String(inv._id)))
+      : visibleInvoices;
+
+    const exportItems = dataToExport.map((inv, i) => {
+      const lp = inv.raw || inv;
+      return {
+        ...inv,
+        srNo: i + 1,
+        date: lp.billData?.date || lp.date || lp.billDate,
+        billSeries: lp.billData?.billSeries || lp.billSeries,
+        billNo: lp.billData?.billNo || lp.billNo,
+        partyName: lp.partyData?.partyAccount || lp.partyName,
+        netAmt: lp.netAmount || lp.netAmt,
+        paidAmount: lp.paidAmount || 0,
+        dueAmount: lp.dueAmount || 0,
+        remark: lp.remark || "-"
+      };
+    });
+
+    const visibleCols = { srNo: true, date: true, billSeries: true, billNo: true, partyName: true, netAmt: true, paidAmount: true, dueAmount: true, remark: true };
+
+    handleExportToExcel(XLSX, "RxPurchaseInvoices", exportItems, visibleCols, ALL_COLUMNS);
+  };
+
   useEffect(() => {
     const fetchData = async () => {
-      const res = await getAllRxPurchase();
+      const [res, lenses, items] = await Promise.all([
+        getAllRxPurchase(),
+        getAllLensPower(),
+        getAllItems()
+      ]);
       setRxPurchases(res?.data || []);
+      setAllLenses(lenses?.data || []);
+      setAllItems(items?.items || items?.data || []);
     };
     fetchData();
   }, []);
@@ -140,13 +233,31 @@ function RxPurchase() {
   };
 
   // Print functions
+  const getPrintItemName = (item) => {
+    if (item.billItemName && item.billItemName.trim() !== "") return item.billItemName;
+    const target = (item.itemName || "").trim().toLowerCase();
+    if (!target) return item.itemName || "-";
+
+    const foundLens = (allLenses || []).find(l => 
+      (l.productName || "").trim().toLowerCase() === target
+    );
+    if (foundLens?.billItemName) return foundLens.billItemName;
+
+    const foundItem = (allItems || []).find(i => 
+      (i.itemName || "").trim().toLowerCase() === target
+    );
+    if (foundItem?.billItemName) return foundItem.billItemName;
+
+    return item.itemName || "-";
+  };
+
   const generateNormalPrint = (invoice) => {
     const itemsHTML = (invoice.items || [])
       .map(
         (item, i) => `
       <tr>
         <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${i + 1}</td>
-        <td style="border: 1px solid #ddd; padding: 8px;">${item.itemName || "-"}</td>
+        <td style="border: 1px solid #ddd; padding: 8px;">${getPrintItemName(item)}</td>
         <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.qty || 0}</td>
         <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatPrice(item.purchasePrice || 0)}</td>
         <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${item.discount || 0}</td>
@@ -289,7 +400,7 @@ function RxPurchase() {
   };
 
   const generateCardPrint = (invoice) => {
-    printAuthenticityCard(invoice.raw || invoice, [], []);
+    printAuthenticityCard(invoice.raw || invoice, allLenses, allItems);
   };
 
   return (
@@ -340,10 +451,10 @@ function RxPurchase() {
               <button onClick={handleAddRxPurchase} className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200">
                 <Plus className="w-3.5 h-3.5" /> Add Rx Purchase
               </button>
-              <button className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors duration-200 hover:shadow-sm">
+              <button onClick={handleExcelExport} className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors duration-200 hover:shadow-sm">
                 <FileSpreadsheet className="w-4 h-4" />
               </button>
-              <button className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 hover:shadow-sm">
+              <button onClick={handlePrintTable} className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 hover:shadow-sm">
                 <Printer className="w-4 h-4" />
               </button>
             </div>
@@ -356,7 +467,17 @@ function RxPurchase() {
             <table className="min-w-full table-fixed divide-y divide-slate-200">
               <thead className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="w-16 text-center py-4 px-3 text-slate-700 font-bold text-sm">Sr No.</th>
+                  <th className="w-16 text-center py-4 px-3 text-slate-700 font-bold text-sm">
+                    <div className="flex items-center justify-center gap-2">
+                       <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        checked={selectedInvoices.length === visibleInvoices.length && visibleInvoices.length > 0}
+                        onChange={handleSelectAll}
+                      />
+                      <span>Sr</span>
+                    </div>
+                  </th>
                   <th className="min-w-[110px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bill Date</th>
                   <th className="min-w-[120px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bill Series</th>
                   <th className="min-w-[100px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bill No.</th>
@@ -385,8 +506,18 @@ function RxPurchase() {
                     const idStr = getId(invoice._id);
                     return (
                       <React.Fragment key={idStr || index}>
-                        <tr className="hover:bg-slate-50 transition-colors duration-150 group text-sm">
-                          <td className="text-center text-slate-600 font-medium py-4 px-2">{index + 1}</td>
+                        <tr className={`hover:bg-slate-50 transition-colors duration-150 group text-sm ${selectedInvoices.includes(idStr) ? 'bg-blue-50' : ''}`}>
+                          <td className="text-center text-slate-600 font-medium py-4 px-2">
+                            <div className="flex items-center justify-center gap-2">
+                              <input 
+                                type="checkbox" 
+                                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                checked={selectedInvoices.includes(idStr)}
+                                onChange={() => handleSelectInvoice(invoice._id)}
+                              />
+                              {index + 1}
+                            </div>
+                          </td>
                           <td className="text-center text-slate-700 py-4 px-3">{formatDate(invoice.billDate)}</td>
                           <td className="text-center py-4 px-3">
                             <span className="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">{invoice.billSeries || "-"}</span>

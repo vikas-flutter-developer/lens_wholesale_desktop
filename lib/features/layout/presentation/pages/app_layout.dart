@@ -532,7 +532,8 @@ class _AppLayoutState extends State<AppLayout> {
                 final viewportHeight = MediaQuery.of(context).size.height;
                 // Calculate required height: ~40px per item + 8px padding
                 final requiredHeight = (item.submenu?.length ?? 0) * 40 + 8;
-                bool flipped = (viewportHeight - itemPos.dy) < requiredHeight;
+                // Use a larger buffer (100px) or check if it exceeds bottom
+                bool flipped = (viewportHeight - itemPos.dy) < (requiredHeight + 60);
                 
                 _handleMouseEnter(item, Offset(64, flipped ? relativeY + 48 : relativeY), isFlipped: flipped);
                 setState(() => _hoveredItemKey = item.key);
@@ -576,11 +577,12 @@ class _AppLayoutState extends State<AppLayout> {
                 final viewportHeight = MediaQuery.of(context).size.height;
                 // Calculate required height: ~40px per item + 8px padding
                 final requiredHeight = (item.submenu?.length ?? 0) * 40 + 8;
-                bool flipped = (viewportHeight - itemPos.dy) < requiredHeight;
+                // Use a larger buffer (60px) to ensure it flips earlier
+                bool flipped = (viewportHeight - itemPos.dy) < (requiredHeight + 60);
                 
                 // Align with top (or bottom if flipped) of item in expanded mode
-                // Expanded items are roughly 44px high
-                _handleMouseEnter(item, Offset(0, flipped ? relativeY + 44 : relativeY), isFlipped: flipped);
+                // Expanded items are roughly 48px high with padding
+                _handleMouseEnter(item, Offset(0, flipped ? relativeY + 48 : relativeY), isFlipped: flipped);
               }
             },
           onExit: (_) {

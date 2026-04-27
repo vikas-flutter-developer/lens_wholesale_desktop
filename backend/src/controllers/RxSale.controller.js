@@ -1,6 +1,7 @@
 import RxSale from "../models/RxSale.js";
 import Account from "../models/Account.js";
 import mongoose from "mongoose";
+import { generateNextBillNo } from "../utils/billNoHelper.js";
 
 const parseNumber = (v, fallback = 0) => {
   if (v === null || v === undefined || v === "") return fallback;
@@ -45,7 +46,7 @@ const addRxSale = async (req, res) => {
 
     const billData = {
       billSeries: payload.billData?.billSeries ?? "",
-      billNo: payload.billData?.billNo ?? "",
+      billNo: payload.billData?.billNo || (await generateNextBillNo(RxSale, payload.partyData?.partyAccount, req.user?.companyId)),
       date: payload.billData?.date
         ? new Date(payload.billData.date)
         : new Date(),
@@ -176,7 +177,7 @@ const getRxSale = async (req, res) => {
       });
     }
 
-    const rxSale = await RxSale.findById(id);
+    const rxSale = await RxSale.findById(id).populate("sourceChallanId", "billData");
     if (!rxSale) {
       return res.status(404).json({
         success: false,
@@ -202,7 +203,7 @@ const getAllRxSale = async (req, res) => {
         { companyId },
         { companyId: null }
       ]
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).populate("sourceChallanId", "billData");
     return res.status(200).json({ success: true, data });
   } catch (err) {
     return res.status(500).json({

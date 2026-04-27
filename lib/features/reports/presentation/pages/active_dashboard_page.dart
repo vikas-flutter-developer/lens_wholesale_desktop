@@ -318,7 +318,7 @@ class _RevenueTrendChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _ChartContainer(
-      title: 'Revenue Trend — Memo vs Invoice vs B2B',
+      title: 'Revenue Trend — Sale Challan vs Invoice vs B2B',
       subtitle: 'Last 6 months',
       child: SizedBox(
         height: 300,

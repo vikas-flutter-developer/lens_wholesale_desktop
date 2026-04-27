@@ -76,3 +76,15 @@ export const updateRxPurchaseReturnFields = async (id, data) => {
     };
   }
 };
+
+export const updateReturnStatus = async (id, status) => {
+  try {
+    const res = await ApiClient.patch(`/rxPurchaseReturn/status/${id}`, { status });
+    return { success: true, data: res.data };
+  } catch (err) {
+    return {
+      success: false,
+      error: err?.response?.data?.message || "Failed to update status",
+    };
+  }
+};

@@ -43,8 +43,8 @@ class AnalyticsProvider extends ChangeNotifier {
   // --- Revenue Data ---
   List<RevenueMetric> get revenueMetrics => [
     RevenueMetric(title: 'MONTHLY REVENUE', value: '₹10.1K', trend: '89.7% vs last month', isPositive: false, color: const Color(0xFF4F46E5)),
-    RevenueMetric(title: 'MEMO DC REVENUE', value: '₹4.6K', trend: '45.4% of total', isPositive: true, color: const Color(0xFFF59E0B)),
-    RevenueMetric(title: 'INVOICE DC REVENUE', value: '₹5.5K', trend: '54.6% of total', isPositive: true, color: const Color(0xFF10B981)),
+    RevenueMetric(title: 'SALE CHALLAN REVENUE', value: '₹4.6K', trend: '45.4% of total', isPositive: true, color: const Color(0xFFF59E0B)),
+    RevenueMetric(title: 'INVOICE REVENUE', value: '₹5.5K', trend: '54.6% of total', isPositive: true, color: const Color(0xFF10B981)),
     RevenueMetric(title: 'B2B INVOICE REVENUE', value: '₹0', trend: '0.0% of total', isPositive: true, color: const Color(0xFFFACC15)),
   ];
 

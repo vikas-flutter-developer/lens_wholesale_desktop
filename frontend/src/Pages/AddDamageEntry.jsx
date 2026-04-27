@@ -190,6 +190,14 @@ export default function AddDamageEntry() {
         setItems((prev) => {
             const next = [...prev];
             next[idx] = { ...next[idx], [field]: value };
+
+            if (field === "itemName") {
+                const selectedItem = allLens.find((l) => l.productName === value);
+                if (selectedItem) {
+                    next[idx].billItemName = selectedItem.billItemName || "";
+                }
+            }
+
             // auto-calc total when qty or price changes
             if (field === "qty" || field === "price") {
                 const q = parseFloat(field === "qty" ? value : next[idx].qty) || 0;
@@ -318,6 +326,7 @@ export default function AddDamageEntry() {
             next[idx] = {
                 ...next[idx],
                 itemName: name,
+                billItemName: lens.billItemName || "",
                 price,
                 totalAmt: q && p ? (q * p).toFixed(2) : next[idx].totalAmt,
             };

@@ -2,6 +2,7 @@ import RxPurchase from "../models/RxPurchase.js";
 import LensGroup from "../models/LensGroup.js";
 import Account from "../models/Account.js";
 import mongoose from "mongoose";
+import { generateNextBillNo } from "../utils/billNoHelper.js";
 const parseNumber = (v, fallback = 0) => {
   if (v === null || v === undefined || v === "") return fallback;
   const n = Number(v);
@@ -46,7 +47,7 @@ const addRxPurchase = async (req, res) => {
     const payload = req.body ?? {};
     const billData = {
       billSeries: payload.billData?.billSeries ?? "",
-      billNo: payload.billData?.billNo ?? "",
+      billNo: payload.billData?.billNo || (await generateNextBillNo(RxPurchase, payload.partyData?.partyAccount, req.user?.companyId)),
       date: payload.billData?.date
         ? new Date(payload.billData.date)
         : new Date(),
@@ -179,7 +180,7 @@ const getRxPurchase = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Rx Purchase ID is required" });
     }
-    const rxpurchase = await RxPurchase.findById(id);
+    const rxpurchase = await RxPurchase.findById(id).populate("sourceChallanId", "billData");
     if (!rxpurchase) {
       return res
         .status(404)
@@ -196,7 +197,7 @@ const getRxPurchase = async (req, res) => {
 };
 const getAllRxPurchase = async (req, res) => {
   try {
-    const rxpurchases = await RxPurchase.find().sort({ createdAt: -1 });
+    const rxpurchases = await RxPurchase.find().sort({ createdAt: -1 }).populate("sourceChallanId", "billData");
     res.status(200).json({
       success: true,
       data: rxpurchases,

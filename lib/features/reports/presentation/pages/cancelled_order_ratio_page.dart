@@ -88,13 +88,14 @@ class _CancelledOrderRatioPageState extends State<CancelledOrderRatioPage> {
       final sheet = excel['Cancelled Orders'];
       sheet.appendRow([
         xl.TextCellValue('Sr. No.'), xl.TextCellValue('Date'), xl.TextCellValue('Type'),
-        xl.TextCellValue('Document'), xl.TextCellValue('Party Name'), xl.TextCellValue('Amount'), xl.TextCellValue('Status'),
+        xl.TextCellValue('Document'), xl.TextCellValue('Party Name'), xl.TextCellValue('Amount'), xl.TextCellValue('Status'), xl.TextCellValue('Cancelled'),
       ]);
       for (int i = 0; i < filtered.length; i++) {
         final d = filtered[i];
         sheet.appendRow([
           xl.IntCellValue(i + 1), xl.TextCellValue(d.date), xl.TextCellValue(d.transactionType),
           xl.TextCellValue(d.label), xl.TextCellValue(d.partyName), xl.DoubleCellValue(d.netAmount), xl.TextCellValue(d.status),
+          xl.TextCellValue(d.cancelledOrders == 1 ? "Yes" : "No"),
         ]);
       }
       final path = await FilePicker.saveFile(
@@ -494,12 +495,13 @@ class _CancelledOrderRatioPageState extends State<CancelledOrderRatioPage> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _transactionType,
+                          isExpanded: true,
                           icon: Icon(LucideIcons.chevronDown, size: 14, color: Colors.grey.shade500),
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
-                          items: [
-                            DropdownMenuItem(value: 'Both', child: const Text('Both (Sale/Purchase)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900))),
-                            DropdownMenuItem(value: 'Sale', child: const Text('Sales Only', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900))),
-                            DropdownMenuItem(value: 'Purchase', child: const Text('Purchase Only', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900))),
+                          items: const [
+                            DropdownMenuItem(value: 'Both', child: Text('Both (Sale/Purchase)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900))),
+                            DropdownMenuItem(value: 'Sale', child: Text('Sales Only', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900))),
+                            DropdownMenuItem(value: 'Purchase', child: Text('Purchase Only', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900))),
                           ],
                           onChanged: (v) { setState(() => _transactionType = v!); _fetch(); },
                         ),

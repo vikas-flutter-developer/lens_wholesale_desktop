@@ -447,6 +447,8 @@ export default function LensStockReport() {
                                 <option value="All">All</option>
                                 <option value="R">Right</option>
                                 <option value="L">Left</option>
+                                <option value="RL">RL</option>
+                                <option value="BOTH">Both (RL)</option>
                             </select>
                         </div>
 

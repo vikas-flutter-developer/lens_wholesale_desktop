@@ -2581,7 +2581,10 @@ mixin _$PartyWiseItem {
   double get totalPrice => throw _privateConstructorUsedError;
   double? get purchasePrice => throw _privateConstructorUsedError;
   String? get combinationId => throw _privateConstructorUsedError;
-  String? get docId => throw _privateConstructorUsedError;
+  String? get dcId => throw _privateConstructorUsedError;
+  String? get vendorName => throw _privateConstructorUsedError;
+  @JsonKey(name: 'dc_id')
+  String? get dc_id => throw _privateConstructorUsedError;
   String? get remark => throw _privateConstructorUsedError;
 
   /// Serializes this PartyWiseItem to a JSON map.
@@ -2623,7 +2626,9 @@ abstract class $PartyWiseItemCopyWith<$Res> {
     double totalPrice,
     double? purchasePrice,
     String? combinationId,
-    String? docId,
+    String? dcId,
+    String? vendorName,
+    @JsonKey(name: 'dc_id') String? dc_id,
     String? remark,
   });
 }
@@ -2664,7 +2669,9 @@ class _$PartyWiseItemCopyWithImpl<$Res, $Val extends PartyWiseItem>
     Object? totalPrice = null,
     Object? purchasePrice = freezed,
     Object? combinationId = freezed,
-    Object? docId = freezed,
+    Object? dcId = freezed,
+    Object? vendorName = freezed,
+    Object? dc_id = freezed,
     Object? remark = freezed,
   }) {
     return _then(
@@ -2753,9 +2760,17 @@ class _$PartyWiseItemCopyWithImpl<$Res, $Val extends PartyWiseItem>
                 ? _value.combinationId
                 : combinationId // ignore: cast_nullable_to_non_nullable
                       as String?,
-            docId: freezed == docId
-                ? _value.docId
-                : docId // ignore: cast_nullable_to_non_nullable
+            dcId: freezed == dcId
+                ? _value.dcId
+                : dcId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            vendorName: freezed == vendorName
+                ? _value.vendorName
+                : vendorName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            dc_id: freezed == dc_id
+                ? _value.dc_id
+                : dc_id // ignore: cast_nullable_to_non_nullable
                       as String?,
             remark: freezed == remark
                 ? _value.remark
@@ -2798,7 +2813,9 @@ abstract class _$$PartyWiseItemImplCopyWith<$Res>
     double totalPrice,
     double? purchasePrice,
     String? combinationId,
-    String? docId,
+    String? dcId,
+    String? vendorName,
+    @JsonKey(name: 'dc_id') String? dc_id,
     String? remark,
   });
 }
@@ -2838,7 +2855,9 @@ class __$$PartyWiseItemImplCopyWithImpl<$Res>
     Object? totalPrice = null,
     Object? purchasePrice = freezed,
     Object? combinationId = freezed,
-    Object? docId = freezed,
+    Object? dcId = freezed,
+    Object? vendorName = freezed,
+    Object? dc_id = freezed,
     Object? remark = freezed,
   }) {
     return _then(
@@ -2927,9 +2946,17 @@ class __$$PartyWiseItemImplCopyWithImpl<$Res>
             ? _value.combinationId
             : combinationId // ignore: cast_nullable_to_non_nullable
                   as String?,
-        docId: freezed == docId
-            ? _value.docId
-            : docId // ignore: cast_nullable_to_non_nullable
+        dcId: freezed == dcId
+            ? _value.dcId
+            : dcId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        vendorName: freezed == vendorName
+            ? _value.vendorName
+            : vendorName // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        dc_id: freezed == dc_id
+            ? _value.dc_id
+            : dc_id // ignore: cast_nullable_to_non_nullable
                   as String?,
         remark: freezed == remark
             ? _value.remark
@@ -2965,7 +2992,9 @@ class _$PartyWiseItemImpl implements _PartyWiseItem {
     this.totalPrice = 0,
     this.purchasePrice,
     this.combinationId,
-    this.docId,
+    this.dcId,
+    this.vendorName,
+    @JsonKey(name: 'dc_id') this.dc_id,
     this.remark,
   });
 
@@ -3018,13 +3047,18 @@ class _$PartyWiseItemImpl implements _PartyWiseItem {
   @override
   final String? combinationId;
   @override
-  final String? docId;
+  final String? dcId;
+  @override
+  final String? vendorName;
+  @override
+  @JsonKey(name: 'dc_id')
+  final String? dc_id;
   @override
   final String? remark;
 
   @override
   String toString() {
-    return 'PartyWiseItem(transType: $transType, vchSeries: $vchSeries, vchNo: $vchNo, vchDate: $vchDate, partyName: $partyName, mobNo: $mobNo, barcode: $barcode, productName: $productName, bookedBy: $bookedBy, dia: $dia, eye: $eye, sph: $sph, cyl: $cyl, axis: $axis, add: $add, qty: $qty, loc: $loc, pricePerUnit: $pricePerUnit, totalPrice: $totalPrice, purchasePrice: $purchasePrice, combinationId: $combinationId, docId: $docId, remark: $remark)';
+    return 'PartyWiseItem(transType: $transType, vchSeries: $vchSeries, vchNo: $vchNo, vchDate: $vchDate, partyName: $partyName, mobNo: $mobNo, barcode: $barcode, productName: $productName, bookedBy: $bookedBy, dia: $dia, eye: $eye, sph: $sph, cyl: $cyl, axis: $axis, add: $add, qty: $qty, loc: $loc, pricePerUnit: $pricePerUnit, totalPrice: $totalPrice, purchasePrice: $purchasePrice, combinationId: $combinationId, dcId: $dcId, vendorName: $vendorName, dc_id: $dc_id, remark: $remark)';
   }
 
   @override
@@ -3062,7 +3096,10 @@ class _$PartyWiseItemImpl implements _PartyWiseItem {
                 other.purchasePrice == purchasePrice) &&
             (identical(other.combinationId, combinationId) ||
                 other.combinationId == combinationId) &&
-            (identical(other.docId, docId) || other.docId == docId) &&
+            (identical(other.dcId, dcId) || other.dcId == dcId) &&
+            (identical(other.vendorName, vendorName) ||
+                other.vendorName == vendorName) &&
+            (identical(other.dc_id, dc_id) || other.dc_id == dc_id) &&
             (identical(other.remark, remark) || other.remark == remark));
   }
 
@@ -3091,7 +3128,9 @@ class _$PartyWiseItemImpl implements _PartyWiseItem {
     totalPrice,
     purchasePrice,
     combinationId,
-    docId,
+    dcId,
+    vendorName,
+    dc_id,
     remark,
   ]);
 
@@ -3132,7 +3171,9 @@ abstract class _PartyWiseItem implements PartyWiseItem {
     final double totalPrice,
     final double? purchasePrice,
     final String? combinationId,
-    final String? docId,
+    final String? dcId,
+    final String? vendorName,
+    @JsonKey(name: 'dc_id') final String? dc_id,
     final String? remark,
   }) = _$PartyWiseItemImpl;
 
@@ -3182,7 +3223,12 @@ abstract class _PartyWiseItem implements PartyWiseItem {
   @override
   String? get combinationId;
   @override
-  String? get docId;
+  String? get dcId;
+  @override
+  String? get vendorName;
+  @override
+  @JsonKey(name: 'dc_id')
+  String? get dc_id;
   @override
   String? get remark;
 
@@ -4849,4 +4895,1449 @@ abstract class _BookedByReportItem implements BookedByReportItem {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$BookedByReportItemImplCopyWith<_$BookedByReportItemImpl> get copyWith =>
       throw _privateConstructorUsedError;
+}
+
+CustomerItemSalesResponse _$CustomerItemSalesResponseFromJson(
+  Map<String, dynamic> json,
+) {
+  return _CustomerItemSalesResponse.fromJson(json);
+}
+
+/// @nodoc
+mixin _$CustomerItemSalesResponse {
+  bool get success => throw _privateConstructorUsedError;
+  CustomerItemSalesSummary get summary => throw _privateConstructorUsedError;
+  List<CustomerItemSalesItem> get data => throw _privateConstructorUsedError;
+
+  /// Serializes this CustomerItemSalesResponse to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of CustomerItemSalesResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $CustomerItemSalesResponseCopyWith<CustomerItemSalesResponse> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $CustomerItemSalesResponseCopyWith<$Res> {
+  factory $CustomerItemSalesResponseCopyWith(
+    CustomerItemSalesResponse value,
+    $Res Function(CustomerItemSalesResponse) then,
+  ) = _$CustomerItemSalesResponseCopyWithImpl<$Res, CustomerItemSalesResponse>;
+  @useResult
+  $Res call({
+    bool success,
+    CustomerItemSalesSummary summary,
+    List<CustomerItemSalesItem> data,
+  });
+
+  $CustomerItemSalesSummaryCopyWith<$Res> get summary;
+}
+
+/// @nodoc
+class _$CustomerItemSalesResponseCopyWithImpl<
+  $Res,
+  $Val extends CustomerItemSalesResponse
+>
+    implements $CustomerItemSalesResponseCopyWith<$Res> {
+  _$CustomerItemSalesResponseCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of CustomerItemSalesResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? success = null,
+    Object? summary = null,
+    Object? data = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            success: null == success
+                ? _value.success
+                : success // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            summary: null == summary
+                ? _value.summary
+                : summary // ignore: cast_nullable_to_non_nullable
+                      as CustomerItemSalesSummary,
+            data: null == data
+                ? _value.data
+                : data // ignore: cast_nullable_to_non_nullable
+                      as List<CustomerItemSalesItem>,
+          )
+          as $Val,
+    );
+  }
+
+  /// Create a copy of CustomerItemSalesResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $CustomerItemSalesSummaryCopyWith<$Res> get summary {
+    return $CustomerItemSalesSummaryCopyWith<$Res>(_value.summary, (value) {
+      return _then(_value.copyWith(summary: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$CustomerItemSalesResponseImplCopyWith<$Res>
+    implements $CustomerItemSalesResponseCopyWith<$Res> {
+  factory _$$CustomerItemSalesResponseImplCopyWith(
+    _$CustomerItemSalesResponseImpl value,
+    $Res Function(_$CustomerItemSalesResponseImpl) then,
+  ) = __$$CustomerItemSalesResponseImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    bool success,
+    CustomerItemSalesSummary summary,
+    List<CustomerItemSalesItem> data,
+  });
+
+  @override
+  $CustomerItemSalesSummaryCopyWith<$Res> get summary;
+}
+
+/// @nodoc
+class __$$CustomerItemSalesResponseImplCopyWithImpl<$Res>
+    extends
+        _$CustomerItemSalesResponseCopyWithImpl<
+          $Res,
+          _$CustomerItemSalesResponseImpl
+        >
+    implements _$$CustomerItemSalesResponseImplCopyWith<$Res> {
+  __$$CustomerItemSalesResponseImplCopyWithImpl(
+    _$CustomerItemSalesResponseImpl _value,
+    $Res Function(_$CustomerItemSalesResponseImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of CustomerItemSalesResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? success = null,
+    Object? summary = null,
+    Object? data = null,
+  }) {
+    return _then(
+      _$CustomerItemSalesResponseImpl(
+        success: null == success
+            ? _value.success
+            : success // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        summary: null == summary
+            ? _value.summary
+            : summary // ignore: cast_nullable_to_non_nullable
+                  as CustomerItemSalesSummary,
+        data: null == data
+            ? _value._data
+            : data // ignore: cast_nullable_to_non_nullable
+                  as List<CustomerItemSalesItem>,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$CustomerItemSalesResponseImpl implements _CustomerItemSalesResponse {
+  const _$CustomerItemSalesResponseImpl({
+    required this.success,
+    required this.summary,
+    required final List<CustomerItemSalesItem> data,
+  }) : _data = data;
+
+  factory _$CustomerItemSalesResponseImpl.fromJson(Map<String, dynamic> json) =>
+      _$$CustomerItemSalesResponseImplFromJson(json);
+
+  @override
+  final bool success;
+  @override
+  final CustomerItemSalesSummary summary;
+  final List<CustomerItemSalesItem> _data;
+  @override
+  List<CustomerItemSalesItem> get data {
+    if (_data is EqualUnmodifiableListView) return _data;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_data);
+  }
+
+  @override
+  String toString() {
+    return 'CustomerItemSalesResponse(success: $success, summary: $summary, data: $data)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CustomerItemSalesResponseImpl &&
+            (identical(other.success, success) || other.success == success) &&
+            (identical(other.summary, summary) || other.summary == summary) &&
+            const DeepCollectionEquality().equals(other._data, _data));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    success,
+    summary,
+    const DeepCollectionEquality().hash(_data),
+  );
+
+  /// Create a copy of CustomerItemSalesResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$CustomerItemSalesResponseImplCopyWith<_$CustomerItemSalesResponseImpl>
+  get copyWith =>
+      __$$CustomerItemSalesResponseImplCopyWithImpl<
+        _$CustomerItemSalesResponseImpl
+      >(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$CustomerItemSalesResponseImplToJson(this);
+  }
+}
+
+abstract class _CustomerItemSalesResponse implements CustomerItemSalesResponse {
+  const factory _CustomerItemSalesResponse({
+    required final bool success,
+    required final CustomerItemSalesSummary summary,
+    required final List<CustomerItemSalesItem> data,
+  }) = _$CustomerItemSalesResponseImpl;
+
+  factory _CustomerItemSalesResponse.fromJson(Map<String, dynamic> json) =
+      _$CustomerItemSalesResponseImpl.fromJson;
+
+  @override
+  bool get success;
+  @override
+  CustomerItemSalesSummary get summary;
+  @override
+  List<CustomerItemSalesItem> get data;
+
+  /// Create a copy of CustomerItemSalesResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$CustomerItemSalesResponseImplCopyWith<_$CustomerItemSalesResponseImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+CustomerItemSalesSummary _$CustomerItemSalesSummaryFromJson(
+  Map<String, dynamic> json,
+) {
+  return _CustomerItemSalesSummary.fromJson(json);
+}
+
+/// @nodoc
+mixin _$CustomerItemSalesSummary {
+  int get totalItems => throw _privateConstructorUsedError;
+  double get totalQty => throw _privateConstructorUsedError;
+  double get totalRevenue => throw _privateConstructorUsedError;
+  int? get totalOrders => throw _privateConstructorUsedError;
+
+  /// Serializes this CustomerItemSalesSummary to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of CustomerItemSalesSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $CustomerItemSalesSummaryCopyWith<CustomerItemSalesSummary> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $CustomerItemSalesSummaryCopyWith<$Res> {
+  factory $CustomerItemSalesSummaryCopyWith(
+    CustomerItemSalesSummary value,
+    $Res Function(CustomerItemSalesSummary) then,
+  ) = _$CustomerItemSalesSummaryCopyWithImpl<$Res, CustomerItemSalesSummary>;
+  @useResult
+  $Res call({
+    int totalItems,
+    double totalQty,
+    double totalRevenue,
+    int? totalOrders,
+  });
+}
+
+/// @nodoc
+class _$CustomerItemSalesSummaryCopyWithImpl<
+  $Res,
+  $Val extends CustomerItemSalesSummary
+>
+    implements $CustomerItemSalesSummaryCopyWith<$Res> {
+  _$CustomerItemSalesSummaryCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of CustomerItemSalesSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? totalItems = null,
+    Object? totalQty = null,
+    Object? totalRevenue = null,
+    Object? totalOrders = freezed,
+  }) {
+    return _then(
+      _value.copyWith(
+            totalItems: null == totalItems
+                ? _value.totalItems
+                : totalItems // ignore: cast_nullable_to_non_nullable
+                      as int,
+            totalQty: null == totalQty
+                ? _value.totalQty
+                : totalQty // ignore: cast_nullable_to_non_nullable
+                      as double,
+            totalRevenue: null == totalRevenue
+                ? _value.totalRevenue
+                : totalRevenue // ignore: cast_nullable_to_non_nullable
+                      as double,
+            totalOrders: freezed == totalOrders
+                ? _value.totalOrders
+                : totalOrders // ignore: cast_nullable_to_non_nullable
+                      as int?,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$CustomerItemSalesSummaryImplCopyWith<$Res>
+    implements $CustomerItemSalesSummaryCopyWith<$Res> {
+  factory _$$CustomerItemSalesSummaryImplCopyWith(
+    _$CustomerItemSalesSummaryImpl value,
+    $Res Function(_$CustomerItemSalesSummaryImpl) then,
+  ) = __$$CustomerItemSalesSummaryImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    int totalItems,
+    double totalQty,
+    double totalRevenue,
+    int? totalOrders,
+  });
+}
+
+/// @nodoc
+class __$$CustomerItemSalesSummaryImplCopyWithImpl<$Res>
+    extends
+        _$CustomerItemSalesSummaryCopyWithImpl<
+          $Res,
+          _$CustomerItemSalesSummaryImpl
+        >
+    implements _$$CustomerItemSalesSummaryImplCopyWith<$Res> {
+  __$$CustomerItemSalesSummaryImplCopyWithImpl(
+    _$CustomerItemSalesSummaryImpl _value,
+    $Res Function(_$CustomerItemSalesSummaryImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of CustomerItemSalesSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? totalItems = null,
+    Object? totalQty = null,
+    Object? totalRevenue = null,
+    Object? totalOrders = freezed,
+  }) {
+    return _then(
+      _$CustomerItemSalesSummaryImpl(
+        totalItems: null == totalItems
+            ? _value.totalItems
+            : totalItems // ignore: cast_nullable_to_non_nullable
+                  as int,
+        totalQty: null == totalQty
+            ? _value.totalQty
+            : totalQty // ignore: cast_nullable_to_non_nullable
+                  as double,
+        totalRevenue: null == totalRevenue
+            ? _value.totalRevenue
+            : totalRevenue // ignore: cast_nullable_to_non_nullable
+                  as double,
+        totalOrders: freezed == totalOrders
+            ? _value.totalOrders
+            : totalOrders // ignore: cast_nullable_to_non_nullable
+                  as int?,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$CustomerItemSalesSummaryImpl implements _CustomerItemSalesSummary {
+  const _$CustomerItemSalesSummaryImpl({
+    required this.totalItems,
+    required this.totalQty,
+    required this.totalRevenue,
+    this.totalOrders,
+  });
+
+  factory _$CustomerItemSalesSummaryImpl.fromJson(Map<String, dynamic> json) =>
+      _$$CustomerItemSalesSummaryImplFromJson(json);
+
+  @override
+  final int totalItems;
+  @override
+  final double totalQty;
+  @override
+  final double totalRevenue;
+  @override
+  final int? totalOrders;
+
+  @override
+  String toString() {
+    return 'CustomerItemSalesSummary(totalItems: $totalItems, totalQty: $totalQty, totalRevenue: $totalRevenue, totalOrders: $totalOrders)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CustomerItemSalesSummaryImpl &&
+            (identical(other.totalItems, totalItems) ||
+                other.totalItems == totalItems) &&
+            (identical(other.totalQty, totalQty) ||
+                other.totalQty == totalQty) &&
+            (identical(other.totalRevenue, totalRevenue) ||
+                other.totalRevenue == totalRevenue) &&
+            (identical(other.totalOrders, totalOrders) ||
+                other.totalOrders == totalOrders));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, totalItems, totalQty, totalRevenue, totalOrders);
+
+  /// Create a copy of CustomerItemSalesSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$CustomerItemSalesSummaryImplCopyWith<_$CustomerItemSalesSummaryImpl>
+  get copyWith =>
+      __$$CustomerItemSalesSummaryImplCopyWithImpl<
+        _$CustomerItemSalesSummaryImpl
+      >(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$CustomerItemSalesSummaryImplToJson(this);
+  }
+}
+
+abstract class _CustomerItemSalesSummary implements CustomerItemSalesSummary {
+  const factory _CustomerItemSalesSummary({
+    required final int totalItems,
+    required final double totalQty,
+    required final double totalRevenue,
+    final int? totalOrders,
+  }) = _$CustomerItemSalesSummaryImpl;
+
+  factory _CustomerItemSalesSummary.fromJson(Map<String, dynamic> json) =
+      _$CustomerItemSalesSummaryImpl.fromJson;
+
+  @override
+  int get totalItems;
+  @override
+  double get totalQty;
+  @override
+  double get totalRevenue;
+  @override
+  int? get totalOrders;
+
+  /// Create a copy of CustomerItemSalesSummary
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$CustomerItemSalesSummaryImplCopyWith<_$CustomerItemSalesSummaryImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+CustomerItemSalesItem _$CustomerItemSalesItemFromJson(
+  Map<String, dynamic> json,
+) {
+  return _CustomerItemSalesItem.fromJson(json);
+}
+
+/// @nodoc
+mixin _$CustomerItemSalesItem {
+  String get itemName => throw _privateConstructorUsedError;
+  String? get eye => throw _privateConstructorUsedError;
+  dynamic get sph => throw _privateConstructorUsedError;
+  dynamic get cyl => throw _privateConstructorUsedError;
+  dynamic get axis => throw _privateConstructorUsedError;
+  dynamic get add => throw _privateConstructorUsedError;
+  double get totalQty => throw _privateConstructorUsedError;
+  double get totalRevenue => throw _privateConstructorUsedError;
+  String? get lastSoldDate => throw _privateConstructorUsedError;
+  int get orderCount => throw _privateConstructorUsedError;
+
+  /// Serializes this CustomerItemSalesItem to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of CustomerItemSalesItem
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $CustomerItemSalesItemCopyWith<CustomerItemSalesItem> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $CustomerItemSalesItemCopyWith<$Res> {
+  factory $CustomerItemSalesItemCopyWith(
+    CustomerItemSalesItem value,
+    $Res Function(CustomerItemSalesItem) then,
+  ) = _$CustomerItemSalesItemCopyWithImpl<$Res, CustomerItemSalesItem>;
+  @useResult
+  $Res call({
+    String itemName,
+    String? eye,
+    dynamic sph,
+    dynamic cyl,
+    dynamic axis,
+    dynamic add,
+    double totalQty,
+    double totalRevenue,
+    String? lastSoldDate,
+    int orderCount,
+  });
+}
+
+/// @nodoc
+class _$CustomerItemSalesItemCopyWithImpl<
+  $Res,
+  $Val extends CustomerItemSalesItem
+>
+    implements $CustomerItemSalesItemCopyWith<$Res> {
+  _$CustomerItemSalesItemCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of CustomerItemSalesItem
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? itemName = null,
+    Object? eye = freezed,
+    Object? sph = freezed,
+    Object? cyl = freezed,
+    Object? axis = freezed,
+    Object? add = freezed,
+    Object? totalQty = null,
+    Object? totalRevenue = null,
+    Object? lastSoldDate = freezed,
+    Object? orderCount = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            itemName: null == itemName
+                ? _value.itemName
+                : itemName // ignore: cast_nullable_to_non_nullable
+                      as String,
+            eye: freezed == eye
+                ? _value.eye
+                : eye // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            sph: freezed == sph
+                ? _value.sph
+                : sph // ignore: cast_nullable_to_non_nullable
+                      as dynamic,
+            cyl: freezed == cyl
+                ? _value.cyl
+                : cyl // ignore: cast_nullable_to_non_nullable
+                      as dynamic,
+            axis: freezed == axis
+                ? _value.axis
+                : axis // ignore: cast_nullable_to_non_nullable
+                      as dynamic,
+            add: freezed == add
+                ? _value.add
+                : add // ignore: cast_nullable_to_non_nullable
+                      as dynamic,
+            totalQty: null == totalQty
+                ? _value.totalQty
+                : totalQty // ignore: cast_nullable_to_non_nullable
+                      as double,
+            totalRevenue: null == totalRevenue
+                ? _value.totalRevenue
+                : totalRevenue // ignore: cast_nullable_to_non_nullable
+                      as double,
+            lastSoldDate: freezed == lastSoldDate
+                ? _value.lastSoldDate
+                : lastSoldDate // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            orderCount: null == orderCount
+                ? _value.orderCount
+                : orderCount // ignore: cast_nullable_to_non_nullable
+                      as int,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$CustomerItemSalesItemImplCopyWith<$Res>
+    implements $CustomerItemSalesItemCopyWith<$Res> {
+  factory _$$CustomerItemSalesItemImplCopyWith(
+    _$CustomerItemSalesItemImpl value,
+    $Res Function(_$CustomerItemSalesItemImpl) then,
+  ) = __$$CustomerItemSalesItemImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String itemName,
+    String? eye,
+    dynamic sph,
+    dynamic cyl,
+    dynamic axis,
+    dynamic add,
+    double totalQty,
+    double totalRevenue,
+    String? lastSoldDate,
+    int orderCount,
+  });
+}
+
+/// @nodoc
+class __$$CustomerItemSalesItemImplCopyWithImpl<$Res>
+    extends
+        _$CustomerItemSalesItemCopyWithImpl<$Res, _$CustomerItemSalesItemImpl>
+    implements _$$CustomerItemSalesItemImplCopyWith<$Res> {
+  __$$CustomerItemSalesItemImplCopyWithImpl(
+    _$CustomerItemSalesItemImpl _value,
+    $Res Function(_$CustomerItemSalesItemImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of CustomerItemSalesItem
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? itemName = null,
+    Object? eye = freezed,
+    Object? sph = freezed,
+    Object? cyl = freezed,
+    Object? axis = freezed,
+    Object? add = freezed,
+    Object? totalQty = null,
+    Object? totalRevenue = null,
+    Object? lastSoldDate = freezed,
+    Object? orderCount = null,
+  }) {
+    return _then(
+      _$CustomerItemSalesItemImpl(
+        itemName: null == itemName
+            ? _value.itemName
+            : itemName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        eye: freezed == eye
+            ? _value.eye
+            : eye // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        sph: freezed == sph
+            ? _value.sph
+            : sph // ignore: cast_nullable_to_non_nullable
+                  as dynamic,
+        cyl: freezed == cyl
+            ? _value.cyl
+            : cyl // ignore: cast_nullable_to_non_nullable
+                  as dynamic,
+        axis: freezed == axis
+            ? _value.axis
+            : axis // ignore: cast_nullable_to_non_nullable
+                  as dynamic,
+        add: freezed == add
+            ? _value.add
+            : add // ignore: cast_nullable_to_non_nullable
+                  as dynamic,
+        totalQty: null == totalQty
+            ? _value.totalQty
+            : totalQty // ignore: cast_nullable_to_non_nullable
+                  as double,
+        totalRevenue: null == totalRevenue
+            ? _value.totalRevenue
+            : totalRevenue // ignore: cast_nullable_to_non_nullable
+                  as double,
+        lastSoldDate: freezed == lastSoldDate
+            ? _value.lastSoldDate
+            : lastSoldDate // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        orderCount: null == orderCount
+            ? _value.orderCount
+            : orderCount // ignore: cast_nullable_to_non_nullable
+                  as int,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$CustomerItemSalesItemImpl implements _CustomerItemSalesItem {
+  const _$CustomerItemSalesItemImpl({
+    required this.itemName,
+    this.eye,
+    this.sph,
+    this.cyl,
+    this.axis,
+    this.add,
+    required this.totalQty,
+    required this.totalRevenue,
+    this.lastSoldDate,
+    required this.orderCount,
+  });
+
+  factory _$CustomerItemSalesItemImpl.fromJson(Map<String, dynamic> json) =>
+      _$$CustomerItemSalesItemImplFromJson(json);
+
+  @override
+  final String itemName;
+  @override
+  final String? eye;
+  @override
+  final dynamic sph;
+  @override
+  final dynamic cyl;
+  @override
+  final dynamic axis;
+  @override
+  final dynamic add;
+  @override
+  final double totalQty;
+  @override
+  final double totalRevenue;
+  @override
+  final String? lastSoldDate;
+  @override
+  final int orderCount;
+
+  @override
+  String toString() {
+    return 'CustomerItemSalesItem(itemName: $itemName, eye: $eye, sph: $sph, cyl: $cyl, axis: $axis, add: $add, totalQty: $totalQty, totalRevenue: $totalRevenue, lastSoldDate: $lastSoldDate, orderCount: $orderCount)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CustomerItemSalesItemImpl &&
+            (identical(other.itemName, itemName) ||
+                other.itemName == itemName) &&
+            (identical(other.eye, eye) || other.eye == eye) &&
+            const DeepCollectionEquality().equals(other.sph, sph) &&
+            const DeepCollectionEquality().equals(other.cyl, cyl) &&
+            const DeepCollectionEquality().equals(other.axis, axis) &&
+            const DeepCollectionEquality().equals(other.add, add) &&
+            (identical(other.totalQty, totalQty) ||
+                other.totalQty == totalQty) &&
+            (identical(other.totalRevenue, totalRevenue) ||
+                other.totalRevenue == totalRevenue) &&
+            (identical(other.lastSoldDate, lastSoldDate) ||
+                other.lastSoldDate == lastSoldDate) &&
+            (identical(other.orderCount, orderCount) ||
+                other.orderCount == orderCount));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    itemName,
+    eye,
+    const DeepCollectionEquality().hash(sph),
+    const DeepCollectionEquality().hash(cyl),
+    const DeepCollectionEquality().hash(axis),
+    const DeepCollectionEquality().hash(add),
+    totalQty,
+    totalRevenue,
+    lastSoldDate,
+    orderCount,
+  );
+
+  /// Create a copy of CustomerItemSalesItem
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$CustomerItemSalesItemImplCopyWith<_$CustomerItemSalesItemImpl>
+  get copyWith =>
+      __$$CustomerItemSalesItemImplCopyWithImpl<_$CustomerItemSalesItemImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$CustomerItemSalesItemImplToJson(this);
+  }
+}
+
+abstract class _CustomerItemSalesItem implements CustomerItemSalesItem {
+  const factory _CustomerItemSalesItem({
+    required final String itemName,
+    final String? eye,
+    final dynamic sph,
+    final dynamic cyl,
+    final dynamic axis,
+    final dynamic add,
+    required final double totalQty,
+    required final double totalRevenue,
+    final String? lastSoldDate,
+    required final int orderCount,
+  }) = _$CustomerItemSalesItemImpl;
+
+  factory _CustomerItemSalesItem.fromJson(Map<String, dynamic> json) =
+      _$CustomerItemSalesItemImpl.fromJson;
+
+  @override
+  String get itemName;
+  @override
+  String? get eye;
+  @override
+  dynamic get sph;
+  @override
+  dynamic get cyl;
+  @override
+  dynamic get axis;
+  @override
+  dynamic get add;
+  @override
+  double get totalQty;
+  @override
+  double get totalRevenue;
+  @override
+  String? get lastSoldDate;
+  @override
+  int get orderCount;
+
+  /// Create a copy of CustomerItemSalesItem
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$CustomerItemSalesItemImplCopyWith<_$CustomerItemSalesItemImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+ItemStockSummaryResponse _$ItemStockSummaryResponseFromJson(
+  Map<String, dynamic> json,
+) {
+  return _ItemStockSummaryResponse.fromJson(json);
+}
+
+/// @nodoc
+mixin _$ItemStockSummaryResponse {
+  bool get success => throw _privateConstructorUsedError;
+  List<ItemStockSummaryItem> get data => throw _privateConstructorUsedError;
+
+  /// Serializes this ItemStockSummaryResponse to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of ItemStockSummaryResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $ItemStockSummaryResponseCopyWith<ItemStockSummaryResponse> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $ItemStockSummaryResponseCopyWith<$Res> {
+  factory $ItemStockSummaryResponseCopyWith(
+    ItemStockSummaryResponse value,
+    $Res Function(ItemStockSummaryResponse) then,
+  ) = _$ItemStockSummaryResponseCopyWithImpl<$Res, ItemStockSummaryResponse>;
+  @useResult
+  $Res call({bool success, List<ItemStockSummaryItem> data});
+}
+
+/// @nodoc
+class _$ItemStockSummaryResponseCopyWithImpl<
+  $Res,
+  $Val extends ItemStockSummaryResponse
+>
+    implements $ItemStockSummaryResponseCopyWith<$Res> {
+  _$ItemStockSummaryResponseCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of ItemStockSummaryResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? success = null, Object? data = null}) {
+    return _then(
+      _value.copyWith(
+            success: null == success
+                ? _value.success
+                : success // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            data: null == data
+                ? _value.data
+                : data // ignore: cast_nullable_to_non_nullable
+                      as List<ItemStockSummaryItem>,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$ItemStockSummaryResponseImplCopyWith<$Res>
+    implements $ItemStockSummaryResponseCopyWith<$Res> {
+  factory _$$ItemStockSummaryResponseImplCopyWith(
+    _$ItemStockSummaryResponseImpl value,
+    $Res Function(_$ItemStockSummaryResponseImpl) then,
+  ) = __$$ItemStockSummaryResponseImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({bool success, List<ItemStockSummaryItem> data});
+}
+
+/// @nodoc
+class __$$ItemStockSummaryResponseImplCopyWithImpl<$Res>
+    extends
+        _$ItemStockSummaryResponseCopyWithImpl<
+          $Res,
+          _$ItemStockSummaryResponseImpl
+        >
+    implements _$$ItemStockSummaryResponseImplCopyWith<$Res> {
+  __$$ItemStockSummaryResponseImplCopyWithImpl(
+    _$ItemStockSummaryResponseImpl _value,
+    $Res Function(_$ItemStockSummaryResponseImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of ItemStockSummaryResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? success = null, Object? data = null}) {
+    return _then(
+      _$ItemStockSummaryResponseImpl(
+        success: null == success
+            ? _value.success
+            : success // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        data: null == data
+            ? _value._data
+            : data // ignore: cast_nullable_to_non_nullable
+                  as List<ItemStockSummaryItem>,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$ItemStockSummaryResponseImpl implements _ItemStockSummaryResponse {
+  const _$ItemStockSummaryResponseImpl({
+    required this.success,
+    required final List<ItemStockSummaryItem> data,
+  }) : _data = data;
+
+  factory _$ItemStockSummaryResponseImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ItemStockSummaryResponseImplFromJson(json);
+
+  @override
+  final bool success;
+  final List<ItemStockSummaryItem> _data;
+  @override
+  List<ItemStockSummaryItem> get data {
+    if (_data is EqualUnmodifiableListView) return _data;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_data);
+  }
+
+  @override
+  String toString() {
+    return 'ItemStockSummaryResponse(success: $success, data: $data)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ItemStockSummaryResponseImpl &&
+            (identical(other.success, success) || other.success == success) &&
+            const DeepCollectionEquality().equals(other._data, _data));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    success,
+    const DeepCollectionEquality().hash(_data),
+  );
+
+  /// Create a copy of ItemStockSummaryResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ItemStockSummaryResponseImplCopyWith<_$ItemStockSummaryResponseImpl>
+  get copyWith =>
+      __$$ItemStockSummaryResponseImplCopyWithImpl<
+        _$ItemStockSummaryResponseImpl
+      >(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ItemStockSummaryResponseImplToJson(this);
+  }
+}
+
+abstract class _ItemStockSummaryResponse implements ItemStockSummaryResponse {
+  const factory _ItemStockSummaryResponse({
+    required final bool success,
+    required final List<ItemStockSummaryItem> data,
+  }) = _$ItemStockSummaryResponseImpl;
+
+  factory _ItemStockSummaryResponse.fromJson(Map<String, dynamic> json) =
+      _$ItemStockSummaryResponseImpl.fromJson;
+
+  @override
+  bool get success;
+  @override
+  List<ItemStockSummaryItem> get data;
+
+  /// Create a copy of ItemStockSummaryResponse
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ItemStockSummaryResponseImplCopyWith<_$ItemStockSummaryResponseImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+ItemStockSummaryItem _$ItemStockSummaryItemFromJson(Map<String, dynamic> json) {
+  return _ItemStockSummaryItem.fromJson(json);
+}
+
+/// @nodoc
+mixin _$ItemStockSummaryItem {
+  String get productName => throw _privateConstructorUsedError;
+  String get groupName => throw _privateConstructorUsedError;
+  double get totalStockQty => throw _privateConstructorUsedError;
+  double get avgPurchasePrice => throw _privateConstructorUsedError;
+  double get avgSellingPrice => throw _privateConstructorUsedError;
+  double get totalPurchaseValue => throw _privateConstructorUsedError;
+  double get totalSellingValue => throw _privateConstructorUsedError;
+  double get expectedProfit => throw _privateConstructorUsedError;
+  double? get liveProfit => throw _privateConstructorUsedError;
+  double get turnover => throw _privateConstructorUsedError;
+  int get combinationCount => throw _privateConstructorUsedError;
+
+  /// Serializes this ItemStockSummaryItem to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of ItemStockSummaryItem
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $ItemStockSummaryItemCopyWith<ItemStockSummaryItem> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $ItemStockSummaryItemCopyWith<$Res> {
+  factory $ItemStockSummaryItemCopyWith(
+    ItemStockSummaryItem value,
+    $Res Function(ItemStockSummaryItem) then,
+  ) = _$ItemStockSummaryItemCopyWithImpl<$Res, ItemStockSummaryItem>;
+  @useResult
+  $Res call({
+    String productName,
+    String groupName,
+    double totalStockQty,
+    double avgPurchasePrice,
+    double avgSellingPrice,
+    double totalPurchaseValue,
+    double totalSellingValue,
+    double expectedProfit,
+    double? liveProfit,
+    double turnover,
+    int combinationCount,
+  });
+}
+
+/// @nodoc
+class _$ItemStockSummaryItemCopyWithImpl<
+  $Res,
+  $Val extends ItemStockSummaryItem
+>
+    implements $ItemStockSummaryItemCopyWith<$Res> {
+  _$ItemStockSummaryItemCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of ItemStockSummaryItem
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? productName = null,
+    Object? groupName = null,
+    Object? totalStockQty = null,
+    Object? avgPurchasePrice = null,
+    Object? avgSellingPrice = null,
+    Object? totalPurchaseValue = null,
+    Object? totalSellingValue = null,
+    Object? expectedProfit = null,
+    Object? liveProfit = freezed,
+    Object? turnover = null,
+    Object? combinationCount = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            productName: null == productName
+                ? _value.productName
+                : productName // ignore: cast_nullable_to_non_nullable
+                      as String,
+            groupName: null == groupName
+                ? _value.groupName
+                : groupName // ignore: cast_nullable_to_non_nullable
+                      as String,
+            totalStockQty: null == totalStockQty
+                ? _value.totalStockQty
+                : totalStockQty // ignore: cast_nullable_to_non_nullable
+                      as double,
+            avgPurchasePrice: null == avgPurchasePrice
+                ? _value.avgPurchasePrice
+                : avgPurchasePrice // ignore: cast_nullable_to_non_nullable
+                      as double,
+            avgSellingPrice: null == avgSellingPrice
+                ? _value.avgSellingPrice
+                : avgSellingPrice // ignore: cast_nullable_to_non_nullable
+                      as double,
+            totalPurchaseValue: null == totalPurchaseValue
+                ? _value.totalPurchaseValue
+                : totalPurchaseValue // ignore: cast_nullable_to_non_nullable
+                      as double,
+            totalSellingValue: null == totalSellingValue
+                ? _value.totalSellingValue
+                : totalSellingValue // ignore: cast_nullable_to_non_nullable
+                      as double,
+            expectedProfit: null == expectedProfit
+                ? _value.expectedProfit
+                : expectedProfit // ignore: cast_nullable_to_non_nullable
+                      as double,
+            liveProfit: freezed == liveProfit
+                ? _value.liveProfit
+                : liveProfit // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            turnover: null == turnover
+                ? _value.turnover
+                : turnover // ignore: cast_nullable_to_non_nullable
+                      as double,
+            combinationCount: null == combinationCount
+                ? _value.combinationCount
+                : combinationCount // ignore: cast_nullable_to_non_nullable
+                      as int,
+          )
+          as $Val,
+    );
+  }
+}
+
+/// @nodoc
+abstract class _$$ItemStockSummaryItemImplCopyWith<$Res>
+    implements $ItemStockSummaryItemCopyWith<$Res> {
+  factory _$$ItemStockSummaryItemImplCopyWith(
+    _$ItemStockSummaryItemImpl value,
+    $Res Function(_$ItemStockSummaryItemImpl) then,
+  ) = __$$ItemStockSummaryItemImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String productName,
+    String groupName,
+    double totalStockQty,
+    double avgPurchasePrice,
+    double avgSellingPrice,
+    double totalPurchaseValue,
+    double totalSellingValue,
+    double expectedProfit,
+    double? liveProfit,
+    double turnover,
+    int combinationCount,
+  });
+}
+
+/// @nodoc
+class __$$ItemStockSummaryItemImplCopyWithImpl<$Res>
+    extends _$ItemStockSummaryItemCopyWithImpl<$Res, _$ItemStockSummaryItemImpl>
+    implements _$$ItemStockSummaryItemImplCopyWith<$Res> {
+  __$$ItemStockSummaryItemImplCopyWithImpl(
+    _$ItemStockSummaryItemImpl _value,
+    $Res Function(_$ItemStockSummaryItemImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of ItemStockSummaryItem
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? productName = null,
+    Object? groupName = null,
+    Object? totalStockQty = null,
+    Object? avgPurchasePrice = null,
+    Object? avgSellingPrice = null,
+    Object? totalPurchaseValue = null,
+    Object? totalSellingValue = null,
+    Object? expectedProfit = null,
+    Object? liveProfit = freezed,
+    Object? turnover = null,
+    Object? combinationCount = null,
+  }) {
+    return _then(
+      _$ItemStockSummaryItemImpl(
+        productName: null == productName
+            ? _value.productName
+            : productName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        groupName: null == groupName
+            ? _value.groupName
+            : groupName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        totalStockQty: null == totalStockQty
+            ? _value.totalStockQty
+            : totalStockQty // ignore: cast_nullable_to_non_nullable
+                  as double,
+        avgPurchasePrice: null == avgPurchasePrice
+            ? _value.avgPurchasePrice
+            : avgPurchasePrice // ignore: cast_nullable_to_non_nullable
+                  as double,
+        avgSellingPrice: null == avgSellingPrice
+            ? _value.avgSellingPrice
+            : avgSellingPrice // ignore: cast_nullable_to_non_nullable
+                  as double,
+        totalPurchaseValue: null == totalPurchaseValue
+            ? _value.totalPurchaseValue
+            : totalPurchaseValue // ignore: cast_nullable_to_non_nullable
+                  as double,
+        totalSellingValue: null == totalSellingValue
+            ? _value.totalSellingValue
+            : totalSellingValue // ignore: cast_nullable_to_non_nullable
+                  as double,
+        expectedProfit: null == expectedProfit
+            ? _value.expectedProfit
+            : expectedProfit // ignore: cast_nullable_to_non_nullable
+                  as double,
+        liveProfit: freezed == liveProfit
+            ? _value.liveProfit
+            : liveProfit // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        turnover: null == turnover
+            ? _value.turnover
+            : turnover // ignore: cast_nullable_to_non_nullable
+                  as double,
+        combinationCount: null == combinationCount
+            ? _value.combinationCount
+            : combinationCount // ignore: cast_nullable_to_non_nullable
+                  as int,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$ItemStockSummaryItemImpl implements _ItemStockSummaryItem {
+  const _$ItemStockSummaryItemImpl({
+    required this.productName,
+    required this.groupName,
+    this.totalStockQty = 0,
+    this.avgPurchasePrice = 0,
+    this.avgSellingPrice = 0,
+    this.totalPurchaseValue = 0,
+    this.totalSellingValue = 0,
+    this.expectedProfit = 0,
+    this.liveProfit = 0.0,
+    this.turnover = 0,
+    this.combinationCount = 0,
+  });
+
+  factory _$ItemStockSummaryItemImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ItemStockSummaryItemImplFromJson(json);
+
+  @override
+  final String productName;
+  @override
+  final String groupName;
+  @override
+  @JsonKey()
+  final double totalStockQty;
+  @override
+  @JsonKey()
+  final double avgPurchasePrice;
+  @override
+  @JsonKey()
+  final double avgSellingPrice;
+  @override
+  @JsonKey()
+  final double totalPurchaseValue;
+  @override
+  @JsonKey()
+  final double totalSellingValue;
+  @override
+  @JsonKey()
+  final double expectedProfit;
+  @override
+  @JsonKey()
+  final double? liveProfit;
+  @override
+  @JsonKey()
+  final double turnover;
+  @override
+  @JsonKey()
+  final int combinationCount;
+
+  @override
+  String toString() {
+    return 'ItemStockSummaryItem(productName: $productName, groupName: $groupName, totalStockQty: $totalStockQty, avgPurchasePrice: $avgPurchasePrice, avgSellingPrice: $avgSellingPrice, totalPurchaseValue: $totalPurchaseValue, totalSellingValue: $totalSellingValue, expectedProfit: $expectedProfit, liveProfit: $liveProfit, turnover: $turnover, combinationCount: $combinationCount)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ItemStockSummaryItemImpl &&
+            (identical(other.productName, productName) ||
+                other.productName == productName) &&
+            (identical(other.groupName, groupName) ||
+                other.groupName == groupName) &&
+            (identical(other.totalStockQty, totalStockQty) ||
+                other.totalStockQty == totalStockQty) &&
+            (identical(other.avgPurchasePrice, avgPurchasePrice) ||
+                other.avgPurchasePrice == avgPurchasePrice) &&
+            (identical(other.avgSellingPrice, avgSellingPrice) ||
+                other.avgSellingPrice == avgSellingPrice) &&
+            (identical(other.totalPurchaseValue, totalPurchaseValue) ||
+                other.totalPurchaseValue == totalPurchaseValue) &&
+            (identical(other.totalSellingValue, totalSellingValue) ||
+                other.totalSellingValue == totalSellingValue) &&
+            (identical(other.expectedProfit, expectedProfit) ||
+                other.expectedProfit == expectedProfit) &&
+            (identical(other.liveProfit, liveProfit) ||
+                other.liveProfit == liveProfit) &&
+            (identical(other.turnover, turnover) ||
+                other.turnover == turnover) &&
+            (identical(other.combinationCount, combinationCount) ||
+                other.combinationCount == combinationCount));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    productName,
+    groupName,
+    totalStockQty,
+    avgPurchasePrice,
+    avgSellingPrice,
+    totalPurchaseValue,
+    totalSellingValue,
+    expectedProfit,
+    liveProfit,
+    turnover,
+    combinationCount,
+  );
+
+  /// Create a copy of ItemStockSummaryItem
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ItemStockSummaryItemImplCopyWith<_$ItemStockSummaryItemImpl>
+  get copyWith =>
+      __$$ItemStockSummaryItemImplCopyWithImpl<_$ItemStockSummaryItemImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ItemStockSummaryItemImplToJson(this);
+  }
+}
+
+abstract class _ItemStockSummaryItem implements ItemStockSummaryItem {
+  const factory _ItemStockSummaryItem({
+    required final String productName,
+    required final String groupName,
+    final double totalStockQty,
+    final double avgPurchasePrice,
+    final double avgSellingPrice,
+    final double totalPurchaseValue,
+    final double totalSellingValue,
+    final double expectedProfit,
+    final double? liveProfit,
+    final double turnover,
+    final int combinationCount,
+  }) = _$ItemStockSummaryItemImpl;
+
+  factory _ItemStockSummaryItem.fromJson(Map<String, dynamic> json) =
+      _$ItemStockSummaryItemImpl.fromJson;
+
+  @override
+  String get productName;
+  @override
+  String get groupName;
+  @override
+  double get totalStockQty;
+  @override
+  double get avgPurchasePrice;
+  @override
+  double get avgSellingPrice;
+  @override
+  double get totalPurchaseValue;
+  @override
+  double get totalSellingValue;
+  @override
+  double get expectedProfit;
+  @override
+  double? get liveProfit;
+  @override
+  double get turnover;
+  @override
+  int get combinationCount;
+
+  /// Create a copy of ItemStockSummaryItem
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ItemStockSummaryItemImplCopyWith<_$ItemStockSummaryItemImpl>
+  get copyWith => throw _privateConstructorUsedError;
 }

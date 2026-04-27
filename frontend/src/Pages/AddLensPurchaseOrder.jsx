@@ -760,6 +760,7 @@ function AddLensPurchaseOrder() {
           const row = c[rowIndex];
           
           row.itemName = barcodeData.itemName || row.itemName;
+          row.billItemName = barcodeData.billItemName || "";
           row.eye = barcodeData.eye || row.eye;
           row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
           row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
@@ -831,6 +832,10 @@ function AddLensPurchaseOrder() {
   }, [items]);
 
   const handleSave = async () => {
+    if (!partyData?.partyAccount) {
+      toast.error("Please select vendor name");
+      return;
+    }
     const sub = computeSubtotal(), tx = computeTotalTaxes(), net = sub + tx;
     const p = {
       billData,
@@ -1341,7 +1346,7 @@ function AddLensPurchaseOrder() {
                         )}
                         {showVendorSuggestions[idx] && (
                           <div className="absolute top-full left-0 w-48 bg-white border border-slate-200 shadow-2xl z-50 rounded-lg mt-0.5 max-h-56 overflow-y-auto">
-                            {partyname.filter(a => 
+                            {accounts.filter(a => 
                               !vendorQueries[idx] || 
                               a.Name?.toLowerCase().includes((vendorQueries[idx] || "").toLowerCase())
                             ).slice(0, 10).map((a, i) => (

@@ -16,6 +16,7 @@ import {
     X,
     FileSpreadsheet,
     Grid3X3,
+    Copy,
 } from "lucide-react";
 import BulkLensMatrixV2 from "../Components/BulkLensMatrixV2";
 import { getAllAccounts } from "../controllers/Account.controller";
@@ -706,6 +707,14 @@ function AddContactLensSaleOrder() {
                     copy[index].billItemName = selectedItem.billItemName || "";
                     copy[index].vendorItemName = selectedItem.vendorItemName || "";
                     copy[index].mrp = selectedItem.mrp || 0;
+
+                    if (selectedItem.gst > 0) {
+                        setTaxes([
+                            { id: genTaxId("_cgst"), taxName: "CGST", type: "Additive", percentage: String(selectedItem.gst / 2), amount: "0.00" },
+                            { id: genTaxId("_sgst"), taxName: "SGST", type: "Additive", percentage: String(selectedItem.gst / 2), amount: "0.00" },
+                            { id: genTaxId("_igst"), taxName: "IGST", type: "Additive", percentage: String(selectedItem.gst), amount: "0.00" },
+                        ]);
+                    }
                 }
             }
 
@@ -731,10 +740,19 @@ function AddContactLensSaleOrder() {
                                 setItems(prevItems => {
                                     const itemsCopy = [...prevItems];
                                     if (itemsCopy[index]) {
+                                        const fetchedPrice = stockRes.sPrice !== undefined ? stockRes.sPrice : itemsCopy[index].salePrice;
                                         itemsCopy[index] = { 
                                             ...itemsCopy[index], 
-                                            barcode: stockRes.barcode || itemsCopy[index].barcode || "" 
+                                            barcode: stockRes.barcode || itemsCopy[index].barcode || "",
+                                            salePrice: fetchedPrice 
                                         };
+
+                                        // Recalculate totalAmount
+                                        const qty = parseFloat(itemsCopy[index].qty) || 0;
+                                        const price = parseFloat(itemsCopy[index].salePrice) || 0;
+                                        const disc = parseFloat(itemsCopy[index].discount) || 0;
+                                        const discountAmount = qty * price * (disc / 100);
+                                        itemsCopy[index].totalAmount = (qty * price - discountAmount).toFixed(2);
                                     }
                                     return itemsCopy;
                                 });
@@ -777,6 +795,29 @@ function AddContactLensSaleOrder() {
         });
     };
 
+    const copyQtyToAll = () => {
+        const firstQty = Number(items[0]?.qty) || 0;
+        if (firstQty === 0) {
+            toast.error("Enter quantity in first row");
+            return;
+        }
+
+        setItems((prev) => {
+            return prev.map((it, idx) => {
+                if (idx === 0) return it;
+
+                const qty = firstQty;
+                const price = parseFloat(it.salePrice) || 0;
+                const disc = parseFloat(it.discount) || 0;
+                const discountAmount = qty * price * (disc / 100);
+                const totalAmount = (qty * price - discountAmount).toFixed(2);
+
+                return { ...it, qty, totalAmount };
+            });
+        });
+        toast.success(`Copied quantity ${firstQty} to all rows`);
+    };
+
     const handleBarcodeBlur = async (barcode, rowIndex) => {
       if (!barcode || barcode.trim() === "") return;
       try {
@@ -786,6 +827,7 @@ function AddContactLensSaleOrder() {
             const c = [...prev];
             const row = c[rowIndex];
             row.itemName = barcodeData.itemName || row.itemName;
+            row.billItemName = barcodeData.billItemName || "";
             row.eye = barcodeData.eye || row.eye;
             row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
             row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
@@ -814,8 +856,22 @@ function AddContactLensSaleOrder() {
             copy[index] = {
                 ...copy[index],
                 itemName: lens.productName,
+                billItemName: lens.billItemName || "",
                 eye: lens.eye || ""
             };
+            // Also update salePrice if it's a direct selection
+            if (lens.productName) {
+                const customPriceObj = customPrices[lens._id];
+                let computedPrice = getSalePriceForCategory(lens, category);
+                if (customPriceObj) {
+                    if (customPriceObj.percentage > 0) {
+                        copy[index].discount = customPriceObj.percentage;
+                    } else if (customPriceObj.customPrice > 0) {
+                        computedPrice = customPriceObj.customPrice;
+                    }
+                }
+                copy[index].salePrice = computedPrice;
+            }
             return copy;
         });
 
@@ -995,7 +1051,7 @@ function AddContactLensSaleOrder() {
                    await learnSuggestions({ taxes: learnedTaxes, customers: learnedCustomers }).catch(console.error);
                }
             } catch (e) {}
-            navigate("/lenstransaction/sale/saleorder"); 
+            navigate("/sale-orders?tab=contact"); 
         } else {
             toast.error(res.message);
         }
@@ -1247,7 +1303,24 @@ function AddContactLensSaleOrder() {
                                         { label: "Axis", width: "w-14", group: "lens" },
                                         { label: "Add", width: "w-16", group: "lens" },
                                         { label: "Remark / Detail", width: "w-32" },
-                                        { label: "Qty", width: "w-14", align: "center" },
+                                        { 
+                                            label: (
+                                                <div className="flex items-center justify-center gap-1">
+                                                    Qty
+                                                    {!isReadOnly && (
+                                                        <button 
+                                                            onClick={copyQtyToAll}
+                                                            title="Copy first row quantity to all"
+                                                            className="p-0.5 hover:bg-emerald-100 rounded transition-colors text-emerald-700"
+                                                        >
+                                                            <Copy className="w-3 h-3" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ), 
+                                            width: "w-20", 
+                                            align: "center" 
+                                        },
                                         { label: "Price", width: "w-20", align: "right" },
                                         { label: "Disc%", width: "w-14", align: "right" },
                                         { label: "Total", width: "w-24", align: "right" },

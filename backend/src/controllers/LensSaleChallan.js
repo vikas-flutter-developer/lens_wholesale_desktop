@@ -13,6 +13,7 @@ import {
   restoreStock, 
   adjustStockForEdit 
 } from "../utils/stockDeductionHelper.js";
+import { generateNextBillNo } from "../utils/billNoHelper.js";
 
 const addLensSaleChallan = async (req, res) => {
   try {
@@ -639,9 +640,12 @@ const createLensInvoice = async (req, res) => {
     const totalQty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
     const totalAmount = items.reduce((s, it) => s + (Number(it.totalAmount) || 0), 0);
 
+    // Generate next bill number for this party
+    const nextBillNo = await generateNextBillNo(LensSale, data.partyData?.partyAccount, req.user?.companyId);
+
     const invoiceBillData = {
       billSeries: data.billData?.billSeries || "",
-      billNo: data.billData?.billNo || "",
+      billNo: nextBillNo,
       billType: data.billData?.billType || "",
       godown: data.billData?.godown || "",
       bookedBy: data.billData?.bookedBy || "",

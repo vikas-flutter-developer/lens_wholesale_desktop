@@ -112,11 +112,19 @@ class ItemMasterProvider with ChangeNotifier {
     }
   }
 
-  Future<void> bulkUpdateItems(List<ItemMasterModel> items) async {
+  Future<void> bulkUpdateItems(List<dynamic> items) async {
     try {
+      final data = items.map((e) {
+        if (e is ItemMasterModel) {
+          final json = e.toJson();
+          return {...json, 'id': e.id}; // Ensure 'id' is present for backend destructuring
+        }
+        return e;
+      }).toList();
+
       await apiClient.dio.post(
         '/items/bulk-update',
-        data: {'items': items.map((e) => e.toJson()).toList()},
+        data: {'items': data},
       );
       await fetchItems();
     } catch (e) {
@@ -399,6 +407,7 @@ class LensGroupProvider with ChangeNotifier {
 
   Future<void> updateLocations(Map<String, dynamic> data) async {
     try {
+      // Backend expects: { productName, locationsToSave: [{ sph, cyl, eye, add, locations, locationQty }] }
       await apiClient.dio.post('/lens/update-locations', data: data);
     } catch (e) {
       rethrow;

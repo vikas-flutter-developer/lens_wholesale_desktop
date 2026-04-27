@@ -23,10 +23,13 @@ import {
   ShoppingCart,
   Grid3X3,
   Filter,
+  FileSpreadsheet as ExcelIcon,
 } from "lucide-react";
+import * as XLSX from "xlsx";
+import { generateBulkPrint, handleExportToExcel as exportToExcel } from "../utils/PrintUtils";
 import ItemsMatrixViewModal from "../Components/ItemsMatrixViewModal";
 import { FaWhatsapp } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   createLensInvoice,
@@ -402,7 +405,13 @@ const CardPrintTemplate = ({ order, allLenses = [], allItems = [] }) => {
 
 function SaleOrder() {
   const navigate = useNavigate();
-  const [viewType, setViewType] = useState("lens"); // 'lens' or 'rx'
+  const [searchParams] = useSearchParams();
+  const [viewType, setViewType] = useState(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'rx') return 'rx';
+    if (tab === 'contact') return 'contact';
+    return 'lens';
+  }); // 'lens', 'rx', or 'contact'
   const [saleOrders, setSaleOrders] = useState([]);
   const [printModal, setPrintModal] = useState(null);
   const [printData, setPrintData] = useState(null);
@@ -422,6 +431,62 @@ function SaleOrder() {
   const [refNoValues, setRefNoValues] = useState({});
   const refNoTimers = useRef({});
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Selective Print State
+  const [selectedOrders, setSelectedOrders] = useState([]);
+
+  const handleSelectOrder = (orderId, isChecked) => {
+    setSelectedOrders(prev =>
+      isChecked ? [...prev, orderId] : prev.filter(id => id !== orderId)
+    );
+  };
+
+  const handleSelectAllOrders = (isChecked) => {
+    if (isChecked) {
+      setSelectedOrders(filteredOrders.map(o => String(o._id)));
+    } else {
+      setSelectedOrders([]);
+    }
+  };
+
+  const handlePrintClick = () => {
+    const title = viewType === "lens" ? "Lens Sale Order" : viewType === "rx" ? "Rx Sale Order" : "Contact Lens Sale Order";
+    const dataToPrint = selectedOrders.length > 0 
+      ? filteredOrders.filter(o => selectedOrders.includes(String(o._id)))
+      : filteredOrders;
+    
+    // Prepare data for Table Print (Normal Print)
+    const printItems = dataToPrint.map((o, i) => ({
+      ...o,
+      srNo: i + 1,
+      date: o.billData?.date,
+      series: o.billData?.billSeries || o.billSeries || "-",
+      billNo: o.billData?.billNo || o.billNo || "-",
+      partyName: o.partyData?.partyAccount || "-",
+      netAmt: o.netAmount,
+    }));
+
+    generateBulkPrint(title, printItems, visibleColumns, ALL_COLUMNS);
+  };
+
+  const handleExcelExport = () => {
+    const fileName = viewType === "lens" ? "LensSaleOrders" : viewType === "rx" ? "RxSaleOrders" : "ContactLensSaleOrders";
+    const dataToExport = selectedOrders.length > 0 
+      ? filteredOrders.filter(o => selectedOrders.includes(String(o._id)))
+      : filteredOrders;
+
+    const exportItems = dataToExport.map((o, i) => ({
+      ...o,
+      srNo: i + 1,
+      date: o.billData?.date,
+      series: o.billData?.billSeries || o.billSeries || "-",
+      billNo: o.billData?.billNo || o.billNo || "-",
+      partyName: o.partyData?.partyAccount || "-",
+      netAmt: o.netAmount,
+    }));
+
+    exportToExcel(XLSX, fileName, exportItems, visibleColumns, ALL_COLUMNS);
+  };
 
   // Update current time every minute for threshold checks
   useEffect(() => {
@@ -443,6 +508,13 @@ function SaleOrder() {
     items: [],
     viewType: 'lens'
   });
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'rx') setViewType('rx');
+    else if (tab === 'contact') setViewType('contact');
+    else setViewType('lens');
+  }, [searchParams]);
 
   const handleOpenMatrix = (order) => {
     setMatrixModal({
@@ -2428,6 +2500,21 @@ function SaleOrder() {
                 </div>
               )}
             </div>
+
+            <button
+              onClick={handleExcelExport}
+              className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors duration-200 hover:shadow-sm"
+              title="Export to Excel"
+            >
+              <ExcelIcon className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handlePrintClick}
+              className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 hover:shadow-sm"
+              title="Print Table or Selected"
+            >
+              <Printer className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
@@ -2437,8 +2524,16 @@ function SaleOrder() {
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="w-16 text-center py-4 px-2 text-slate-700 font-bold text-sm">
-                    Sr
+                  <th className="w-24 text-center py-4 px-2 text-slate-700 font-bold text-sm">
+                    <div className="flex items-center justify-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                        checked={filteredOrders.length > 0 && selectedOrders.length === filteredOrders.length}
+                        onChange={(e) => handleSelectAllOrders(e.target.checked)}
+                      />
+                      Sr
+                    </div>
                   </th>
                   {visibleColumns.date && (
                     <th className="w-28 text-center py-4 px-2 text-slate-700 font-bold text-sm">
@@ -2600,9 +2695,17 @@ function SaleOrder() {
 
                     return (
                       <React.Fragment key={idStr}>
-                        <tr className={`hover:bg-slate-50 transition-colors duration-150 group text-sm ${isDone ? "bg-slate-50/50" : ""} ${isDelayed ? "bg-red-50 hover:bg-red-100" : ""}`}>
+                        <tr className={`hover:bg-slate-50 transition-colors duration-150 group text-sm ${isDone ? "bg-slate-50/50" : ""} ${isDelayed ? "bg-red-50 hover:bg-red-100" : ""} ${selectedOrders.includes(idStr) ? "bg-blue-50" : ""}`}>
                           <td className="py-4 px-2 text-center text-slate-600">
-                            {i + 1}
+                            <div className="flex items-center justify-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                                checked={selectedOrders.includes(idStr)}
+                                onChange={(e) => handleSelectOrder(idStr, e.target.checked)}
+                              />
+                              {i + 1}
+                            </div>
                           </td>
                           {visibleColumns.date && (
                             <td className="py-4 px-2 text-center text-slate-800">

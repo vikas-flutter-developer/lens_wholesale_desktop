@@ -7,7 +7,7 @@ import {
 import { toast } from 'react-hot-toast';
 
 const DEFAULT_SHORTCUTS = [
-  { id: '1', label: 'Sale Order', route: '/lenstransaction/sale/saleorder', icon: 'FileText', color: 'bg-blue-500' },
+  { id: '1', label: 'Sale Order', route: '/sale-orders', icon: 'FileText', color: 'bg-blue-500' },
   { id: '2', label: 'Sale Challan', route: '/lenstransaction/sale/salechallan', icon: 'ShoppingCart', color: 'bg-indigo-500' },
   { id: '3', label: 'Purchase Order', route: '/lenstransaction/purchase/purchaseorder', icon: 'Package', color: 'bg-emerald-500' },
   { id: '4', label: 'Purchase Challan', route: '/lenstransaction/purchase/purchasechallan', icon: 'FileText', color: 'bg-teal-500' },
@@ -48,7 +48,7 @@ const PRESET_ROUTES = [
   { label: 'Tax Category', value: '/masters/billandothermaster/taxcategory' },
   
   // Transactions -> Lens
-  { label: 'Sale Order', value: '/lenstransaction/sale/saleorder' },
+  { label: 'Sale Order', value: '/sale-orders' },
   { label: 'Add Sale Order', value: '/lenstransaction/sale/AddLensSaleOrder' },
   { label: 'Sale Challan', value: '/lenstransaction/sale/salechallan' },
   { label: 'Add Sale Challan', value: '/lenstransaction/sale/AddLensSaleChallan' },

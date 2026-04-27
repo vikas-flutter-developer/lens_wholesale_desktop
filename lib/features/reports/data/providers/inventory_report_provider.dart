@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/inventory_report_models.dart';
+import '../models/lens_stock_report_models.dart';
 import '../services/inventory_report_service.dart';
 
 class InventoryReportProvider with ChangeNotifier {
@@ -193,6 +194,130 @@ class InventoryReportProvider with ChangeNotifier {
     }
   }
 
+  // Lens Stock Report
+  LensStockReportResponse? _lensStockResponse;
+  LensStockReportResponse? get lensStockResponse => _lensStockResponse;
+
+  Future<void> fetchLensStockReport(Map<String, dynamic> filters) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _lensStockResponse = await _service.getLensStockReport(filters);
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error fetching Lens Stock Report: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Power Range Library for filter
+  List<dynamic> _powerRangeLibrary = [];
+  List<dynamic> get powerRangeLibrary => _powerRangeLibrary;
+  bool _isLoadingLibrary = false;
+  bool get isLoadingLibrary => _isLoadingLibrary;
+
+  Future<void> fetchPowerRangeLibrary(String groupName) async {
+    _isLoadingLibrary = true;
+    notifyListeners();
+    try {
+      _powerRangeLibrary = await _service.getPowerRangeLibrary(groupName);
+    } catch (e) {
+      debugPrint('Error fetching Power Range Library: $e');
+      _powerRangeLibrary = [];
+    } finally {
+      _isLoadingLibrary = false;
+      notifyListeners();
+    }
+  }
+
+  // Customer Item Sales Report
+  CustomerItemSalesResponse? _customerItemSalesResponse;
+  CustomerItemSalesResponse? get customerItemSalesResponse => _customerItemSalesResponse;
+
+  Future<void> fetchCustomerItemSalesReport(Map<String, dynamic> filters) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final response = await _service.getCustomerItemSalesReport(filters);
+      
+      // Group by itemName logic as seen in React frontend
+      final Map<String, CustomerItemSalesItem> groupedMap = {};
+      double totalOrders = 0;
+
+      for (var item in response.data) {
+        final name = item.itemName;
+        if (groupedMap.containsKey(name)) {
+          final existing = groupedMap[name]!;
+          groupedMap[name] = existing.copyWith(
+            totalQty: existing.totalQty + item.totalQty,
+            totalRevenue: existing.totalRevenue + item.totalRevenue,
+            orderCount: existing.orderCount + item.orderCount,
+          );
+        } else {
+          groupedMap[name] = item;
+        }
+        totalOrders += item.orderCount;
+      }
+
+      final groupedData = groupedMap.values.toList();
+      _customerItemSalesResponse = response.copyWith(
+        data: groupedData,
+        summary: response.summary.copyWith(
+          totalItems: groupedData.length,
+          totalOrders: totalOrders.toInt(),
+        ),
+      );
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error fetching Customer Item Sales Report: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Bank Verification Transactions
+  List<dynamic> _bankTransactions = [];
+  List<dynamic> get bankTransactions => _bankTransactions;
+
+  Future<void> fetchBankTransactions(Map<String, dynamic> filters) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _bankTransactions = await _service.getBankVerificationTransactions(filters);
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error fetching Bank Verification Transactions: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Item Stock Summary Report
+  ItemStockSummaryResponse? _itemStockSummary;
+  ItemStockSummaryResponse? get itemStockSummary => _itemStockSummary;
+
+  Future<void> fetchItemStockSummaryReport(Map<String, dynamic> filters) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _itemStockSummary = await _service.getItemStockSummaryReport(filters);
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error fetching Item Stock Summary Report: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   void resetAll() {
     _lensMovementData = null;
     _powerMovementData = null;
@@ -200,6 +325,11 @@ class InventoryReportProvider with ChangeNotifier {
     _reorderItems = null;
     _saleItemGroupWiseItems = null;
     _bookedByItems = null;
+    _lensStockResponse = null;
+    _customerItemSalesResponse = null;
+    _powerRangeLibrary = [];
+    _bankTransactions = [];
+    _itemStockSummary = null;
     notifyListeners();
   }
 }

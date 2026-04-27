@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { printBarcodeStickers } from "../utils/BarcodeStickerHelper";
+import { printAuthenticityCard } from "../utils/AuthenticityCardHelper";
 import * as XLSX from "xlsx";
 import {
   Plus,
@@ -20,19 +21,26 @@ import {
   getAllLensPurchaseReturn,
   removeLensPurchaseReturn,
   updateReturnQuantities,
+  updateReturnStatus as updateLensStatus,
 } from '../controllers/PurchaseReturn.controller'
 import {
   getAllRxPurchaseReturn,
   removeRxPurchaseReturn,
-  updateRxPurchaseReturnFields
+  updateRxPurchaseReturnFields,
+  updateReturnStatus as updateRxStatus,
 } from "../controllers/RxPurchaseReturn.controller"
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from 'react-hot-toast'
 import { roundAmount } from "../utils/amountUtils";
 import { numberToWords } from "../utils/numberToWords";
+import { generateBulkPrint, handleExportToExcel } from "../utils/PrintUtils";
+import { getAllLensPower } from "../controllers/LensGroupCreationController";
+import { getAllItems } from "../controllers/itemcontroller";
 
 function PurchaseReturnVoucher() {
   const [purchaseReturns, setPurchaseReturns] = useState([])
+  const [allLenses, setAllLenses] = useState([]);
+  const [allItems, setAllItems] = useState([]);
   const [expandedRow, setExpandedRow] = useState(null);
   const [quantitiesValues, setQuantitiesValues] = useState({});
   const [filters, setFilters] = useState({
@@ -42,6 +50,34 @@ function PurchaseReturnVoucher() {
     searchText: "",
   });
   const [dcIds, setDcIds] = useState({});
+  const ALL_COLUMNS_RETURN = [
+    { id: "srNo", label: "Sr" },
+    { id: "billDate", label: "Bill Date" },
+    { id: "time", label: "Time" },
+    { id: "billSeries", label: "Bill Series" },
+    { id: "billNo", label: "Bill No." },
+    { id: "partyName", label: "Party Name" },
+    { id: "dcId", label: "DC ID" },
+    { id: "netAmt", label: "Net Amt" },
+    { id: "ordQty", label: "Ord Q" },
+  ];
+
+  const [selectedReturns, setSelectedReturns] = useState([]);
+
+  const handleSelectReturn = (id) => {
+    const idStr = String(id);
+    setSelectedReturns(prev =>
+      prev.includes(idStr) ? prev.filter(i => i !== idStr) : [...prev, idStr]
+    );
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedReturns(filteredVouchers.map(v => String(v._id)));
+    } else {
+      setSelectedReturns([]);
+    }
+  };
 
   const navigate = useNavigate();
 
@@ -60,6 +96,13 @@ function PurchaseReturnVoucher() {
       combinedData.sort((a, b) => new Date(b.billData?.date) - new Date(a.billData?.date));
 
       setPurchaseReturns(combinedData);
+      
+      const [lenses, items] = await Promise.all([
+        getAllLensPower(),
+        getAllItems()
+      ]);
+      setAllLenses(lenses?.data || []);
+      setAllItems(items?.items || items?.data || []);
     } catch (err) {
       console.error("Error fetching purchase return data:", err);
       toast.error("Failed to load data");
@@ -100,15 +143,29 @@ function PurchaseReturnVoucher() {
     } else {
       res = await updateRxPurchaseReturnFields(id, { dcId });
     }
+  };
 
-    if (res.success) {
-      toast.success("DC ID updated");
-    } else {
-      toast.error("Failed to update DC ID");
+  const handleStatusChange = async (id, returnType, status) => {
+    try {
+      let res;
+      if (returnType === "lens") {
+        res = await updateLensStatus(id, status);
+      } else {
+        res = await updateRxStatus(id, status);
+      }
+
+      if (res.success) {
+        toast.success("Status updated");
+        setPurchaseReturns(prev => prev.map(v => v._id === id ? { ...v, status } : v));
+      } else {
+        toast.error(res.error || "Failed to update status");
+      }
+    } catch (err) {
+      toast.error("Error updating status");
     }
   };
 
-  const saveQuantities = async (id) => {
+  const saveQuantities = async (id, returnType) => {
     const vals = quantitiesValues[id];
     if (!vals) return;
     const o = Number(vals.ordQty || 0);
@@ -117,10 +174,17 @@ function PurchaseReturnVoucher() {
       toast.error("Used Qty cannot exceed Order Qty");
       return;
     }
-    const res = await updateReturnQuantities(id, { orderQty: o, usedQty: u });
+
+    let res;
+    if (returnType === "lens") {
+      res = await updateReturnQuantities(id, { orderQty: o, usedQty: u });
+    } else {
+      res = await updateRxPurchaseReturnFields(id, { orderQty: o, usedQty: u });
+    }
+
     if (res.success) {
       toast.success("Quantities updated");
-      fetchdata();
+      setPurchaseReturns(prev => prev.map(v => v._id === id ? { ...v, orderQty: o, usedQty: u, balQty: Math.max(0, o - u) } : v));
     } else {
       toast.error("Failed to update");
     }
@@ -189,77 +253,42 @@ function PurchaseReturnVoucher() {
 
   // ── Excel Export ──────────────────────────────────────────────
   const handleExcelExport = () => {
-    const rows = filteredVouchers.map((v, i) => ({
-      "S.N.": i + 1,
-      "Bill Date": safeDate(v.billData?.date),
-      "Time": formatTime(v),
-      "Bill Series": v.billData?.billSeries || "-",
-      "Bill No.": v.billData?.billNo || "-",
-      "Party Name": v.partyData?.partyAccount || "-",
-      "DC ID": v.dcId || "-",
-      "Net Amount": v.netAmount || 0,
-      "Type": v.returnType || "-",
+    const itemsToExport = selectedReturns.length > 0
+      ? filteredVouchers.filter(v => selectedReturns.includes(String(v._id)))
+      : filteredVouchers;
+
+    const data = itemsToExport.map(v => ({
+      ...v,
+      billDate: v.billData?.date,
+      time: formatTime(v),
+      billSeries: v.billData?.billSeries,
+      billNo: v.billData?.billNo,
+      partyName: v.partyData?.partyAccount,
+      netAmt: v.netAmount,
+      ordQty: quantitiesValues[v._id]?.ordQty ?? (v.items?.reduce((s, i) => s + (Number(i.qty) || 0), 0) || 0)
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Purchase Returns");
-    XLSX.writeFile(wb, "purchase_return_vouchers.xlsx");
-    toast.success("Excel file downloaded!");
+
+    handleExportToExcel(XLSX, "PurchaseReturns", data, { srNo: true, billDate: true, time: true, billSeries: true, billNo: true, partyName: true, dcId: true, netAmt: true, ordQty: true }, ALL_COLUMNS_RETURN);
   };
 
   // ── Table Print (header Printer button) ─────────────────────
   const handleTablePrint = () => {
-    const tableRows = filteredVouchers
-      .map(
-        (v, i) => `<tr>
-          <td>${i + 1}</td>
-          <td>${safeDate(v.billData?.date)}</td>
-          <td>${formatTime(v)}</td>
-          <td>${v.billData?.billSeries || "-"}</td>
-          <td>${v.billData?.billNo || "-"}</td>
-          <td>${v.partyData?.partyAccount || "-"}</td>
-          <td>${v.dcId || "-"}</td>
-          <td>&#8377;${roundAmount(v.netAmount)}</td>
-        </tr>`
-      )
-      .join("");
+    const itemsToPrint = selectedReturns.length > 0
+      ? filteredVouchers.filter(v => selectedReturns.includes(String(v._id)))
+      : filteredVouchers;
 
-    const html = `<!DOCTYPE html>
-      <html>
-      <head>
-        <title>Purchase Return Voucher List</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          h1 { font-size: 20px; margin-bottom: 5px; text-align: center; }
-          p { font-size: 12px; color: #666; margin-bottom: 15px; text-align: center; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th { background: #1e293b; color: white; padding: 10px; text-align: left; font-size: 12px; }
-          td { border: 1px solid #cbd5e1; padding: 8px; font-size: 12px; }
-          tr:nth-child(even) { background: #f8fafc; }
-          @media print {
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <h1>Purchase Return Voucher List</h1>
-        <p>Total Records: ${filteredVouchers.length} | Generated on: ${new Date().toLocaleString()}</p>
-        <table>
-          <thead>
-            <tr>
-              <th>S.N.</th><th>Bill Date</th><th>Time</th><th>Bill Series</th><th>Bill No.</th><th>Party Name</th><th>DC ID</th><th>Net Amount</th>
-            </tr>
-          </thead>
-          <tbody>${tableRows}</tbody>
-        </table>
-      </body>
-      </html>`;
+    const data = itemsToPrint.map(v => ({
+      ...v,
+      billDate: v.billData?.date,
+      time: formatTime(v),
+      billSeries: v.billData?.billSeries,
+      billNo: v.billData?.billNo,
+      partyName: v.partyData?.partyAccount,
+      netAmt: v.netAmount,
+      ordQty: quantitiesValues[v._id]?.ordQty ?? (v.items?.reduce((s, i) => s + (Number(i.qty) || 0), 0) || 0)
+    }));
 
-    const pw = window.open("", "_blank");
-    pw.document.write(html);
-    pw.document.close();
-    pw.focus();
-    pw.print();
+    generateBulkPrint("Purchase Return Voucher List", data, { srNo: true, billDate: true, time: true, billSeries: true, billNo: true, partyName: true, dcId: true, netAmt: true, ordQty: true }, ALL_COLUMNS_RETURN);
   };
 
   const filteredVouchers = useMemo(() => {
@@ -297,13 +326,18 @@ function PurchaseReturnVoucher() {
   const totals = useMemo(() => {
     let net = 0;
     let ordQty = 0;
+    let usedQty = 0;
+    let balQty = 0;
     filteredVouchers.forEach((v) => {
       net += parseNumber(v.netAmount);
-      // Fallback to item sum for quantity
-      const q = Number(quantitiesValues[v._id]?.ordQty ?? 0) || (v.items?.reduce((s, i) => s + (Number(i.qty) || 0), 0) || 0);
+      const q = Number(quantitiesValues[v._id]?.ordQty ?? 0) || (v.orderQty !== undefined ? v.orderQty : (v.items?.reduce((s, i) => s + (Number(i.qty) || 0), 0) || 0));
+      const u = Number(quantitiesValues[v._id]?.usedQty ?? 0) || (v.usedQty || 0);
+      const b = Math.max(0, q - u);
       ordQty += q;
+      usedQty += u;
+      balQty += b;
     });
-    return { net, ordQty };
+    return { net, ordQty, usedQty, balQty };
   }, [filteredVouchers, quantitiesValues]);
 
   const formatINR = (num) =>
@@ -337,6 +371,24 @@ function PurchaseReturnVoucher() {
     setExpandedRow(expandedRow === id ? null : id);
   };
 
+  const getPrintItemName = (item) => {
+    if (item.billItemName && item.billItemName.trim() !== "") return item.billItemName;
+    const target = (item.itemName || "").trim().toLowerCase();
+    if (!target) return item.itemName || "-";
+
+    const foundLens = (allLenses || []).find(l => 
+      (l.productName || "").trim().toLowerCase() === target
+    );
+    if (foundLens?.billItemName) return foundLens.billItemName;
+
+    const foundItem = (allItems || []).find(i => 
+      (i.itemName || "").trim().toLowerCase() === target
+    );
+    if (foundItem?.billItemName) return foundItem.billItemName;
+
+    return item.itemName || "-";
+  };
+
   const handleNormalPrint = (order) => {
     const formatDate = (dateStr) => {
       if (!dateStr) return "-";
@@ -353,7 +405,7 @@ function PurchaseReturnVoucher() {
       .map(
         (it, idx) => `<tr>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${idx + 1}</td>
-          <td style="border:1px solid #94a3b8;padding:4px;font-weight:bold">${it.itemName || it.productName || "-"}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${getPrintItemName(it)}</td>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.orderNo || it.refId || "-"}</td>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.eye || "-"}</td>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.sph || "-"}</td>
@@ -490,8 +542,7 @@ function PurchaseReturnVoucher() {
   };
 
   const generateBarcodePrint = (v) => {
-
-    printBarcodeStickers(v, [], []);
+    printBarcodeStickers(v, allLenses, allItems, true);
   };
 
   const generateCardPrint = (v) => {
@@ -600,7 +651,15 @@ function PurchaseReturnVoucher() {
               <thead className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="w-20 text-center py-4 px-3 text-slate-700 font-bold text-sm">
-                    S.N.
+                    <div className="flex items-center justify-center gap-2">
+                       <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        checked={selectedReturns.length === filteredVouchers.length && filteredVouchers.length > 0}
+                        onChange={handleSelectAll}
+                      />
+                      <span>Sr</span>
+                    </div>
                   </th>
                   <th className="min-w-[120px] text-center py-4 px-3 text-slate-700 font-bold text-sm">
                     Bill Date
@@ -620,22 +679,19 @@ function PurchaseReturnVoucher() {
                   <th className="min-w-[150px] text-center py-4 px-3 text-slate-700 font-bold text-sm">
                     DC ID
                   </th>
-                  <th className="min-w-[130px] text-center py-4 px-3 text-slate-700 font-bold text-sm">
-                    Net Amt
-                  </th>
-                  <th className="min-w-[80px] text-center py-4 px-3 text-slate-700 font-bold text-sm">
-                    Ord Q
-                  </th>
-                  <th className="w-[200px] text-center py-4 px-3 text-slate-700 font-bold text-sm">
-                    Action
-                  </th>
+                   <th className="min-w-[130px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Net Amt</th>
+                   <th className="min-w-[120px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Status</th>
+                   <th className="w-[100px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Ord Q</th>
+                   <th className="w-[100px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Used Q</th>
+                   <th className="w-[100px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bal Q</th>
+                   <th className="w-[200px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Action</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-200">
                 {filteredVouchers.length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="p-10 text-center text-slate-500">
+                    <td colSpan="13" className="p-10 text-center text-slate-500">
                       <p className="text-xl">No return vouchers found</p>
                       <p className="text-md">
                         Try adjusting your search criteria
@@ -647,13 +703,19 @@ function PurchaseReturnVoucher() {
                     const idStr = String(v._id);
                     return (
                       <React.Fragment key={idStr}>
-                        <tr
+                       <tr
                           key={v.id}
-                          className="hover:bg-slate-50 transition-colors duration-150 group text-sm"
+                          className={`hover:bg-slate-50 transition-colors duration-150 group text-sm ${selectedReturns.includes(idStr) ? "bg-blue-50" : ""}`}
                         >
                       <td className="w-20 text-center text-slate-600 font-medium py-5 px-2 align-top whitespace-nowrap">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <span className="text-base">{i + 1}</span>
+                        <div className="flex items-center justify-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            checked={selectedReturns.includes(idStr)}
+                            onChange={() => handleSelectReturn(v._id)}
+                          />
+                          {i + 1}
                         </div>
                       </td>
                       <td className="py-5 px-3 text-slate-800 align-top text-center">
@@ -691,13 +753,41 @@ function PurchaseReturnVoucher() {
                         {v.netAmount !== "0.00" ? `₹${roundAmount(v.netAmount)}` : "-"}
                       </td>
                       <td className="py-5 px-3 align-top text-center">
+                        <select
+                          value={v.status || "Pending"}
+                          onChange={(e) => handleStatusChange(v._id, v.returnType, e.target.value)}
+                          className={`px-2 py-1 text-xs font-bold rounded border ${
+                            v.status === "Done" 
+                              ? "bg-green-100 text-green-700 border-green-200" 
+                              : "bg-yellow-100 text-yellow-700 border-yellow-200"
+                          } outline-none focus:ring-1 focus:ring-blue-500`}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Done">Done</option>
+                        </select>
+                      </td>
+                      <td className="py-5 px-3 align-top text-center">
                         <input
                           type="number"
-                          value={quantitiesValues[v._id]?.ordQty ?? ""}
+                          value={quantitiesValues[v._id]?.ordQty ?? v.orderQty ?? ""}
                           onChange={(e) => handleQuantityChange(v._id, "ordQty", e.target.value)}
-                          onBlur={() => saveQuantities(v._id)}
-                          className="w-full px-1 py-1 text-sm border border-slate-300 rounded text-center outline-none focus:border-blue-500"
+                          onBlur={() => saveQuantities(v._id, v.returnType)}
+                          style={{ width: `${Math.max(4, String(quantitiesValues[v._id]?.ordQty ?? v.orderQty ?? "").length) + 3}ch` }}
+                          className="px-1 py-1 text-sm border border-slate-300 rounded text-center outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
+                      </td>
+                      <td className="py-5 px-3 align-top text-center">
+                        <input
+                          type="number"
+                          value={quantitiesValues[v._id]?.usedQty ?? v.usedQty ?? ""}
+                          onChange={(e) => handleQuantityChange(v._id, "usedQty", e.target.value)}
+                          onBlur={() => saveQuantities(v._id, v.returnType)}
+                          style={{ width: `${Math.max(4, String(quantitiesValues[v._id]?.usedQty ?? v.usedQty ?? "").length) + 3}ch` }}
+                          className="px-1 py-1 text-sm border border-slate-300 rounded text-center outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </td>
+                      <td className="py-5 px-3 align-top text-center font-bold text-slate-700">
+                        {quantitiesValues[v._id]?.balQty ?? (v.balQty || 0)}
                       </td>
                       <td className="py-5 px-2 align-top text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -726,7 +816,7 @@ function PurchaseReturnVoucher() {
                     {expandedRow === idStr && (
                       <tr>
                         <td
-                          colSpan="10"
+                          colSpan="13"
                           className="bg-blue-50 p-6 border-b-2 border-t-2 border-blue-300 shadow-lg"
                         >
                           <div className="bg-white rounded-lg p-4 border border-blue-200">
@@ -795,8 +885,15 @@ function PurchaseReturnVoucher() {
                     <td className="py-4 px-3 text-center text-slate-900 text-lg font-black underline decoration-double decoration-blue-500 underline-offset-4">
                       {`₹${roundAmount(totals.net)}`}
                     </td>
+                    <td className="bg-slate-100/50" /> {/* Status Column */}
                     <td className="py-4 px-3 text-center text-blue-600 text-lg font-black underline decoration-double decoration-blue-500 underline-offset-4">
                       {totals.ordQty}
+                    </td>
+                    <td className="py-4 px-3 text-center text-orange-600 text-lg font-black underline decoration-double decoration-blue-500 underline-offset-4">
+                      {totals.usedQty}
+                    </td>
+                    <td className="py-4 px-3 text-center text-green-600 text-lg font-black underline decoration-double decoration-blue-500 underline-offset-4">
+                      {totals.balQty}
                     </td>
                     <td className="bg-slate-100/50" />
                   </tr>

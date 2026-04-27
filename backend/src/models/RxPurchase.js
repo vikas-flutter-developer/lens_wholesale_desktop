@@ -26,6 +26,8 @@ const RxPurchaseSchema = new mongoose.Schema(
       {
         barcode: { type: String, default: "" },
         itemName: { type: String, default: "" },
+        billItemName: { type: String, default: "" },
+        vendorItemName: { type: String, default: "" },
         unit: { type: String, default: "" },
         dia: { type: String, default: "" },
         eye: { type: String, default: "" },
@@ -89,6 +91,7 @@ const RxPurchaseSchema = new mongoose.Schema(
       default: "Pending",
     },
     dcId: { type: String, default: "" },
+    sourceChallanId: { type: mongoose.Schema.Types.ObjectId, ref: "PurchaseChallan", default: null },
   },
   { timestamps: true }
 );

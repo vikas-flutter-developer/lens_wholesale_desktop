@@ -269,7 +269,7 @@ function AddPurchaseReturn() {
     const pp = accountWisePrices[l._id] || l.purchasePrice || 0;
     setItems(prev => {
       const c = [...prev];
-      c[idx] = { ...c[idx], itemName: l.productName, purchasePrice: pp, eye: l.eye || c[idx].eye || "" };
+      c[idx] = { ...c[idx], itemName: l.productName, billItemName: l.billItemName || "", purchasePrice: pp, eye: l.eye || c[idx].eye || "" };
       const q = parseFloat(c[idx].qty) || 0, p = parseFloat(c[idx].purchasePrice) || 0, d = parseFloat(c[idx].discount) || 0;
       c[idx].totalAmount = roundAmount(q * p - d);
       return c;
@@ -334,6 +334,7 @@ function AddPurchaseReturn() {
           const c = [...prev];
           const row = c[rowIndex];
           row.itemName = barcodeData.itemName || row.itemName;
+          row.billItemName = barcodeData.billItemName || "";
           row.eye = barcodeData.eye || row.eye;
           row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
           row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;

@@ -47,6 +47,7 @@ const addRxPurchaseReturn = async (req, res) => {
     const netAmount = subtotal + taxesAmount;
     const paidAmount = Number(data.paidAmount) || 0;
     const dueAmount = netAmount - paidAmount;
+    const orderQty = items.reduce((s, it) => s + it.qty, 0);
 
     const purchaseReturn = new RxPurchaseReturn({
       billData: data.billData || {},
@@ -59,6 +60,9 @@ const addRxPurchaseReturn = async (req, res) => {
       netAmount,
       paidAmount,
       dueAmount,
+      orderQty,
+      usedQty: 0,
+      balQty: orderQty,
       status: data.status || "Pending",
       returnType: "RX", // future safe
       dcId: data.dcId || "",
@@ -153,6 +157,10 @@ const editRxPurchaseReturn = async (req, res) => {
     existing.status = data.status || existing.status;
     existing.dcId = data.dcId || existing.dcId || "";
 
+    const orderQty = (data.items || existing.items).reduce((s, it) => s + (Number(it.qty) || 0), 0);
+    existing.orderQty = orderQty;
+    existing.balQty = Math.max(0, orderQty - (existing.usedQty || 0));
+
     const updated = await existing.save();
 
     return res.status(200).json({
@@ -238,16 +246,41 @@ const getNextBillNumber = async (req, res) => {
 const updateRxPurchaseReturnFields = async (req, res) => {
   try {
     const { id } = req.params;
-    const { dcId } = req.body;
+    const { dcId, orderQty, usedQty, status } = req.body;
     const companyId = req.user?.companyId;
 
     const existing = await RxPurchaseReturn.findOne({ _id: id, companyId });
     if (!existing) return res.status(404).json({ success: false, message: "Not found" });
 
     if (dcId !== undefined) existing.dcId = dcId;
+    if (orderQty !== undefined) existing.orderQty = Number(orderQty);
+    if (usedQty !== undefined) existing.usedQty = Number(usedQty);
+    if (status !== undefined) existing.status = status;
+
+    const o = existing.orderQty || 0;
+    const u = existing.usedQty || 0;
+    existing.balQty = Math.max(0, o - u);
 
     await existing.save();
     return res.status(200).json({ success: true, message: "Fields updated", data: existing });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+const updateStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const companyId = req.user?.companyId;
+
+    const existing = await RxPurchaseReturn.findOne({ _id: id, companyId });
+    if (!existing) return res.status(404).json({ success: false, message: "Not found" });
+
+    if (status !== undefined) existing.status = status;
+
+    await existing.save();
+    return res.status(200).json({ success: true, message: "Status updated", data: existing });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -261,4 +294,5 @@ export {
   removeRxPurchaseReturn,
   getNextBillNumber,
   updateRxPurchaseReturnFields,
+  updateStatus,
 };

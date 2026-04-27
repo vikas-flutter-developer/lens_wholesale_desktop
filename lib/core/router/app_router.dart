@@ -67,7 +67,8 @@ import '../../features/reports/presentation/pages/balance_sheet_page.dart';
 import '../../features/reports/presentation/pages/profit_loss_page.dart';
 import '../../features/reports/presentation/pages/collection_report_page.dart';
 import '../../features/reports/presentation/pages/sale_target_report_page.dart';
-import '../../features/reports/presentation/pages/order_to_challan_time_page.dart';
+import '../../features/reports/presentation/pages/order_to_challan_time_report_page.dart';
+import '../../features/reports/presentation/pages/purchase_order_to_challan_time_report_page.dart';
 import '../../features/reports/presentation/pages/cancelled_order_ratio_page.dart';
 import '../../features/reports/presentation/pages/lens_movement_report_page.dart';
 import '../../features/reports/presentation/pages/power_movement_report_page.dart';
@@ -77,7 +78,6 @@ import '../../features/reports/presentation/pages/sale_item_group_wise_report_pa
 import '../../features/reports/presentation/pages/transaction_details_combined_page.dart';
 import '../../features/audits/presentation/pages/verify_lens_stock_page.dart';
 import '../../features/audits/presentation/pages/verify_billing_page.dart';
-import '../../features/audits/presentation/pages/verify_bank_statement_page.dart';
 import '../../features/utilities/presentation/pages/backup_restore_page.dart';
 import '../../features/utilities/presentation/pages/bulk_update_page.dart';
 import '../../features/utilities/presentation/pages/offers_page.dart';
@@ -87,6 +87,9 @@ import '../../features/reports/presentation/pages/active_dashboard_page.dart';
 import '../../features/reports/presentation/pages/booked_by_activity_report_page.dart';
 import '../../features/reports/presentation/pages/sale_return_ratio_report_page.dart';
 import '../../features/reports/presentation/pages/collection_target_report_page.dart';
+import '../../features/reports/presentation/pages/customer_item_sales_report_page.dart';
+import '../../features/reports/presentation/pages/lens_sph_cyl_wise_stock_page.dart';
+import '../../features/reports/presentation/pages/item_stock_summary_report_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -319,6 +322,10 @@ GoRouter createAppRouter(AuthProvider authProvider) {
           },
         ),
         GoRoute(
+          path: '/lenstransaction/lenssphcylwisestock',
+          builder: (context, state) => const LensSphCylWiseStockPage(),
+        ),
+        GoRoute(
           path: '/lenstransaction/lensstockreport',
           builder: (context, state) => const LensStockReportPage(),
         ),
@@ -381,7 +388,25 @@ GoRouter createAppRouter(AuthProvider authProvider) {
           path: '/purchases/add-purchase-order',
           builder: (context, state) {
             final id = state.uri.queryParameters['id'];
-            return AddPurchaseOrderPage(orderId: id);
+            final Map<String, dynamic>? extra = state.extra as Map<String, dynamic>?;
+            List<PurchaseItem>? initialItems;
+            
+            if (extra != null && extra['items'] != null) {
+              final itemsList = extra['items'] as List;
+              initialItems = itemsList.map((item) {
+                // Map from the report's item structure to PurchaseItem
+                return PurchaseItem(
+                  itemName: item['productName'] ?? '',
+                  qty: (item['qty'] ?? 1).toInt(),
+                  sph: item['sph']?.toString() ?? '',
+                  cyl: item['cyl']?.toString() ?? '',
+                  add: item['add']?.toString() ?? '',
+                  eye: item['eye']?.toString() ?? '',
+                );
+              }).toList();
+            }
+
+            return AddPurchaseOrderPage(orderId: id, initialItems: initialItems);
           },
         ),
         GoRoute(
@@ -413,6 +438,27 @@ GoRouter createAppRouter(AuthProvider authProvider) {
           builder: (context, state) => const PurchaseChallanListPage(),
         ),
         // Add React-style aliases for adding/editing
+        GoRoute(
+          path: '/lenstransaction/purchase/AddLensPurchaseOrder',
+          builder: (context, state) {
+            final Map<String, dynamic>? extra = state.extra as Map<String, dynamic>?;
+            List<PurchaseItem>? initialItems;
+            if (extra != null && extra['items'] != null) {
+              final itemsList = extra['items'] as List;
+              initialItems = itemsList.map((item) {
+                return PurchaseItem(
+                  itemName: item['productName'] ?? '',
+                  qty: (item['qty'] ?? 1).toInt(),
+                  sph: item['sph']?.toString() ?? '',
+                  cyl: item['cyl']?.toString() ?? '',
+                  add: item['add']?.toString() ?? '',
+                  eye: item['eye']?.toString() ?? '',
+                );
+              }).toList();
+            }
+            return AddPurchaseOrderPage(initialItems: initialItems);
+          },
+        ),
         GoRoute(
           path: '/lenstransaction/purchase/AddLensPurchaseOrder/:id',
           builder: (context, state) => AddPurchaseOrderPage(orderId: state.pathParameters['id']),
@@ -554,7 +600,16 @@ GoRouter createAppRouter(AuthProvider authProvider) {
         ),
         GoRoute(
           path: '/reports/operational/order-to-challan',
-          builder: (context, state) => const OrderToChallanTimePage(),
+          builder: (context, state) => const OrderToChallanTimeReportPage(),
+        ),
+        // React Alias for Order to Challan Time Report
+        GoRoute(
+          path: '/reports/otherreports/ordertochallantimereport',
+          builder: (context, state) => const OrderToChallanTimeReportPage(),
+        ),
+        GoRoute(
+          path: '/reports/otherreports/purchaseordertochallantimereport',
+          builder: (context, state) => const PurchaseOrderToChallanTimeReportPage(),
         ),
         GoRoute(
           path: '/reports/operational/cancelled-ratio',
@@ -576,6 +631,14 @@ GoRouter createAppRouter(AuthProvider authProvider) {
         GoRoute(
           path: '/reports/inventory/party-wise-item',
           builder: (context, state) => const PartyWiseItemReportPage(),
+        ),
+        GoRoute(
+          path: '/reports/inventory/customer-item-sales',
+          builder: (context, state) => const CustomerItemSalesReportPage(),
+        ),
+        GoRoute(
+          path: '/reports/inventory/item-stock-summary',
+          builder: (context, state) => const ItemStockSummaryReportPage(),
         ),
         GoRoute(
           path: '/reports/stockandinventory/itemstockreorder',
@@ -620,7 +683,7 @@ GoRouter createAppRouter(AuthProvider authProvider) {
         ),
         GoRoute(
           path: '/audits/verify-bank-statement',
-          builder: (context, state) => const VerifyBankStatementPage(),
+          builder: (context, state) => const VerifyBillingPage(initialTab: 1),
         ),
         // Utilities & Polish (Step 37)
         GoRoute(

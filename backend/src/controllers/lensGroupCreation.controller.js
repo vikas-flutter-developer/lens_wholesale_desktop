@@ -12,35 +12,43 @@ const escapeRegex = (string) => {
 // Helper to save range to library
 const saveToRangeLibrary = async (req, range) => {
   try {
-    const { sphMin, sphMax, cylMin, cylMax, addMin, addMax, label } = range;
+    const { sphMin, sphMax, cylMin, cylMax, addMin, addMax, axis, label } = range;
     const companyId = req.user?.companyId || null;
+    const queryCompanyId = (companyId && mongoose.Types.ObjectId.isValid(companyId)) 
+      ? new mongoose.Types.ObjectId(companyId) 
+      : companyId;
 
-    // Check if exactly this range exists for this company
+    const rawGroupName = (req.body.groupName || req.query.groupName);
+    const gName = rawGroupName ? rawGroupName.trim() : null;
+
+    if (!gName) {
+      console.log("[saveToRangeLibrary] SKIPPED: No groupName provided for isolation");
+      return;
+    }
+
+    // Check if exactly this range exists for this SPECIFIC group and company
     const existing = await PowerRangeLibrary.findOne({
-      companyId,
+      companyId: queryCompanyId,
+      groupName: gName,
       sphMin, sphMax,
       cylMin, cylMax,
-      addMin, addMax
+      addMin, addMax,
+      axis: axis || 0
     });
 
     if (!existing) {
       await PowerRangeLibrary.create({
-        companyId,
+        companyId: queryCompanyId,
+        groupName: gName,
         sphMin, sphMax,
         cylMin, cylMax,
         addMin, addMax,
-        label,
-        groupNames: (req.body.groupName || req.query.groupName) ? [(req.body.groupName || req.query.groupName)] : []
+        axis: axis || 0,
+        label
       });
-      console.log(`Saved new range to library: ${label}`);
-    } else if (req.body.groupName || req.query.groupName) {
-      const gName = (req.body.groupName || req.query.groupName);
-      if (!existing.groupNames) existing.groupNames = [];
-      if (!existing.groupNames.includes(gName)) {
-        existing.groupNames.push(gName);
-        existing.markModified('groupNames');
-        await existing.save();
-      }
+      console.log(`[saveToRangeLibrary] SUCCESS: Created NEW isolated range library entry for "${label}" under group "${gName}"`);
+    } else {
+      console.log(`[saveToRangeLibrary] SKIPPED: Range already exists in library for group "${gName}"`);
     }
   } catch (err) {
     console.error("Error saving to PowerRangeLibrary:", err);
@@ -79,6 +87,34 @@ const parseNum = (v) => {
   return isNaN(n) ? 0 : n;
 };
 
+// Normalize eye value to handle all variations
+const normalizeEyeValue = (eyeVal) => {
+  let normalized = String(eyeVal || "").trim().toUpperCase();
+  // Convert all dual-eye formats to single letter or "BOTH"
+  if (normalized === "RL" || normalized === "R/L" || normalized === "BOTH_RL") {
+    normalized = "BOTH";
+  }
+  if (normalized === "") {
+    normalized = "BOTH";
+  }
+  // For comparisons, we need R, L individually
+  // But normalize containers treat them specially
+  return normalized;
+};
+
+// Check if eye values are equivalent (for deduplication)
+const eyeValuesMatch = (eye1, eye2) => {
+  const n1 = normalizeEyeValue(eye1);
+  const n2 = normalizeEyeValue(eye2);
+  
+  // If either is BOTH (dual-eye), match with any individual eye
+  if (n1 === "BOTH" || n2 === "BOTH") {
+    return true; // BOTH matches any R or L
+  }
+  // Otherwise exact match
+  return n1 === n2;
+};
+
 // RANGE GENERATOR
 const createRange = (min, max, step) => {
   const list = [];
@@ -104,9 +140,6 @@ const createRange = (min, max, step) => {
 const addLensPower = async (req, res) => {
   try {
     const {
-      groupName,
-      productName,
-
       sphMin,
       sphMax,
       sphStep,
@@ -124,6 +157,9 @@ const addLensPower = async (req, res) => {
       generateBarcodes, // Optional flag to generate barcodes
     } = req.body;
 
+    const productName = req.body.productName?.trim();
+    const groupName = req.body.groupName?.trim();
+
     const sphMinNum = parseNum(sphMin);
     const sphMaxNum = parseNum(sphMax);
     const sphStepNum = sphStep === "" ? 0.25 : parseNum(sphStep);
@@ -138,16 +174,33 @@ const addLensPower = async (req, res) => {
 
     const axisNum = parseNum(axis);
 
+    // NORMALIZE eye value using helper function
+    const normalizedEye = normalizeEyeValue(eye);
+    console.log(`[addLensPower] Normalized eye: "${eye}" → "${normalizedEye}"`);
+
+    // ---------------------------------------------
+    // 0) VALIDATION
+    // ---------------------------------------------
+    if (!productName) {
+        return res.status(400).json({ success: false, message: "Product name is required" });
+    }
+
     // ---------------------------------------------
     // 1) CASE-INSENSITIVE PRODUCT NAME CHECK
     // ---------------------------------------------
     const companyId = req.user?.companyId || null;
+    
+    // Convert companyId to ObjectId if it's a string, to ensure query matches indexed type
+    const queryCompanyId = (companyId && mongoose.Types.ObjectId.isValid(companyId)) 
+      ? new mongoose.Types.ObjectId(companyId) 
+      : companyId;
+
     let lensGroup = await LensGroup.findOne({
       $or: [
-        { companyId: companyId },
+        { companyId: queryCompanyId },
         { companyId: null }
       ],
-      productName: { $regex: `^${escapeRegex(productName.trim())}$`, $options: "i" }
+      productName: { $regex: `^${escapeRegex(productName)}$`, $options: "i" }
     });
 
     const isExisting = !!lensGroup;
@@ -164,47 +217,36 @@ const addLensPower = async (req, res) => {
     const addList = createRange(addMinNum, addMaxNum, addStepNum);
 
     // ---------------------------------------------
+    // 3) SAFETY GUARDS
+    // ---------------------------------------------
+    // Prevent infinite loops or massive memory consumption if step is 0
+    if (sphStepNum <= 0 || cylStepNum <= 0 || (addList.length > 1 && addStepNum <= 0)) {
+        return res.status(400).json({ 
+            success: false, 
+            message: "Step values must be greater than zero." 
+        });
+    }
+
+    // Estimate total combinations to prevent 16MB document size limit hits
+    const totalNewCombs = sphList.length * cylList.length * addList.length * ((eye === "BOTH" || eye === "BOTH_RL") ? 2 : 1);
+    const COMBINATION_LIMIT = 10000;
+    
+    if (totalNewCombs > COMBINATION_LIMIT) {
+        return res.status(400).json({
+            success: false,
+            message: `Requested range results in ${totalNewCombs.toLocaleString()} combinations, which exceeds the safety limit of ${COMBINATION_LIMIT.toLocaleString()}. Please reduce the range or increase the step size.`
+        });
+    }
+
+    // ---------------------------------------------
     // 4) GENERATE ADD GROUPS + COMBINATIONS
     // ---------------------------------------------
     const newAddGroups = [];
-    const usedBarcodes = new Set();
 
-    // Helper to generate unique barcode
-    const generateBarcode = () => {
-      const prefix = (productName || "LNS").substring(0, 3).toUpperCase();
-      const timestamp = Date.now().toString().slice(-8);
-      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      return `${prefix}${timestamp}${random}`;
-    };
-
-    // Check if barcode exists in database
-    const barcodeExists = async (barcode) => {
-      const exists = await LensGroup.findOne({
-        "addGroups.combinations.barcode": barcode,
-      });
-      return !!exists;
-    };
-
-    // If update, we should check existing combinations to avoid duplicates
-    const findExistingComb = (oldAddGroups, addVal, sph, cyl, eye) => {
-      if (!oldAddGroups || !Array.isArray(oldAddGroups)) return null;
-
-      const addGroup = oldAddGroups.find(
-        (g) => Math.abs(parseFloat(g.addValue) - parseFloat(addVal)) < 0.01
-      );
-      if (!addGroup || !addGroup.combinations) return null;
-
-      return addGroup.combinations.find((c) => {
-        const cSph = typeof c.sph === "string" ? parseFloat(c.sph) : c.sph;
-        const cCyl = typeof c.cyl === "string" ? parseFloat(c.cyl) : c.cyl;
-        return (
-          Math.abs(cSph - parseFloat(sph)) < 0.01 &&
-          Math.abs(cCyl - parseFloat(cyl)) < 0.01 &&
-          c.eye === eye &&
-          Math.abs((c.axis || 0) - axisNum) < 0.01
-        );
-      });
-    };
+    // LOCAL UNIQUENESS SET for the current batch only.
+    // Key = "add_sph_cyl_eye_axis" — prevents duplicates within this generation run.
+    // Intentionally does NOT check against other power groups so each group is independent.
+    const batchUniqueSet = new Set();
 
     const currentAddGroups = isExisting ? lensGroup.addGroups : [];
 
@@ -221,17 +263,103 @@ const addLensPower = async (req, res) => {
       addStep: addStepNum,
       axis: axisNum,
       eye: eye,
-      label: `SPH(${sphMinNum} to ${sphMaxNum}) CYL(${cylMinNum} to ${cylMaxNum}) ADD(${addMinNum} to ${addMaxNum})`
+      label: `SPH(${sphMinNum} to ${sphMaxNum}) CYL(${cylMinNum} to ${cylMaxNum}) ADD(${addMinNum} to ${addMaxNum}) AXIS(${axisNum})`
     };
 
     // AUTO SAVE TO LIBRARY
     await saveToRangeLibrary(req, newPowerGroupRecord);
 
     let combinationsAdded = 0;
+    let barcodeSeq = 0; // Sequential part of barcode for this batch
+
+    // Batch generate barcodes if needed
+    // Using a combination of prefix + timestamp + sequence + random to ensure uniqueness 
+    // across the batch and globally without individual DB checks for every combination.
+    const getNextBatchBarcode = () => {
+      const prefix = (productName || "LNS").substring(0, 3).toUpperCase();
+      const ts = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+      const seq = (barcodeSeq++).toString().padStart(4, '0');
+      const rnd = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      return `${prefix}${ts}${seq}${rnd}`;
+    };
+
+    // For tracking which combinations belong to this power range
+    let powerGroupId = null;
+
+    if (isExisting) {
+      // BACKFILL: If existing combinations don't have powerGroupId, assign them to the FIRST power group
+      // This ensures legacy data is properly organized
+      if (lensGroup.powerGroups.length > 0) {
+        const firstPowerGroupId = lensGroup.powerGroups[0]._id;
+        let backfilledCount = 0;
+        lensGroup.addGroups.forEach(addGroup => {
+          (addGroup.combinations || []).forEach(comb => {
+            if (!comb.powerGroupId) {
+              comb.powerGroupId = firstPowerGroupId;
+              backfilledCount++;
+            }
+          });
+        });
+        if (backfilledCount > 0) {
+          console.log(`[addLensPower] BACKFILLED ${backfilledCount} combinations with powerGroupId from first power group`);
+        }
+      }
+
+      // Check if power group already exists (same exact ranges)
+      const existingPowerGroup = lensGroup.powerGroups.find(pg =>
+        pg.sphMin === sphMinNum && pg.sphMax === sphMaxNum && pg.sphStep === sphStepNum &&
+        pg.cylMin === cylMinNum && pg.cylMax === cylMaxNum && pg.cylStep === cylStepNum &&
+        pg.addMin === addMinNum && pg.addMax === addMaxNum && pg.addStep === addStepNum &&
+        pg.axis === axisNum && pg.eye === eye
+      );
+
+      if (!existingPowerGroup) {
+        // Create new power group record and capture its _id
+        const newPG = lensGroup.powerGroups.create(newPowerGroupRecord);
+        lensGroup.powerGroups.push(newPG);
+        powerGroupId = newPG._id;
+        console.log(`[addLensPower] ✅ CREATED NEW power group with ID: ${powerGroupId}, AXIS: ${axisNum}`);
+        console.log(`[addLensPower] Total power groups now: ${lensGroup.powerGroups.length}`);
+      } else {
+        powerGroupId = existingPowerGroup._id;
+        console.log(`[addLensPower] ⚠️ REUSING existing power group with ID: ${powerGroupId}, AXIS: ${axisNum}`);
+      }
+    } else {
+      // For new lens groups, create power group and capture _id before saving
+      // This will be done after document creation
+    }
+
+    // VERIFY powerGroupId is set before creating combinations
+    if (!powerGroupId && isExisting) {
+      console.error(`[addLensPower] ❌ ERROR: powerGroupId is not set for isExisting=${isExisting}. This will cause mixing!`);
+      return res.status(400).json({
+        success: false,
+        message: "Failed to assign power group ID"
+      });
+    }
+
+    // Collect all SPH×CYL×EYE×AXIS combinations that ALREADY belong to the NEW powerGroupId
+    // (i.e. only if reusing an existing power group). This prevents re-adding on a second call.
+    const existingPGCombs = new Set();
+    if (powerGroupId && isExisting) {
+      currentAddGroups.forEach(ag => {
+        (ag.combinations || []).forEach(c => {
+          const pgIdStr = c.powerGroupId ? c.powerGroupId.toString() : null;
+          if (pgIdStr === powerGroupId.toString()) {
+            const addKey = parseFloat(ag.addValue).toFixed(2);
+            const cSph = parseFloat(c.sph).toFixed(2);
+            const cCyl = parseFloat(c.cyl).toFixed(2);
+            const cAxis = parseFloat(c.axis || 0).toFixed(2);
+            const cEye = String(c.eye || "").trim().toUpperCase();
+            existingPGCombs.add(`${addKey}_${cSph}_${cCyl}_${cAxis}_${cEye}`);
+          }
+        });
+      });
+    }
 
     for (let add of addList) {
+      // For existing documents: find or create the add group
       let group = isExisting ? currentAddGroups.find(g => Math.abs(g.addValue - add) < 0.01) : null;
-      let combinations = [];
       let isNewGroup = false;
 
       if (!group) {
@@ -239,44 +367,55 @@ const addLensPower = async (req, res) => {
         isNewGroup = true;
       }
 
+      const addKeyFixed = parseFloat(add).toFixed(2);
+
       for (let sph of sphList) {
         for (let cyl of cylList) {
-          const eyeList = eye === "RL" ? ["R", "L"] : [eye];
+          // Use normalized eye value for consistent handling
+          const eyeList = (normalizedEye === "BOTH") ? ["R", "L"] : [normalizedEye];
           for (const eyeItem of eyeList) {
-            const existingComb = findExistingComb(currentAddGroups, add, sph, cyl, eyeItem);
+            const sphFixed = parseFloat(sph).toFixed(2);
+            const cylFixed = parseFloat(cyl).toFixed(2);
+            const axisFixed = parseFloat(axisNum).toFixed(2);
+            const eyeUpper = eyeItem.toUpperCase();
 
-            if (!existingComb) {
-              let barcode = "";
-              // Generate barcode if requested
-              if (generateBarcodes) {
-                let attempts = 0;
-                do {
-                  barcode = generateBarcode();
-                  attempts++;
-                  if (!usedBarcodes.has(barcode)) {
-                    const exists = await barcodeExists(barcode);
-                    if (!exists) {
-                      usedBarcodes.add(barcode);
-                      break;
-                    }
-                  }
-                } while (attempts < 100);
-              }
+            // Uniqueness key: scoped to CURRENT BATCH only (per powerGroupId)
+            const batchKey = `${addKeyFixed}_${sphFixed}_${cylFixed}_${axisFixed}_${eyeUpper}`;
 
-              group.combinations.push({
-                sph,
-                cyl,
-                axis: axisNum,
-                eye: eyeItem,
-                barcode,
-                boxNo: "",
-                alertQty: 0,
-                pPrice: 0,
-                sPrice: 0,
-                initStock: 0,
-              });
-              combinationsAdded++;
+            // Skip if already added in this batch
+            if (batchUniqueSet.has(batchKey)) {
+              console.log(`[addLensPower] SKIP DUPLICATE in batch: ${batchKey}`);
+              continue;
             }
+
+            // Skip if already exists for THIS power group in DB
+            if (existingPGCombs.has(batchKey)) {
+              console.log(`[addLensPower] SKIP EXISTING in PG: ${batchKey}`);
+              continue;
+            }
+
+            batchUniqueSet.add(batchKey);
+
+            let barcode = "";
+            if (generateBarcodes) {
+              barcode = getNextBatchBarcode();
+            }
+
+            // FIX Issue 2: Always initialize new combinations with 0 values — NEVER copy from other groups
+            group.combinations.push({
+              sph,
+              cyl,
+              axis: axisNum,
+              eye: eyeItem,
+              barcode,
+              boxNo: "",
+              alertQty: 0,
+              pPrice: 0,
+              sPrice: 0,
+              initStock: 0,
+              powerGroupId: powerGroupId || null,
+            });
+            combinationsAdded++;
           }
         }
       }
@@ -292,17 +431,6 @@ const addLensPower = async (req, res) => {
     }
 
     if (isExisting) {
-      // Add the new power group record if it doesn't exist (same exact ranges)
-      const groupExists = lensGroup.powerGroups.some(pg =>
-        pg.sphMin === sphMinNum && pg.sphMax === sphMaxNum && pg.sphStep === sphStepNum &&
-        pg.cylMin === cylMinNum && pg.cylMax === cylMaxNum && pg.cylStep === cylStepNum &&
-        pg.addMin === addMinNum && pg.addMax === addMaxNum && pg.addStep === addStepNum &&
-        pg.axis === axisNum && pg.eye === eye
-      );
-
-      if (!groupExists) {
-        lensGroup.powerGroups.push(newPowerGroupRecord);
-      }
 
       // Update master bounding ranges to encompass ALL combinations
       let allSphs = [];
@@ -329,7 +457,14 @@ const addLensPower = async (req, res) => {
         lensGroup.addMax = Math.max(...allAdds);
       }
 
+      // Sync the eye configuration if it changed
+      if (eye && eye !== lensGroup.eye) {
+        lensGroup.eye = eye;
+      }
+
       await lensGroup.save();
+
+      console.log(`[addLensPower] SUCCESS: Added ${combinationsAdded} combinations for AXIS=${axisNum}, total power groups now: ${lensGroup.powerGroups.length}`);
 
       return res.status(200).json({
         success: true,
@@ -339,9 +474,8 @@ const addLensPower = async (req, res) => {
         data: lensGroup,
       });
     } else {
-      // ---------------------------------------------
-      // 6) SAVE TO DB (New)
-      // ---------------------------------------------
+      // NEW LENS GROUP - Need to create powerGroup first to get its _id
+      // Create the document with temporary powerGroups array
       const newLensGroup = await LensGroup.create({
         companyId,
         groupName,
@@ -367,6 +501,24 @@ const addLensPower = async (req, res) => {
         powerGroups: [newPowerGroupRecord],
       });
 
+      // Now get the powerGroupId from the created document
+      const createdPowerGroupId = newLensGroup.powerGroups[0]._id;
+
+      // Update all combinations to reference the newly created power group
+      newLensGroup.addGroups.forEach(group => {
+        group.combinations.forEach(comb => {
+          comb.powerGroupId = createdPowerGroupId;
+        });
+      });
+
+      // Save the updated document
+      await newLensGroup.save();
+
+      // Re-fetch to ensure we have the latest data
+      const savedLensGroup = await LensGroup.findById(newLensGroup._id);
+
+      console.log(`[addLensPower] NEW PRODUCT: Created ${newAddGroups.reduce((acc, g) => acc + g.combinations.length, 0)} combinations for AXIS=${axisNum}, powerGroupId=${createdPowerGroupId}`);
+
       // ---------------------------------------------
       // 7) RESPONSE
       // ---------------------------------------------
@@ -379,16 +531,56 @@ const addLensPower = async (req, res) => {
           (acc, g) => acc + g.combinations.length,
           0
         ),
-        data: newLensGroup,
+        data: savedLensGroup,
       });
     }
 
   } catch (err) {
-    console.error(err);
+    console.error("[addLensPower] Error:", err);
+
+    // Specific handling for common errors
+    if (err.code === 11000) {
+      const keyPattern = err.keyPattern || {};
+      const fields = Object.keys(keyPattern);
+      let message = `A product with the same unique properties already exists.`;
+
+      if (fields.includes('productName')) {
+        message = `A product with the name "${req.body.productName}" already exists.`;
+      } else if (fields.includes('barcode')) {
+        message = `One or more barcodes in this batch already exist.`;
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: message,
+        error: "Duplicate Key Error",
+        details: err.message,
+        keyPattern: keyPattern
+      });
+    }
+
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid data provided.",
+        details: messages
+      });
+    }
+
+    if (err.name === "CastError") {
+        return res.status(400).json({
+            success: false,
+            message: `Invalid ID format for field ${err.path}`,
+            error: err.message
+        });
+    }
+
     return res.status(500).json({
       success: false,
-      message: "Error while creating/updating product",
+      message: "An unexpected error occurred while creating/updating the product.",
       error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
   }
 };
@@ -398,14 +590,17 @@ const getLensPower = async (req, res) => {
     const { id, productName, groupName } = { ...req.body, ...req.query };
     console.log(`[getLensPower] Searching for: ID(${id}), ProductName(${productName}), GroupName(${groupName})`);
     const companyId = req.user?.companyId || null;
+
+    // Convert companyId to ObjectId if it's a string
+    const queryCompanyId = (companyId && mongoose.Types.ObjectId.isValid(companyId)) 
+      ? new mongoose.Types.ObjectId(companyId) 
+      : companyId;
+
     // -------------------------------------
-    // 1) IF ID PROVIDED → DIRECT RETURN
+    // 1) FETCH LENS GROUP
     // -------------------------------------
     let lens = null;
 
-    // -------------------------------------
-    // 1) IF ID PROVIDED → DIRECT RETURN
-    // -------------------------------------
     if (id) {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         console.log(`[getLensPower] Invalid ID provided: ${id}`);
@@ -413,14 +608,14 @@ const getLensPower = async (req, res) => {
       }
       lens = await LensGroup.findOne({
         _id: id,
-        $or: [{ companyId }, { companyId: null }]
+        $or: [{ companyId: queryCompanyId }, { companyId: null }]
       }).lean();
     } else {
       // -------------------------------------
       // 2) IF NO ID → FIND BY PRODUCT NAME OR GROUP NAME
       // -------------------------------------
       let query = {
-        $or: [{ companyId }, { companyId: null }]
+        $or: [{ companyId: queryCompanyId }, { companyId: null }]
       };
       if (productName && productName.trim() !== "") {
         query.productName = { $regex: `^${escapeRegex(productName.trim())}$`, $options: "i" };
@@ -439,7 +634,7 @@ const getLensPower = async (req, res) => {
         console.log(`[getLensPower] Not found with both. Falling back to productName: ${productName}`);
         lens = await LensGroup.findOne({
           productName: { $regex: `^${escapeRegex(productName.trim())}$`, $options: "i" },
-          $or: [{ companyId }, { companyId: null }]
+          $or: [{ companyId: queryCompanyId }, { companyId: null }]
         }).lean();
       }
     }
@@ -491,8 +686,9 @@ const getLensPower = async (req, res) => {
        const sph = Number(p._id.sph) || 0;
        const cyl = Number(p._id.cyl) || 0;
        const add = Number(p._id.add) || 0;
-       let eye = (p._id.eye || "RL").toString().trim();
-       if (eye === "R/L" || eye === "Both") eye = "RL";
+       let eye = (p._id.eye || "RL").toString().trim().toUpperCase();
+       if (eye === "R/L") eye = "RL"; // Standardize combined eye types to "RL"
+       if (eye === "BOTH" || eye === "BOTH_RL") eye = eye; // Preserve BOTH or BOTH_RL as uppercase
        
        const key = `${sph}_${cyl}_${add}_${eye}`;
        vendorMap[key] = p.vendors.filter(v => v);
@@ -506,8 +702,8 @@ const getLensPower = async (req, res) => {
     let libraryRanges = [];
     if (gName) {
       libraryRanges = await PowerRangeLibrary.find({
-        groupNames: gName,
-        $or: [{ companyId }, { companyId: null }]
+        groupName: gName,
+        companyId
       });
     }
 
@@ -545,37 +741,42 @@ const getLensPower = async (req, res) => {
       resultObj.addGroups.forEach(group => {
         if (!group.combinations) return;
         
-        const newCombs = [];
-        const toRemove = new Set();
-        const groupedBySphCylAxis = new Map();
-        
-        group.combinations.forEach(c => {
-           const key = `${c.sph}_${c.cyl}_${c.axis || 0}`;
-           if(!groupedBySphCylAxis.has(key)) groupedBySphCylAxis.set(key, []);
-           groupedBySphCylAxis.get(key).push(c);
-        });
+        const itemEyeConfig = (resultObj.eye || "").toUpperCase();
+        const shouldSplit = ["BOTH", "BOTH_RL", "RL", "R/L"].includes(itemEyeConfig);
 
-        for (const [key, combs] of groupedBySphCylAxis.entries()) {
-           const dualComb = combs.find(c => c.eye === "RL" || c.eye === "R/L" || c.eye === "BOTH");
-           const rComb = combs.find(c => c.eye === "R");
-           const lComb = combs.find(c => c.eye === "L");
-
-           if (dualComb && (!rComb || !lComb)) {
-              toRemove.add(dualComb);
-              if (!rComb) {
-                  const bc = dualComb.barcode ? (lComb ? generateBarcodeFallback() : dualComb.barcode) : "";
-                  newCombs.push({...dualComb, eye: "R", barcode: bc});
-              }
-              if (!lComb) {
-                  const bc = dualComb.barcode ? (rComb ? generateBarcodeFallback() : generateBarcodeFallback()) : "";
-                  newCombs.push({...dualComb, eye: "L", barcode: bc});
-              }
-           } else if (dualComb && rComb && lComb) {
-              toRemove.add(dualComb);
-           }
+        if (shouldSplit) {
+          const toRemove = new Set();
+          const newCombs = [];
+          const groupedBySphCylAxis = new Map();
+          
+          group.combinations.forEach(c => {
+             const key = `${c.sph}_${c.cyl}_${c.axis || 0}`;
+             if(!groupedBySphCylAxis.has(key)) groupedBySphCylAxis.set(key, []);
+             groupedBySphCylAxis.get(key).push(c);
+          });
+  
+          for (const [key, combs] of groupedBySphCylAxis.entries()) {
+             const dualComb = combs.find(c => c.eye === "RL" || c.eye === "R/L" || c.eye === "BOTH" || c.eye === "BOTH_RL");
+             const rComb = combs.find(c => c.eye === "R");
+             const lComb = combs.find(c => c.eye === "L");
+  
+             if (dualComb && (!rComb || !lComb)) {
+                toRemove.add(dualComb);
+                if (!rComb) {
+                    const bc = dualComb.barcode ? (lComb ? generateBarcodeFallback() : dualComb.barcode) : "";
+                    newCombs.push({...dualComb, eye: "R", barcode: bc});
+                }
+                if (!lComb) {
+                    const bc = dualComb.barcode ? (rComb ? generateBarcodeFallback() : generateBarcodeFallback()) : "";
+                    newCombs.push({...dualComb, eye: "L", barcode: bc});
+                }
+             } else if (dualComb && rComb && lComb) {
+                toRemove.add(dualComb);
+             }
+          }
+          
+          group.combinations = group.combinations.filter(c => !toRemove.has(c)).concat(newCombs);
         }
-        
-        group.combinations = group.combinations.filter(c => !toRemove.has(c)).concat(newCombs);
       });
     }
 
@@ -663,10 +864,23 @@ const getAllLensPower = async (req, res) => {
         powerGroups: [],
         addGroups: [],
         barcode: itm.barcode || "",
+        gst: itm.gst || 0,
         isItemOnly: true
       }));
 
-    const allData = [...lensPowers, ...mappedItems];
+    const itemGstMap = {};
+    items.forEach(itm => {
+      if (itm.itemName) {
+        itemGstMap[itm.itemName.toLowerCase()] = itm.gst || 0;
+      }
+    });
+
+    const mappedLensPowers = lensPowers.map(lp => ({
+      ...lp,
+      gst: itemGstMap[(lp.productName || "").toLowerCase()] || 0
+    }));
+
+    const allData = [...mappedLensPowers, ...mappedItems];
 
     if (allData.length === 0) {
       return res.status(200).json({
@@ -694,9 +908,6 @@ const editLensPower = async (req, res) => {
   try {
     const {
       id,
-      groupName,
-      productName,
-
       sphMin,
       sphMax,
       sphStep,
@@ -714,6 +925,9 @@ const editLensPower = async (req, res) => {
       addGroups, // Accept addGroups from frontend
       powerGroups, // Added powerGroups
     } = req.body;
+
+    const groupName = req.body.groupName?.trim();
+    const productName = req.body.productName?.trim();
 
     console.log("Editing Lens Power ID:", id);
 
@@ -818,28 +1032,111 @@ const editLensPower = async (req, res) => {
     if (!rangeChanged) {
       console.log("No range change detected, updating combinations...");
       if (addGroups && Array.isArray(addGroups) && addGroups.length > 0) {
-        existingLens.addGroups = addGroups.map((ag) => ({
-          addValue: ag.addValue,
-          combinations: (ag.combinations || []).map((c) => ({
-            sph: c.sph,
-            cyl: c.cyl,
-            axis: c.axis,
-            eye: c.eye,
-            barcode: c.barcode || "",
-            boxNo: c.boxNo || "",
-            alertQty: Number(c.alertQty) || 0,
-            pPrice: Number(c.pPrice) || 0,
-            sPrice: Number(c.sPrice) || 0,
-            initStock: (c.initStock !== undefined && c.initStock !== null) ? Number(c.initStock) : 0,
-            totalSoldQty: Number(c.totalSoldQty) || 0,
-            totalSaleAmount: Number(c.totalSaleAmount) || 0,
-            salesHistory: c.salesHistory || [],
-            locations: c.locations || [], // PRESERVE LOCATIONS
-            isVerified: c.isVerified || false,
-            lastVerifiedDate: c.lastVerifiedDate || null,
-            verifiedQty: c.verifiedQty || 0
-          })),
-        }));
+
+        // ── ISOLATION FIX ──
+        // If the frontend sends editingPowerGroupId, do a SELECTIVE merge:
+        // only update combinations belonging to that power group.
+        // All other power groups' combinations are preserved unchanged from DB.
+        const editingPowerGroupId = req.body.editingPowerGroupId
+          ? req.body.editingPowerGroupId.toString()
+          : null;
+
+        if (editingPowerGroupId) {
+          console.log(`[editLensPower] SELECTIVE update for powerGroupId: ${editingPowerGroupId}`);
+
+          // Build lookup: addValue (fixed 2dp) → frontendCombinations[]
+          const frontendAGMap = new Map();
+          addGroups.forEach(ag => {
+            const addKey = parseFloat(ag.addValue).toFixed(2);
+            frontendAGMap.set(addKey, ag.combinations || []);
+          });
+
+          existingLens.addGroups = existingLens.addGroups.map(existingAG => {
+            const addKey = parseFloat(existingAG.addValue).toFixed(2);
+            const frontendCombs = frontendAGMap.get(addKey);
+
+            // addGroup not in payload → leave completely unchanged
+            if (!frontendCombs) return existingAG;
+
+            const updatedCombinations = (existingAG.combinations || []).map(existingComb => {
+              const cPgId = existingComb.powerGroupId
+                ? existingComb.powerGroupId.toString()
+                : null;
+
+              // ✅ DIFFERENT power group → PRESERVE UNCHANGED
+              if (cPgId && cPgId !== editingPowerGroupId) {
+                return existingComb;
+              }
+
+              // Find matching combination in frontend payload by sph+cyl+axis+eye
+              const cSph  = parseFloat(existingComb.sph).toFixed(2);
+              const cCyl  = parseFloat(existingComb.cyl).toFixed(2);
+              const cAxis = parseFloat(existingComb.axis || 0).toFixed(2);
+              const cEye  = String(existingComb.eye || "").trim().toUpperCase();
+
+              const matchingFC = frontendCombs.find(fc =>
+                parseFloat(fc.sph).toFixed(2)      === cSph  &&
+                parseFloat(fc.cyl).toFixed(2)      === cCyl  &&
+                parseFloat(fc.axis || 0).toFixed(2) === cAxis &&
+                String(fc.eye || "").trim().toUpperCase() === cEye
+              );
+
+              // No match → preserve existing
+              if (!matchingFC) return existingComb;
+
+              // ✅ SAME power group → apply updated values
+              return {
+                ...existingComb,
+                barcode:          matchingFC.barcode          ?? existingComb.barcode ?? "",
+                boxNo:            matchingFC.boxNo            ?? existingComb.boxNo ?? "",
+                alertQty:         Number(matchingFC.alertQty)  || 0,
+                pPrice:           Number(matchingFC.pPrice)    || 0,
+                sPrice:           Number(matchingFC.sPrice)    || 0,
+                initStock:        (matchingFC.initStock !== undefined && matchingFC.initStock !== null)
+                                    ? Number(matchingFC.initStock)
+                                    : (existingComb.initStock || 0),
+                totalSoldQty:     Number(matchingFC.totalSoldQty)    || existingComb.totalSoldQty    || 0,
+                totalSaleAmount:  Number(matchingFC.totalSaleAmount) || existingComb.totalSaleAmount || 0,
+                salesHistory:     matchingFC.salesHistory     || existingComb.salesHistory || [],
+                locations:        matchingFC.locations         || existingComb.locations || [],
+                isVerified:       matchingFC.isVerified        ?? existingComb.isVerified ?? false,
+                lastVerifiedDate: matchingFC.lastVerifiedDate  ?? existingComb.lastVerifiedDate ?? null,
+                verifiedQty:      matchingFC.verifiedQty       ?? existingComb.verifiedQty ?? 0,
+                powerGroupId:     existingComb.powerGroupId,  // ALWAYS preserve original powerGroupId
+              };
+            });
+
+            return { ...existingAG, combinations: updatedCombinations };
+          });
+
+        } else {
+          // LEGACY / BULK EDIT (no editingPowerGroupId) → original behavior
+          console.log("[editLensPower] BULK update (no editingPowerGroupId)");
+          existingLens.addGroups = addGroups.map((ag) => ({
+            addValue: ag.addValue,
+            combinations: (ag.combinations || []).map((c) => ({
+              sph: c.sph,
+              cyl: c.cyl,
+              axis: c.axis,
+              eye: c.eye,
+              barcode: c.barcode || "",
+              boxNo: c.boxNo || "",
+              alertQty: Number(c.alertQty) || 0,
+              pPrice: Number(c.pPrice) || 0,
+              sPrice: Number(c.sPrice) || 0,
+              initStock: (c.initStock !== undefined && c.initStock !== null) ? Number(c.initStock) : 0,
+              totalSoldQty: Number(c.totalSoldQty) || 0,
+              totalSaleAmount: Number(c.totalSaleAmount) || 0,
+              salesHistory: c.salesHistory || [],
+              locations: c.locations || [],
+              isVerified: c.isVerified || false,
+              lastVerifiedDate: c.lastVerifiedDate || null,
+              verifiedQty: c.verifiedQty || 0,
+              powerGroupId: c.powerGroupId || null,
+            })),
+          }));
+        }
+
         existingLens.markModified("addGroups");
       }
 
@@ -852,6 +1149,7 @@ const editLensPower = async (req, res) => {
         data: existingLens,
       });
     }
+
 
     // ---------------------------------------------------
     // MERGE & REGENERATE IF RANGE CHANGED
@@ -882,7 +1180,7 @@ const editLensPower = async (req, res) => {
 
       for (let sph of sphList) {
         for (let cyl of cylList) {
-          const eyeList = (eye === "RL" || !eye) ? ["R", "L"] : [eye];
+          const eyeList = (eye === "BOTH" || eye === "BOTH_RL") ? ["R", "L"] : [eye];
           for (const eyeItem of eyeList) {
             const exists = group.combinations.some(c =>
               Math.abs(parseFloat(c.sph) - parseFloat(sph)) < 0.01 &&
@@ -1228,18 +1526,46 @@ const getMissingLenses = async (req, res) => {
 
 const getPowerRangeLibrary = async (req, res) => {
   try {
-    const { groupName } = req.query;
     const companyId = req.user?.companyId || null;
     
-    let query = { companyId };
-    if (groupName && groupName.trim() !== "") {
-      query.groupNames = groupName.trim();
+    // Explicitly handle and decode groupName. If missing, return empty as per "STRICTLY group-specific" requirement.
+    const rawGroupName = req.query.groupName || "";
+    let gName = "";
+    try {
+        gName = decodeURIComponent(rawGroupName).trim();
+    } catch (e) {
+        gName = rawGroupName.trim();
     }
-    
-    const ranges = await PowerRangeLibrary.find(query).sort({ createdAt: -1 });
+
+    if (!gName) {
+      console.log(`[getPowerRangeLibrary] companyId: ${companyId}, NO groupName provided. Returning empty.`);
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    // Case-insensitive exact match on both groupName (new) and groupNames (legacy array).
+    const escapedGName = gName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`^${escapedGName}$`, "i");
+
+    // Use $and to combine companyId filter with group filter (prevents $or collision).
+    // companyId null fallback catches data saved before auth was configured.
+    // groupNames (plural) fallback catches legacy documents saved by older code.
+    const strictQuery = {
+      $and: [
+        { $or: [{ companyId }, { companyId: null }] },
+        { $or: [{ groupName: { $regex: regex } }, { groupNames: { $regex: regex } }] }
+      ]
+    };
+
+    console.log(`[getPowerRangeLibrary] Fetching library — companyId: ${companyId}, groupName: "${gName}"`);
+
+    // FETCH DATA — group-specific, backward compatible with legacy groupNames field
+    const ranges = await PowerRangeLibrary.find(strictQuery).sort({ createdAt: -1 });
+
     res.status(200).json({
       success: true,
-      data: ranges
+      data: ranges,
+      count: ranges.length,
+      groupName: gName
     });
   } catch (error) {
     console.error("Error fetching PowerRangeLibrary:", error);
@@ -1344,6 +1670,9 @@ const getCombinationStock = async (req, res) => {
 
      let stock = 0;
      let barcode = "";
+     let sPrice;
+     let pPrice;
+
      for (const lg of lensGroups) {
         const ag = (lg.addGroups || []).find(g => Math.abs(Number(g.addValue) - targetAdd) < 0.001);
         if (ag) {
@@ -1357,10 +1686,16 @@ const getCombinationStock = async (req, res) => {
            if (!barcode && matchingCombs.length > 0) {
               barcode = matchingCombs[0].barcode || "";
            }
+           if (sPrice === undefined && matchingCombs.length > 0 && matchingCombs[0].sPrice !== undefined) {
+              sPrice = matchingCombs[0].sPrice;
+           }
+           if (pPrice === undefined && matchingCombs.length > 0 && matchingCombs[0].pPrice !== undefined) {
+              pPrice = matchingCombs[0].pPrice;
+           }
         }
      }
 
-     return res.status(200).json({ success: true, stock, barcode });
+     return res.status(200).json({ success: true, stock, barcode, sPrice, pPrice });
 
   } catch (err) {
      console.error("Error in getCombinationStock:", err);
@@ -1409,7 +1744,8 @@ const getLensPriceByPower = async (req, res) => {
           purchasePrice: item.purchasePrice || 0,
           salePrice: item.salePrice || 0,
           stock: item.openingStockQty || 0,
-          productName: item.itemName
+          productName: item.itemName,
+          billItemName: item.billItemName || ""
         });
       }
 
@@ -1445,6 +1781,7 @@ const getLensPriceByPower = async (req, res) => {
         salePrice: matchingComb.sPrice || lensGroup.salePrice?.default || 0,
         stock: matchingComb.initStock || 0,
         productName: lensGroup.productName,
+        billItemName: lensGroup.billItemName || "",
         found: true
       });
     } else {
@@ -1457,6 +1794,7 @@ const getLensPriceByPower = async (req, res) => {
         salePrice: lensGroup.salePrice?.default || 0,
         stock: 0,
         productName: lensGroup.productName,
+        billItemName: lensGroup.billItemName || "",
         found: false,
         message: "Using group-level pricing (combination not found)"
       });

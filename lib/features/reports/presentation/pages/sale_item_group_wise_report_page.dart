@@ -11,6 +11,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../data/providers/inventory_report_provider.dart';
 import '../../data/models/inventory_report_models.dart';
 import '../../../masters/data/providers/inventory_providers.dart';
+import '../../../../core/utils/color_utils.dart';
 
 class SaleItemGroupWiseReportPage extends StatefulWidget {
   const SaleItemGroupWiseReportPage({super.key});
@@ -475,7 +476,24 @@ class _SaleItemGroupWiseReportPageState extends State<SaleItemGroupWiseReportPag
       case 'billNo': text = item.billNo ?? ''; break;
       case 'date': text = item.date != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(item.date!)) : ''; break;
       case 'party': text = item.party ?? ''; break;
-      case 'group': text = item.productGroup ?? ''; break;
+      case 'group': 
+        final gColor = getGroupColor(item.productGroup ?? '');
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: gColor.background,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: gColor.border.withOpacity(0.5)),
+          ),
+          child: Text(
+            item.productGroup ?? '',
+            style: TextStyle(
+              fontSize: 10,
+              color: gColor.text,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        );
       case 'product': text = item.productName ?? ''; break;
       case 'qty': text = item.qty.toStringAsFixed(0); break;
       case 'price': text = item.prodPrice.toStringAsFixed(2); break;

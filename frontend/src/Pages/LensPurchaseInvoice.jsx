@@ -39,6 +39,7 @@ import { getAllItems } from "../controllers/itemcontroller";
 import * as XLSX from "xlsx";
 import { roundAmount } from "../utils/amountUtils";
 import { numberToWords } from "../utils/numberToWords";
+import { generateBulkPrint, handleExportToExcel } from "../utils/PrintUtils";
 function LensPurchaseInvoice() {
   const navigate = useNavigate();
   const today = new Date().toISOString().split("T")[0];
@@ -50,6 +51,22 @@ function LensPurchaseInvoice() {
   const [expandedRow, setExpandedRow] = useState(null);
   const [selectedItemsByOrder, setSelectedItemsByOrder] = useState({});
   const [dcIds, setDcIds] = useState({});
+  const [selectedInvoices, setSelectedInvoices] = useState([]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedInvoices(visibleInvoices.map(inv => String(inv._id)));
+    } else {
+      setSelectedInvoices([]);
+    }
+  };
+
+  const handleSelectInvoice = (id) => {
+    const idStr = String(id);
+    setSelectedInvoices(prev => 
+      prev.includes(idStr) ? prev.filter(i => i !== idStr) : [...prev, idStr]
+    );
+  };
   const [allLenses, setAllLenses] = useState([]);
   const [allItems, setAllItems] = useState([]);
 
@@ -165,87 +182,87 @@ function LensPurchaseInvoice() {
   };
 
   const handleDownloadExcel = () => {
-    if (visibleInvoices.length === 0) {
+    const dataToExport = selectedInvoices.length > 0 
+      ? visibleInvoices.filter(inv => selectedInvoices.includes(String(inv._id)))
+      : visibleInvoices;
+
+    if (dataToExport.length === 0) {
       return toast.error("No data to export");
     }
-    const exportData = visibleInvoices.map((inv, index) => ({
-      "Sr No.": index + 1,
-      "Bill Date": formatDate(inv.billDate),
-      "Bill Series": inv.billSeries || "-",
-      "Bill No.": inv.billNo || "-",
-      "Party Name": inv.partyName || "-",
-      "DC ID": inv.dcId || "-",
-      "Net Amount": inv.netAmount || 0,
-      "Paid Amount": inv.paidAmount || 0,
-      "Due Amount": inv.dueAmount || 0
-    }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Purchase Invoices");
-    XLSX.writeFile(workbook, "PurchaseInvoices.xlsx");
+    const ALL_COLUMNS = [
+      { id: "srNo", label: "Sr No." },
+      { id: "date", label: "Bill Date" },
+      { id: "billSeries", label: "Bill Series" },
+      { id: "billNo", label: "Bill No." },
+      { id: "partyName", label: "Party Name" },
+      { id: "dcId", label: "DC ID" },
+      { id: "netAmt", label: "Net Amount" },
+      { id: "paidAmount", label: "Paid Amount" },
+      { id: "dueAmount", label: "Due Amount" }
+    ];
+
+    const exportItems = dataToExport.map((inv, i) => {
+      const lp = inv.raw || inv;
+      return {
+        ...inv,
+        srNo: i + 1,
+        date: lp.billData?.date || lp.date,
+        billSeries: lp.billData?.billSeries || lp.billSeries,
+        billNo: lp.billData?.billNo || lp.billNo,
+        partyName: lp.partyData?.partyAccount || lp.partyName,
+        netAmt: lp.netAmount || lp.netAmt,
+        paidAmount: lp.paidAmount || 0,
+        dueAmount: lp.dueAmount || 0,
+        dcId: lp.dcId || "-"
+      };
+    });
+
+    const visibleCols = { srNo: true, date: true, billSeries: true, billNo: true, partyName: true, dcId: true, netAmt: true, paidAmount: true, dueAmount: true };
+
+    handleExportToExcel(XLSX, "PurchaseInvoices", exportItems, visibleCols, ALL_COLUMNS);
   };
 
   const handlePrintTable = () => {
-    if (visibleInvoices.length === 0) {
+    const dataToPrint = selectedInvoices.length > 0 
+      ? visibleInvoices.filter(inv => selectedInvoices.includes(String(inv._id)))
+      : visibleInvoices;
+
+    if (dataToPrint.length === 0) {
       return toast.error("No data to print");
     }
 
-    const printWindow = window.open("", "_blank");
-    const tableRows = visibleInvoices.map((inv, index) => `
-      <tr>
-        <td style="text-align: center; border: 1px solid #ddd; padding: 8px;">${index + 1}</td>
-        <td style="text-align: center; border: 1px solid #ddd; padding: 8px;">${formatDate(inv.billDate)}</td>
-        <td style="text-align: center; border: 1px solid #ddd; padding: 8px;">${inv.billSeries || "-"}</td>
-        <td style="text-align: center; border: 1px solid #ddd; padding: 8px;">${inv.billNo || "-"}</td>
-        <td style="border: 1px solid #ddd; padding: 8px;">${inv.partyName || "-"}</td>
-        <td style="text-align: center; border: 1px solid #ddd; padding: 8px;">${inv.dcId || "-"}</td>
-        <td style="text-align: right; border: 1px solid #ddd; padding: 8px;">${roundAmount(inv.netAmount || 0)}</td>
-        <td style="text-align: right; border: 1px solid #ddd; padding: 8px;">${roundAmount(inv.paidAmount || 0)}</td>
-        <td style="text-align: right; border: 1px solid #ddd; padding: 8px;">${roundAmount(inv.dueAmount || 0)}</td>
-      </tr>
-    `).join("");
+    const ALL_COLUMNS = [
+      { id: "srNo", label: "Sr No." },
+      { id: "date", label: "Bill Date" },
+      { id: "billSeries", label: "Bill Series" },
+      { id: "billNo", label: "Bill No." },
+      { id: "partyName", label: "Party Name" },
+      { id: "dcId", label: "DC ID" },
+      { id: "netAmt", label: "Net Amount" },
+      { id: "paidAmount", label: "Paid Amount" },
+      { id: "dueAmount", label: "Due Amount" }
+    ];
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Purchase Invoice Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { text-align: center; color: #333; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            th { background-color: #f2f2f2; border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px; font-weight: bold; }
-            td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
-            tr:nth-child(even) { background-color: #f9f9f9; }
-          </style>
-        </head>
-        <body>
-          <h1>Purchase Invoice Report</h1>
-          <table>
-            <thead>
-              <tr>
-                <th>Sr No.</th>
-                <th>Bill Date</th>
-                <th>Bill Series</th>
-                <th>Bill No.</th>
-                <th>Party Name</th>
-                <th>DC ID</th>
-                <th>Net Amount</th>
-                <th>Paid Amount</th>
-                <th>Due Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRows}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+    const printItems = dataToPrint.map((inv, i) => {
+      const lp = inv.raw || inv;
+      return {
+        ...inv,
+        srNo: i + 1,
+        date: lp.billData?.date || lp.date,
+        billSeries: lp.billData?.billSeries || lp.billSeries,
+        billNo: lp.billData?.billNo || lp.billNo,
+        partyName: lp.partyData?.partyAccount || lp.partyName,
+        netAmt: lp.netAmount || lp.netAmt,
+        paidAmount: lp.paidAmount || 0,
+        dueAmount: lp.dueAmount || 0,
+        dcId: lp.dcId || "-"
+      };
+    });
+
+    const visibleCols = { srNo: true, date: true, billSeries: true, billNo: true, partyName: true, dcId: true, netAmt: true, paidAmount: true, dueAmount: true };
+
+    generateBulkPrint("Purchase Invoice Report", printItems, visibleCols, ALL_COLUMNS);
   };
 
   const handleDelete = async (invoice) => {
@@ -437,6 +454,7 @@ function LensPurchaseInvoice() {
   };
 
   const getWhatsAppItemName = (item) => {
+    if (item.billItemName) return item.billItemName;
     if (item.vendorItemName) return item.vendorItemName;
     
     const target = (item.itemName || "").trim().toLowerCase();
@@ -453,6 +471,24 @@ function LensPurchaseInvoice() {
       (i.itemName || "").trim().toLowerCase() === target
     );
     if (foundItem && foundItem.vendorItemName) return foundItem.vendorItemName;
+
+    return item.itemName || "-";
+  };
+
+  const getPrintItemName = (item) => {
+    if (item.billItemName && item.billItemName.trim() !== "") return item.billItemName;
+    const target = (item.itemName || "").trim().toLowerCase();
+    if (!target) return item.itemName || "-";
+
+    const foundLens = (allLenses || []).find(l => 
+      (l.productName || "").trim().toLowerCase() === target
+    );
+    if (foundLens?.billItemName) return foundLens.billItemName;
+
+    const foundItem = (allItems || []).find(i => 
+      (i.itemName || "").trim().toLowerCase() === target
+    );
+    if (foundItem?.billItemName) return foundItem.billItemName;
 
     return item.itemName || "-";
   };
@@ -516,7 +552,7 @@ function LensPurchaseInvoice() {
           return `
       <tr>
         <td style="border: 1px solid #000; padding: 8px; text-align: center;">${i + 1}</td>
-        <td style="border: 1px solid #000; padding: 8px;">${getWhatsAppItemName(item)}</td>
+        <td style="border: 1px solid #000; padding: 8px;">${getPrintItemName(item)}</td>
         <td style="border: 1px solid #000; padding: 8px; text-align: center;">${item.orderNo || invoice.raw?.sourcePurchaseId?.orderNo || "-"}</td>
         <td style="border: 1px solid #000; padding: 8px; text-align: center;">${challanDate}</td>
         <td style="border: 1px solid #000; padding: 8px; text-align: center;">${challanNo}</td>
@@ -840,7 +876,15 @@ function LensPurchaseInvoice() {
               <thead className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="w-16 text-center py-4 px-3 text-slate-700 font-bold text-sm">
-                    Sr No.
+                    <div className="flex items-center justify-center gap-2">
+                       <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        checked={selectedInvoices.length === visibleInvoices.length && visibleInvoices.length > 0}
+                        onChange={handleSelectAll}
+                      />
+                      <span>Sr</span>
+                    </div>
                   </th>
                   <th className="min-w-[110px] text-center py-4 px-3 text-slate-700 font-bold text-sm">
                     Bill Date
@@ -895,9 +939,17 @@ function LensPurchaseInvoice() {
                     const idStr = getId(invoice._id);
                     return (
                       <React.Fragment key={idStr || index}>
-                        <tr className="hover:bg-slate-50 transition-colors duration-150 group text-sm">
+                        <tr className={`hover:bg-slate-50 transition-colors duration-150 group text-sm ${selectedInvoices.includes(idStr) ? 'bg-blue-50' : ''}`}>
                           <td className="text-center text-slate-600 font-medium py-4 px-2">
-                            {index + 1}
+                             <div className="flex items-center justify-center gap-2">
+                              <input 
+                                type="checkbox" 
+                                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                checked={selectedInvoices.includes(idStr)}
+                                onChange={() => handleSelectInvoice(invoice._id)}
+                              />
+                              {index + 1}
+                            </div>
                           </td>
                           <td className="text-center text-slate-700 py-4 px-3">
                             {formatDate(invoice.billDate)}

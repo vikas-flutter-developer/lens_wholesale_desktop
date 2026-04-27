@@ -19,6 +19,7 @@ export const getBarcodeDetails = async (barcode) => {
       
       return {
         itemName: lensData.productName || lensData.itemName || "",
+        billItemName: lensData.billItemName || "",
         eye: lensData.eye || "R/L",
         sph: lensData.sph || "",
         cyl: lensData.cyl || "",
@@ -91,6 +92,7 @@ export const getLensPriceByPower = async (itemId, sph, cyl, axis, add) => {
         source: data.source || "unknown",
         hasPowerRange: data.hasPowerRange || false,
         productName: data.productName || "",
+        billItemName: data.billItemName || "",
         found: data.found !== false
       };
     }

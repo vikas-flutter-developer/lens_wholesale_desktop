@@ -25,6 +25,8 @@ const RxPurchaseReturnSchema = new mongoose.Schema(
       {
         barcode: { type: String, default: "" },
         itemName: { type: String, default: "" },
+        billItemName: { type: String, default: "" },
+        vendorItemName: { type: String, default: "" },
         unit: { type: String, default: "" },
         dia: { type: String, default: "" },
         eye: { type: String, default: "" },
@@ -56,6 +58,9 @@ const RxPurchaseReturnSchema = new mongoose.Schema(
     netAmount: { type: Number, default: 0 },
     paidAmount: { type: Number, default: 0 },
     dueAmount: { type: Number, default: 0 },
+    orderQty: { type: Number, default: 0 },
+    usedQty: { type: Number, default: 0 },
+    balQty: { type: Number, default: 0 },
     deliveryDate: { type: Date, default: Date.now() },
     time: {
       type: String,
@@ -65,7 +70,7 @@ const RxPurchaseReturnSchema = new mongoose.Schema(
     status: {
       type: String,
       default: "Pending",
-      enum: ["Pending", "Shipped", "Received"],
+      enum: ["Pending", "Done"],
     },
     summary: {
       totalQty: { type: Number, default: 0 },

@@ -21,8 +21,8 @@ const norm = (v) => Math.round((Number(v) || 0) * 100) / 100;
 const getEyeMatchGroup = (eye) => {
   const e = String(eye || "").toUpperCase().trim();
   // If "Both", include all common variations
-  if (["RL", "R/L", "R-L", "R+L", "BOTH", "BOTH EYE", "PAIR"].includes(e)) {
-    return ["RL", "R/L", "R-L", "R+L", "BOTH", "BOTH EYE", "PAIR", "R", "L", ""];
+  if (["RL", "R/L", "R-L", "R+L", "BOTH", "BOTH_RL", "BOTH EYE", "PAIR"].includes(e)) {
+    return ["RL", "R/L", "R-L", "R+L", "BOTH", "BOTH_RL", "BOTH EYE", "PAIR", "R", "L", ""];
   }
   return [e];
 };

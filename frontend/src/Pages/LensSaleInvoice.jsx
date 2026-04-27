@@ -32,6 +32,7 @@ import { getAllItems } from "../controllers/itemcontroller";
 import { Toaster, toast } from "react-hot-toast";
 import StatusDropdown from "../Components/StatusDropdown";
 import * as XLSX from "xlsx";
+import { generateBulkPrint, handleExportToExcel as exportToExcel } from "../utils/PrintUtils";
 import { roundAmount } from "../utils/amountUtils";
 import { numberToWords } from "../utils/numberToWords";
 
@@ -73,6 +74,94 @@ function LensSaleInvoice() {
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const statusFilterRef = useRef(null);
   const columnFilterRef = useRef(null);
+
+  // Selective Print State
+  const [selectedInvoices, setSelectedInvoices] = useState([]);
+
+  const handleSelectInvoice = (invoiceId, isChecked) => {
+    setSelectedInvoices(prev =>
+      isChecked ? [...prev, invoiceId] : prev.filter(id => id !== invoiceId)
+    );
+  };
+
+  const handleSelectAllInvoices = (isChecked) => {
+    if (isChecked) {
+      setSelectedInvoices(visibleInvoices.map(inv => String(inv._id)));
+    } else {
+      setSelectedInvoices([]);
+    }
+  };
+
+  const handlePrintTableClick = () => {
+    const dataToPrint = selectedInvoices.length > 0 
+      ? visibleInvoices.filter(inv => selectedInvoices.includes(String(inv._id)))
+      : visibleInvoices;
+    
+    const isSingleType = dataToPrint.every(inv => inv.orderType === dataToPrint[0].orderType);
+    let title = "Sale Invoice Report";
+    if (isSingleType && dataToPrint.length > 0) {
+        title = dataToPrint[0].orderType === "RX" ? "Rx Sale Invoice" : "Lens Sale Invoice";
+    }
+
+    // Convert keys to match PrintUtils expectations if necessary or pass mapper
+    const printItems = dataToPrint.map((inv, index) => ({
+      ...inv,
+      srNo: index + 1,
+      date: inv.billDate,
+      series: inv.billSeries,
+      billNo: inv.billNo,
+      partyName: inv.partyName,
+      netAmt: inv.netAmount,
+    }));
+
+    // Define ALL_COLUMNS for LensSaleInvoice since it's not explicitly defined globally like in SaleOrder
+    const ALL_COLUMNS = [
+      { id: "srNo", label: "Sr No." },
+      { id: "billDate", label: "Bill Date" },
+      { id: "billSeries", label: "Bill Series" },
+      { id: "billNo", label: "Bill No." },
+      { id: "partyName", label: "Party Name" },
+      { id: "netAmount", label: "Net Amount" },
+      { id: "paidAmount", label: "Paid Amount" },
+      { id: "dueAmount", label: "Due Amount" },
+      { id: "time", label: "Time" },
+      { id: "deliveryPerson", label: "Delivery Person" }
+    ];
+
+    generateBulkPrint(title, printItems, visibleColumns, ALL_COLUMNS);
+  };
+
+  const handleExcelExportClick = () => {
+    const fileName = "SaleInvoices";
+    const dataToExport = selectedInvoices.length > 0 
+      ? visibleInvoices.filter(inv => selectedInvoices.includes(String(inv._id)))
+      : visibleInvoices;
+
+    const exportItems = dataToExport.map((inv, index) => ({
+      ...inv,
+      srNo: index + 1,
+      date: inv.billDate,
+      series: inv.billSeries,
+      billNo: inv.billNo,
+      partyName: inv.partyName,
+      netAmt: inv.netAmount,
+    }));
+
+    const ALL_COLUMNS = [
+      { id: "srNo", label: "Sr No." },
+      { id: "billDate", label: "Bill Date" },
+      { id: "billSeries", label: "Bill Series" },
+      { id: "billNo", label: "Bill No." },
+      { id: "partyName", label: "Party Name" },
+      { id: "netAmount", label: "Net Amount" },
+      { id: "paidAmount", label: "Paid Amount" },
+      { id: "dueAmount", label: "Due Amount" },
+      { id: "time", label: "Time" },
+      { id: "deliveryPerson", label: "Delivery Person" }
+    ];
+
+    exportToExcel(XLSX, fileName, exportItems, visibleColumns, ALL_COLUMNS);
+  };
 
   const STATUS_OPTIONS = ["Pending", "In Progress", "Done", "Cancelled", "On Approval"];
 
@@ -639,7 +728,7 @@ function LensSaleInvoice() {
             <thead>
               <tr>
                 <th style="border: 1px solid #000; padding: 6px;">Sr No</th>
-                <th style="border: 1px solid #000; padding: 6px;">Item Name</th>
+                <th style="border: 1px solid #000; padding: 6px;">ITEM NAME</th>
                 <th style="border: 1px solid #000; padding: 6px;">Order No</th>
                 <th style="border: 1px solid #000; padding: 6px;">Challan Date</th>
                 <th style="border: 1px solid #000; padding: 6px;">Challan No</th>
@@ -777,14 +866,16 @@ function LensSaleInvoice() {
                 <Plus className="w-3.5 h-3.5" /> Add Sale
               </button>
               <button
-                onClick={handleDownloadExcel}
+                onClick={handleExcelExportClick}
                 className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors duration-200 hover:shadow-sm"
+                title="Export to Excel"
               >
                 <FileSpreadsheet className="w-4 h-4" />
               </button>
               <button
-                onClick={handlePrintTable}
+                onClick={handlePrintTableClick}
                 className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 hover:shadow-sm"
+                title="Print Table or Selected"
               >
                 <Printer className="w-4 h-4" />
               </button>
@@ -889,7 +980,19 @@ function LensSaleInvoice() {
             <table className="min-w-full table-fixed divide-y divide-slate-200">
               <thead className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200">
                 <tr>
-                  {visibleColumns.srNo && <th className="w-16 text-center py-4 px-3 text-slate-700 font-bold text-sm">Sr No.</th>}
+                  {visibleColumns.srNo && (
+                    <th className="w-24 text-center py-4 px-3 text-slate-700 font-bold text-sm">
+                      <div className="flex items-center justify-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                          checked={visibleInvoices.length > 0 && selectedInvoices.length === visibleInvoices.length}
+                          onChange={(e) => handleSelectAllInvoices(e.target.checked)}
+                        />
+                        Sr No.
+                      </div>
+                    </th>
+                  )}
                   {visibleColumns.billDate && <th className="min-w-[110px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bill Date</th>}
                   {visibleColumns.billSeries && <th className="min-w-[120px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bill Series</th>}
                   {visibleColumns.billNo && <th className="min-w-[100px] text-center py-4 px-3 text-slate-700 font-bold text-sm">Bill No.</th>}
@@ -920,7 +1023,19 @@ function LensSaleInvoice() {
                     return (
                       <React.Fragment key={idStr || index}>
                         <tr className="hover:bg-slate-50 transition-colors duration-150 group text-sm">
-                          {visibleColumns.srNo && <td className="text-center text-slate-600 font-medium py-4 px-2">{index + 1}</td>}
+                          {visibleColumns.srNo && (
+                            <td className="text-center text-slate-600 font-medium py-4 px-2">
+                              <div className="flex items-center justify-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                                  checked={selectedInvoices.includes(idStr)}
+                                  onChange={(e) => handleSelectInvoice(idStr, e.target.checked)}
+                                />
+                                {index + 1}
+                              </div>
+                            </td>
+                          )}
                           {visibleColumns.billDate && <td className="text-center text-slate-700 py-4 px-3">{formatDate(invoice.billDate)}</td>}
                           {visibleColumns.billSeries && (
                             <td className="text-center py-4 px-3">
@@ -992,7 +1107,7 @@ function LensSaleInvoice() {
                                 <table className="min-w-full table-fixed text-sm">
                                   <thead>
                                     <tr className="bg-white">
-                                      <th className="py-2 px-3 text-center font-medium">Item Name</th>
+                                      <th className="py-2 px-3 text-center font-medium">BILL ITEM NAME</th>
 
                                       <th className="py-2 px-3 text-center font-medium">Order No</th>
                                       <th className="py-2 px-3 text-center font-medium">Eye</th>

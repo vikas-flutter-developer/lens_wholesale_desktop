@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import authMiddleware from '../middlewares/AuthMiddleware.js';
 import {
     addLensPower,

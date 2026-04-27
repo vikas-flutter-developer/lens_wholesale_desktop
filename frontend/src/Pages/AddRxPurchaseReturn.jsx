@@ -606,6 +606,7 @@ function AddRxPurchaseReturn() {
       copy[index] = {
         ...copy[index],
         itemName: lens.productName || "",
+        billItemName: lens.billItemName || "",
         salePrice: prices.sale,
         purchasePrice: prices.purchase,
         eye: lens.eye ?? copy[index].eye ?? "",
@@ -779,6 +780,8 @@ function AddRxPurchaseReturn() {
       if (field === "itemName") {
         const selectedItem = allLens.find((lens) => lens.productName === value);
         if (selectedItem) {
+          copy[index].itemName = selectedItem.productName || "";
+          copy[index].billItemName = selectedItem.billItemName || "";
           const prices = getPriceForItem(selectedItem);
           copy[index].salePrice = prices.sale;
           copy[index].purchasePrice = prices.purchase;

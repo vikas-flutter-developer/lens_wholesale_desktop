@@ -15,6 +15,7 @@ import {
   AlertCircle,
   X,
   FileSpreadsheet,
+  Copy,
 } from "lucide-react";
 import BulkLensMatrixV2 from "../Components/BulkLensMatrixV2";
 import { getAllAccounts, updateAccount, patchAccount } from "../controllers/Account.controller";
@@ -1255,6 +1256,29 @@ function AddLensSaleOrder() {
     return { ok, newItems };
   };
 
+  const copyQtyToAll = () => {
+    const firstQty = Number(items[0]?.qty) || 0;
+    if (firstQty === 0) {
+      toast.error("Enter quantity in first row");
+      return;
+    }
+
+    setItems((prev) => {
+      return prev.map((it, idx) => {
+        if (idx === 0) return it;
+        
+        const qty = firstQty;
+        const price = parseFloat(it.salePrice) || 0;
+        const disc = Number(it.discount) || 0;
+        const discountAmount = qty * price * (disc / 100);
+        const totalAmount = (qty * price - discountAmount).toFixed(2);
+
+        return { ...it, qty, totalAmount };
+      });
+    });
+    toast.success(`Copied quantity ${firstQty} to all rows`);
+  };
+
   // updateItem: synchronous update + validation
   const updateItem = async (index, field, value) => {
     let newItemObj = { ...items[index], [field]: value };
@@ -1288,6 +1312,14 @@ function AddLensSaleOrder() {
           newItemObj.vendorItemName = selectedItem.vendorItemName || "";
           newItemObj.purchasePrice = selectedItem.purchasePrice ?? 0;
           newItemObj.eye = selectedItem.eye ?? newItemObj.eye ?? "";
+
+          if (selectedItem.gst > 0) {
+            setTaxes([
+              { id: genTaxId("_cgst"), taxName: "CGST", type: "Additive", percentage: String(selectedItem.gst / 2), amount: "0.00" },
+              { id: genTaxId("_sgst"), taxName: "SGST", type: "Additive", percentage: String(selectedItem.gst / 2), amount: "0.00" },
+              { id: genTaxId("_igst"), taxName: "IGST", type: "Additive", percentage: String(selectedItem.gst), amount: "0.00" },
+            ]);
+          }
         } catch (err) {
           console.error("Error checking offer in updateItem:", err);
         }
@@ -1306,7 +1338,7 @@ function AddLensSaleOrder() {
       return copy;
     });
 
-    // --- REAL-TIME STOCK & BARCODE REFRESH ---
+  // --- REAL-TIME STOCK & BARCODE REFRESH ---
     const powerFields = ["itemName", "sph", "cyl", "add", "axis", "eye"];
     if (powerFields.includes(field)) {
       // Validate immediately with the NEW object to avoid state lag
@@ -1329,11 +1361,20 @@ function AddLensSaleOrder() {
               setItems(prev => {
                 const copy = [...prev];
                 if (copy[index]) {
+                  const fetchedPrice = stockRes.sPrice !== undefined ? stockRes.sPrice : copy[index].salePrice;
                   copy[index] = { 
                     ...copy[index], 
                     avlStk: stockRes.stock,
-                    barcode: stockRes.barcode || copy[index].barcode || "" // Populate barcode from backend
+                    barcode: stockRes.barcode || copy[index].barcode || "", // Populate barcode from backend
+                    salePrice: fetchedPrice // UPDATE PRICE!
                   };
+                  
+                  // Recalculate total amount with the new price
+                  const qty = parseFloat(copy[index].qty) || 0;
+                  const price = parseFloat(copy[index].salePrice) || 0;
+                  const disc = Number(copy[index].discount) || 0;
+                  const discountAmount = qty * price * (disc / 100);
+                  copy[index].totalAmount = (qty * price - discountAmount).toFixed(2);
                 }
                 return copy;
               });
@@ -1391,6 +1432,7 @@ function AddLensSaleOrder() {
           const c = [...prev];
           const row = c[rowIndex];
           row.itemName = barcodeData.itemName || row.itemName;
+          row.billItemName = barcodeData.billItemName || "";
           row.eye = barcodeData.eye || row.eye;
           row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
           row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
@@ -1615,7 +1657,7 @@ function AddLensSaleOrder() {
                await learnSuggestions({ taxes: learnedTaxes, customers: learnedCustomers }).catch(console.error);
            }
         } catch (e) {}
-        navigate("/lenstransaction/sale/saleorder");
+        navigate("/sale-orders?tab=lens");
       } else {
         toast.error(res.message || "Failed to update order");
       }
@@ -1639,7 +1681,7 @@ function AddLensSaleOrder() {
                await learnSuggestions({ taxes: learnedTaxes, customers: learnedCustomers }).catch(console.error);
            }
         } catch (e) {}
-        navigate("/lenstransaction/sale/saleorder");
+        navigate("/sale-orders?tab=lens");
       } else {
         // Check for stock-specific error
         if (res.stockErrors && res.stockErrors.length > 0) {
@@ -2100,7 +2142,24 @@ function AddLensSaleOrder() {
                     { l: "Axis", w: "w-16", group: "lens" },
                     { l: "Add", w: "w-20", group: "lens" },
                     { l: "Notes", w: "w-20" },
-                    { l: "Qty", w: "w-20", align: "right" },
+                    { 
+                      l: (
+                        <div className="flex items-center justify-end gap-1">
+                          Qty
+                          {!isReadOnly && (
+                            <button 
+                              onClick={copyQtyToAll}
+                              title="Copy first row quantity to all"
+                              className="p-0.5 hover:bg-slate-200 rounded transition-colors text-blue-600"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      ), 
+                      w: "w-24", 
+                      align: "right" 
+                    },
                     { l: "Price", w: "w-24", align: "right" },
                     { l: "Disc%", w: "w-16", align: "right" },
                     { l: "Total", w: "w-28", align: "right" },

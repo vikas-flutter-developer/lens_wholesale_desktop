@@ -1,5 +1,6 @@
 import '../../../../core/network/api_client.dart';
 import '../models/inventory_report_models.dart';
+import '../models/lens_stock_report_models.dart';
 
 class InventoryReportService {
   final ApiClient _apiClient = ApiClient();
@@ -8,7 +9,28 @@ class InventoryReportService {
     try {
       final response = await _apiClient.dio.post('/reports/lensmovement', data: filters);
       if (response.data['success'] == true) {
-        return LensMovementReportData.fromJson(response.data);
+        // Extract the nested data object
+        final Map<String, dynamic> data = Map<String, dynamic>.from(response.data['data']);
+        data['success'] = true; // Required by LensMovementReportData model
+        
+        // Sanitize numeric fields
+        data['openingStock'] = (data['openingStock'] as num?)?.toDouble() ?? 0.0;
+        data['closingStock'] = (data['closingStock'] as num?)?.toDouble() ?? 0.0;
+        
+        data['purchaseData'] ??= [];
+        data['saleData'] ??= [];
+        data['unmovedItems'] ??= [];
+
+        void sanitize(List list) {
+          for (var item in list) {
+            if (item['quantity'] != null) item['quantity'] = (item['quantity'] as num).toDouble();
+            if (item['price'] != null) item['price'] = (item['price'] as num).toDouble();
+          }
+        }
+        sanitize(data['purchaseData']);
+        sanitize(data['saleData']);
+
+        return LensMovementReportData.fromJson(data);
       }
       throw Exception(response.data['message'] ?? 'Failed to fetch lens movement report');
     } catch (e) {
@@ -96,6 +118,70 @@ class InventoryReportService {
       return [];
     } catch (e) {
       print('Failed to fetch Contact Lens Sale Orders from /contactLensSaleOrder/getall: $e');
+      return [];
+    }
+  }
+
+  // --- Lens Stock Report ---
+
+  Future<LensStockReportResponse> getLensStockReport(Map<String, dynamic> filters) async {
+    try {
+      final response = await _apiClient.dio.post('/reports/lensstock', data: filters);
+      if (response.data['success'] == true) {
+        return LensStockReportResponse.fromJson(response.data);
+      }
+      throw Exception(response.data['message'] ?? 'Failed to fetch lens stock report');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<CustomerItemSalesResponse> getCustomerItemSalesReport(Map<String, dynamic> filters) async {
+    try {
+      final response = await _apiClient.dio.post('/reports/customer-item-sales', data: filters);
+      if (response.data['success'] == true) {
+        return CustomerItemSalesResponse.fromJson(response.data);
+      }
+      throw Exception(response.data['message'] ?? 'Failed to fetch customer item sales report');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getPowerRangeLibrary(String groupName) async {
+    try {
+      final response = await _apiClient.dio.get('/lens/power-range-library', queryParameters: {'groupName': groupName});
+      if (response.data['success'] == true) {
+        return response.data['data'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      print('Failed to fetch Power Range Library for $groupName: $e');
+      return [];
+    }
+  }
+
+  Future<ItemStockSummaryResponse> getItemStockSummaryReport(Map<String, dynamic> filters) async {
+    try {
+      final response = await _apiClient.dio.post('/reports/itemstocksummary', data: filters);
+      if (response.data['success'] == true) {
+        return ItemStockSummaryResponse.fromJson(response.data);
+      }
+      throw Exception(response.data['message'] ?? 'Failed to fetch item stock summary report');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getBankVerificationTransactions(Map<String, dynamic> filters) async {
+    try {
+      final response = await _apiClient.dio.post('/reports/bank-verification', data: filters);
+      if (response.data['success'] == true) {
+        return response.data['data'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      print('Failed to fetch bank verification transactions: $e');
       return [];
     }
   }

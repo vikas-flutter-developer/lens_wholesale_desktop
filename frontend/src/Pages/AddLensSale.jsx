@@ -593,6 +593,7 @@ function AddLensSale() {
       copy[index] = {
         ...copy[index],
         itemName: lens.productName || "",
+        billItemName: lens.billItemName || "",
         salePrice: computedPrice,
         eye: lens.eye ?? copy[index].eye ?? "",
       };
@@ -618,6 +619,7 @@ function AddLensSale() {
           const c = [...prev];
           const row = c[rowIndex];
           row.itemName = barcodeData.itemName || row.itemName;
+          row.billItemName = barcodeData.billItemName || "";
           row.eye = barcodeData.eye || row.eye;
           row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
           row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
@@ -774,6 +776,8 @@ function AddLensSale() {
         const selectedItem = allLens.find((lens) => lens.productName === value);
         if (selectedItem) {
           copy[index].itemId = selectedItem._id;
+          copy[index].itemName = selectedItem.productName || "";
+          copy[index].billItemName = selectedItem.billItemName || "";
           copy[index].salePrice = getSalePriceForItem(selectedItem);
           copy[index].purchasePrice = selectedItem.purchasePrice ?? 0;
           copy[index].eye = selectedItem.eye ?? copy[index].eye ?? "";

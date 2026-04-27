@@ -175,16 +175,16 @@ export default function TaxCategoryList() {
                       <td className="py-2 px-3">{name}</td>
                       <td className="py-2 px-3">{type}</td>
                       <td className="py-2 px-3 text-right">
-                        {roundAmount(cgst)}
+                        {cgst}
                       </td>
                       <td className="py-2 px-3 text-right">
-                        {roundAmount(sgst)}
+                        {sgst}
                       </td>
                       <td className="py-2 px-3 text-right">
-                        {roundAmount(igst)}
+                        {igst}
                       </td>
                       <td className="py-2 px-3 text-right">
-                        {roundAmount(cess)}
+                        {cess}
                       </td>
                       <td className="py-2 px-3 text-center">{taxOnMRP}</td>
                       <td className="py-2 px-3 text-center">

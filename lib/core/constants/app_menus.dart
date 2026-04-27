@@ -182,10 +182,71 @@ const List<MenuItem> appMenuItems = [
         ],
       ),
       MenuItem(
-        key: "lens-stock-report",
+        key: "lens-stock-report-parent",
         label: "Lens Stock Report",
         icon: LucideIcons.barChart3,
-        link: "/lenstransaction/lensstockreport",
+        submenu: [
+          MenuItem(
+            key: "lens-stock-report",
+            label: "Lens Stock Report",
+            icon: LucideIcons.barChart3,
+            link: "/lenstransaction/lensstockreport",
+          ),
+          MenuItem(
+            key: "party-wise-item-report",
+            label: "Party Wise Item Report",
+            icon: LucideIcons.fileBarChart,
+            link: "/reports/inventory/party-wise-item",
+          ),
+          MenuItem(
+            key: "verify-billing",
+            label: "Verify Billing",
+            icon: LucideIcons.fileText,
+            link: "/audits/verify-billing",
+          ),
+          MenuItem(
+            key: "lens-movement",
+            label: "Lens Movement",
+            icon: LucideIcons.trendingUp,
+            link: "/reports/movement/lens",
+          ),
+          MenuItem(
+            key: "lens-price-summary",
+            label: "Lens Price Summary",
+            icon: LucideIcons.pieChart,
+            link: "/lenstransaction/lensratemaster",
+          ),
+          MenuItem(
+            key: "verify-lens-stock",
+            label: "Verify Lens Stock",
+            icon: LucideIcons.userCheck,
+            link: "/audits/verify-lens-stock",
+          ),
+          MenuItem(
+            key: "lens-location",
+            label: "Lens Location",
+            icon: LucideIcons.plusCircle,
+            link: "/inventory/lens-location",
+          ),
+          MenuItem(
+            key: "customer-item-sales-report",
+            label: "Customer Item Sales Report",
+            icon: LucideIcons.users,
+            link: "/reports/inventory/customer-item-sales",
+          ),
+          MenuItem(
+            key: "item-stock-summary-report",
+            label: "Item Stock Summary Report",
+            icon: LucideIcons.boxes,
+            link: "/reports/inventory/item-stock-summary",
+          ),
+        ],
+      ),
+      MenuItem(
+        key: "lens-sph-cyl-stock",
+        label: "Lens SPH/CYL Wise Stock",
+        icon: LucideIcons.barChart3,
+        link: "/lenstransaction/lenssphcylwisestock",
       ),
       MenuItem(
         key: "damage-shrinkage",
@@ -394,6 +455,12 @@ const List<MenuItem> appMenuItems = [
             label: "Order to Challan Time Report",
             icon: LucideIcons.clock,
             link: "/reports/otherreports/ordertochallantimereport",
+          ),
+          MenuItem(
+            key: "purchase-order-to-challan-time-report",
+            label: "Purchase Order to Challan Time Report",
+            icon: LucideIcons.clock,
+            link: "/reports/otherreports/purchaseordertochallantimereport",
           ),
           MenuItem(
             key: "sales-growth-comparison-report",

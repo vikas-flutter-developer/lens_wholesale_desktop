@@ -313,3 +313,50 @@ export const saleChallanLedgerAggregation = ({
     },
     { $sort: { date: 1 } },
   ];
+
+export const voucherLedgerAggregation = ({
+  partyAccount,
+  fromDate,
+  toDate,
+  companyFilter = {}
+}) => [
+    {
+      $match: Object.assign(
+        {},
+        partyAccount ? { "rows.account": partyAccount } : {},
+        fromDate && toDate
+          ? { "date": { $gte: fromDate, $lte: toDate } }
+          : fromDate
+            ? { "date": { $gte: fromDate } }
+            : toDate
+              ? { "date": { $lte: toDate } }
+              : {}
+      ),
+    },
+    { $unwind: "$rows" },
+    {
+      $match: partyAccount ? { "rows.account": partyAccount } : {}
+    },
+    {
+      $project: {
+        date: "$date",
+        transType: "$recordType",
+        voucherNo: {
+          $ifNull: [
+            "$vouchNo",
+            { $concat: ["$billSeries", "-", { $toString: "$billNo" }] }
+          ]
+        },
+        debit: "$rows.debit",
+        credit: "$rows.credit",
+        // Rule: Balance = Prev + Credit - Debit
+        balanceImpact: { $subtract: ["$rows.credit", "$rows.debit"] },
+        shortNarr: "$rows.shortNarration",
+        remarks: "$remarks",
+        settlementDate: null, 
+        items: [], 
+      },
+    },
+    { $sort: { date: 1 } },
+  ];
+

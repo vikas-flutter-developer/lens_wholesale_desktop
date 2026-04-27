@@ -15,7 +15,7 @@ class ApiClient {
 
   ApiClient._internal() {
     // Normalize Base URL (handle trailing slashes) matching React config.js logic
-    String baseUrl = 'https://be-lens.onrender.com/api';
+    String baseUrl = 'https://lens-project.apps.mytabletap.com/api';
     if (baseUrl.endsWith('/')) {
       baseUrl = baseUrl.substring(0, baseUrl.length - 1);
     }

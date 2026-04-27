@@ -65,3 +65,26 @@ export const getNextBillNumberForParty = async (partyName) => {
     return 1;
   }
 };
+export const updateRxReturnFields = async (id, fields) => {
+  try {
+    const res = await ApiClient.patch(`/rxSaleReturn/updateFields/${id}`, fields);
+    return { success: true, data: res.data };
+  } catch (err) {
+    return {
+      success: false,
+      error: err?.response?.data?.message || "Failed to update fields",
+    };
+  }
+};
+
+export const updateReturnStatus = async (id, status) => {
+  try {
+    const res = await ApiClient.patch(`/rxSaleReturn/status/${id}`, { status });
+    return { success: true, data: res.data };
+  } catch (err) {
+    return {
+      success: false,
+      error: err?.response?.data?.message || "Failed to update status",
+    };
+  }
+};

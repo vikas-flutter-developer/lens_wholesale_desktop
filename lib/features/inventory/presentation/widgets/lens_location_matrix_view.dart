@@ -1,288 +1,343 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../../masters/data/models/lens_group_model.dart';
 import '../../data/models/lens_location_model.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
-class LensLocationMatrixView extends StatefulWidget {
-  final LensGroupModel lensGroup;
+class LensLocationMatrixView extends StatelessWidget {
+  final LensGroupModel lensData;
+  final Map<String, dynamic> matrixData;
+  final Map<String, List<LensLocationModel>> locationMap;
+  final Map<String, String> locationQtyMap;
+  final Map<String, String> filters;
   final LensLocationModel activeLocation;
-  final Function(LensGroupModel) onSave;
+  final Function(String, LensLocationModel) onLocationAdd;
+  final Function(String, int) onLocationRemove;
+  final Function(String, String) onQtyChange;
 
   const LensLocationMatrixView({
     super.key,
-    required this.lensGroup,
+    required this.lensData,
+    required this.matrixData,
+    required this.locationMap,
+    required this.locationQtyMap,
+    required this.filters,
     required this.activeLocation,
-    required this.onSave,
+    required this.onLocationAdd,
+    required this.onLocationRemove,
+    required this.onQtyChange,
   });
 
   @override
-  State<LensLocationMatrixView> createState() => _LensLocationMatrixViewState();
-}
-
-class _LensLocationMatrixViewState extends State<LensLocationMatrixView> {
-  late LensGroupModel _draftLens;
-  final Set<String> _modifiedKeys = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _draftLens = widget.lensGroup;
-  }
-
-  @override
-  void didUpdateWidget(LensLocationMatrixView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.lensGroup != widget.lensGroup) {
-      setState(() {
-        _draftLens = widget.lensGroup;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final sphValues = _extractUniqueSph();
-    final cylValues = _extractUniqueCyl();
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              const Text(
-                "ASSIGN LOCATION MATRIX",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              const Spacer(),
-              const Text(
-                "Click a cell to assign current location",
-                style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: _modifiedKeys.isEmpty ? null : () => widget.onSave(_draftLens),
-                icon: const Icon(LucideIcons.save, size: 16),
-                label: const Text("Save Mapping"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
+    final matrix = _constructMatrix();
+    if (matrix.rows.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: Text("No data matching filters.", style: TextStyle(color: Colors.grey, fontSize: 16)),
         ),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Table(
-                  defaultColumnWidth: const FixedColumnWidth(140),
-                  border: TableBorder.all(color: Colors.grey.shade200),
-                  children: [
-                    // Header Row
-                    TableRow(
-                      decoration: const BoxDecoration(color: Color(0xFF0F172A)),
-                      children: [
-                        const TableCell(
-                          child: Padding(
-                            padding: EdgeInsets.all(12),
-                            child: Text("CYL / SPH", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
-                          ),
-                        ),
-                        ...sphValues.map((sph) => TableCell(
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Text(sph, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
-                          ),
-                        )),
-                      ],
-                    ),
-                    // Data Rows
-                    ...cylValues.map((cyl) => TableRow(
-                      children: [
-                        TableCell(
-                          child: Container(
-                            color: Colors.grey.shade50,
-                            padding: const EdgeInsets.all(12),
-                            child: Text(cyl, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                          ),
-                        ),
-                        ...sphValues.map((sph) {
-                          final comb = _findCombination(sph, cyl);
-                          return TableCell(
-                            child: _buildLocationCell(sph, cyl, comb),
-                          );
-                        }),
-                      ],
-                    )),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLocationCell(String sph, String cyl, LensCombination? comb) {
-    if (comb == null) {
-      return Container(
-        height: 80,
-        color: Colors.grey.shade100,
-        child: const Center(child: Text("—", style: TextStyle(color: Colors.grey))),
       );
     }
 
-    final hasLocations = comb.locations.isNotEmpty;
-    
-    return InkWell(
-      onTap: () => _toggleLocation(comb),
-      child: Container(
-        height: 80,
-        padding: const EdgeInsets.all(8),
-        color: hasLocations ? Colors.blue.withOpacity(0.05) : Colors.transparent,
-        child: Column(
-          children: [
-            if (hasLocations)
-              Expanded(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: comb.locations.length,
-                  itemBuilder: (context, index) {
-                    final loc = comb.locations[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Row(
-                        children: [
-                          const Icon(LucideIcons.mapPin, size: 8, color: Colors.blue),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              "${loc.godown}/${loc.rack}/${loc.box}",
-                              style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: const Icon(LucideIcons.x, size: 8, color: Colors.red),
-                            onPressed: () => _removeLocation(comb, index),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              )
-            else
-              const Center(
-                child: Icon(LucideIcons.plus, size: 12, color: Colors.grey),
-              ),
-            const Divider(height: 8),
-            SizedBox(
-              height: 20,
-              child: TextFormField(
-                initialValue: comb.locationQty,
-                style: const TextStyle(fontSize: 9),
-                decoration: const InputDecoration(
-                  hintText: "Qty",
-                  isDense: true,
-                  border: InputBorder.none,
-                ),
-                onChanged: (val) {
-                  _updateQty(comb, val);
-                },
-              ),
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Table(
+            defaultColumnWidth: const IntrinsicColumnWidth(),
+            border: TableBorder.all(color: const Color(0xFFF1F5F9), width: 1),
+            children: [
+              _buildHeader(matrix.addValues),
+              ...matrix.rows.map((row) => _buildRow(row, matrix.addValues)),
+              _buildTotalRow(matrix),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Helper Methods
-  List<String> _extractUniqueSph() {
-    final sphs = _draftLens.addGroups
-        .flatMap((g) => g.combinations.map((c) => c.sph))
-        .toSet()
-        .toList();
-    sphs.sort((a, b) => double.parse(a).compareTo(double.parse(b)));
-    return sphs;
+  TableRow _buildHeader(List<double> addValues) {
+    return TableRow(
+      decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
+      children: [
+        _headerCell("SPH", width: 100),
+        _headerCell("CYL", width: 100),
+        _headerCell("Eye", width: 80),
+        ...addValues.expand((add) => [
+              _headerCell("+${add.toStringAsFixed(2)}", color: Colors.blue.shade700, bgColor: const Color(0xFFEFF6FF), width: 100),
+              _headerCell("Qty", color: const Color(0xFFB45309), bgColor: const Color(0xFFFFFBEB), width: 100),
+              _headerCell("G/R/B", color: const Color(0xFF64748B), bgColor: const Color(0xFFF1F5F9), width: 150),
+            ]),
+        _headerCell("Row Total", color: const Color(0xFF047857), bgColor: const Color(0xFFECFDF5), width: 100),
+      ],
+    );
   }
 
-  List<String> _extractUniqueCyl() {
-    final cyls = _draftLens.addGroups
-        .flatMap((g) => g.combinations.map((c) => c.cyl))
-        .toSet()
-        .toList();
-    cyls.sort((a, b) => double.parse(a).compareTo(double.parse(b)));
-    return cyls;
+  Widget _headerCell(String text, {Color? color, Color? bgColor, double? width}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      color: bgColor,
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(fontWeight: FontWeight.bold, color: color ?? const Color(0xFF475569)),
+      ),
+    );
   }
 
-  LensCombination? _findCombination(String sph, String cyl) {
-    for (var ag in _draftLens.addGroups) {
+  TableRow _buildRow(MatrixRow row, List<double> addValues) {
+    return TableRow(
+      children: [
+        _dataCell(row.sph.toStringAsFixed(2), isBold: true),
+        _dataCell(row.cyl.toStringAsFixed(2), isBold: true),
+        _dataCell(row.eye, color: const Color(0xFF64748B)),
+        ...addValues.expand((add) {
+          final cellKey = "${row.sph.toStringAsFixed(2)}_${row.cyl.toStringAsFixed(2)}_${row.eye}_${add.toStringAsFixed(2)}";
+          return [
+            _qtyDisplayCell(matrixData[cellKey] ?? 0),
+            _qtyInputCell(cellKey),
+            _locationCell(cellKey),
+          ];
+        }),
+        _dataCell(_calculateRowTotal(row, addValues).toString(), color: const Color(0xFF047857), isBold: true, bgColor: const Color(0xFFF0FDF4)),
+      ],
+    );
+  }
+
+  Widget _dataCell(String text, {Color? color, bool isBold = false, Color? bgColor}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      color: bgColor,
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          color: color ?? const Color(0xFF1E293B),
+        ),
+      ),
+    );
+  }
+
+  Widget _qtyDisplayCell(dynamic qty) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+        ),
+        child: Text(
+          qty.toString(),
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  Widget _qtyInputCell(String key) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      child: TextField(
+        controller: TextEditingController(text: locationQtyMap[key] ?? "")..selection = TextSelection.collapsed(offset: (locationQtyMap[key] ?? "").length),
+        textAlign: TextAlign.center,
+        decoration: InputDecoration(
+          hintText: "Qty...",
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+        ),
+        style: const TextStyle(fontSize: 13),
+        onChanged: (val) => onQtyChange(key, val),
+      ),
+    );
+  }
+
+  Widget _locationCell(String key) {
+    final locs = locationMap[key] ?? [];
+    return Container(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        children: [
+          ...locs.asMap().entries.map((entry) {
+            final loc = entry.value;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "${loc.godown}/${loc.rack}/${loc.box}",
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                  ),
+                  const SizedBox(width: 4),
+                  InkWell(
+                    onTap: () => onLocationRemove(key, entry.key),
+                    child: const Icon(LucideIcons.x, size: 12, color: Colors.red),
+                  ),
+                ],
+              ),
+            );
+          }),
+          InkWell(
+            onTap: () => onLocationAdd(key, activeLocation),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+              ),
+              child: const Icon(LucideIcons.plus, size: 12, color: Colors.blue),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  TableRow _buildTotalRow(MatrixData matrix) {
+    return TableRow(
+      decoration: const BoxDecoration(color: Color(0xFF334155)),
+      children: [
+        _footerCell("COLUMN TOTALS", span: 3),
+        const SizedBox(), // Spacer for CYL
+        const SizedBox(), // Spacer for Eye
+        ...matrix.addValues.expand((add) => [
+              _footerCell(_calculateColTotal(matrix, add).toString(), span: 3),
+              const SizedBox(), // Spacer for Input
+              const SizedBox(), // Spacer for G/R/B
+            ]),
+        _footerCell(_calculateGrandTotal(matrix).toString(), color: Colors.white, isBold: true),
+      ],
+    );
+  }
+
+  Widget _footerCell(String text, {int span = 1, Color? color, bool isBold = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          color: color ?? Colors.white,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  // Matrix Logic
+  MatrixData _constructMatrix() {
+    final List<CombinationWithAdd> sourceRows = [];
+    for (var ag in lensData.addGroups) {
+      final addValue = double.tryParse(ag.addValue ?? "0") ?? 0.0;
       for (var comb in ag.combinations) {
-        if (comb.sph == sph && comb.cyl == cyl) return comb;
+        if (_passesFilters(comb, addValue)) {
+          sourceRows.add(CombinationWithAdd(comb: comb, addValue: addValue));
+        }
       }
     }
-    return null;
-  }
 
-  void _toggleLocation(LensCombination comb) {
-    final isDuplicate = comb.locations.any((l) =>
-        l.godown == widget.activeLocation.godown &&
-        l.rack == widget.activeLocation.rack &&
-        l.box == widget.activeLocation.box);
+    final addValues = sourceRows.map((r) => r.addValue).toSet().toList()..sort();
+    
+    final Map<String, MatrixRow> rowMap = {};
+    for (var r in sourceRows) {
+        final sph = double.tryParse(r.comb.sph) ?? 0.0;
+        final cyl = double.tryParse(r.comb.cyl) ?? 0.0;
+        final eye = r.comb.eye;
+        final key = "${sph}_${cyl}_$eye";
+        if (!rowMap.containsKey(key)) {
+            rowMap[key] = MatrixRow(sph: sph, cyl: cyl, eye: eye);
+        }
+    }
 
-    if (isDuplicate) return;
-
-    final updatedComb = comb.copyWith(
-      locations: [...comb.locations, widget.activeLocation],
-    );
-
-    _updateDraft(updatedComb);
-  }
-
-  void _removeLocation(LensCombination comb, int index) {
-    final updatedLocs = [...comb.locations]..removeAt(index);
-    final updatedComb = comb.copyWith(locations: updatedLocs);
-    _updateDraft(updatedComb);
-  }
-
-  void _updateQty(LensCombination comb, String qty) {
-     final updatedComb = comb.copyWith(locationQty: qty);
-     _updateDraft(updatedComb);
-  }
-
-  void _updateDraft(LensCombination updatedComb) {
-    setState(() {
-      _draftLens = _draftLens.copyWith(
-        addGroups: _draftLens.addGroups.map((ag) {
-          return ag.copyWith(
-            combinations: ag.combinations.map((c) {
-              return c.id == updatedComb.id || (c.sph == updatedComb.sph && c.cyl == updatedComb.cyl && c.eye == updatedComb.eye && c.add == updatedComb.add)
-                  ? updatedComb
-                  : c;
-            }).toList(),
-          );
-        }).toList(),
-      );
-      _modifiedKeys.add("${updatedComb.sph}_${updatedComb.cyl}");
+    final rows = rowMap.values.toList()..sort((a, b) {
+        if (a.sph != b.sph) return a.sph.compareTo(b.sph);
+        if (a.cyl != b.cyl) return a.cyl.compareTo(b.cyl);
+        return a.eye.compareTo(b.eye);
     });
+
+    return MatrixData(addValues: addValues, rows: rows);
+  }
+
+  bool _passesFilters(LensCombination comb, double addValue) {
+    final sph = double.tryParse(comb.sph) ?? 0.0;
+    final cyl = double.tryParse(comb.cyl) ?? 0.0;
+
+    final sMin = double.tryParse(filters["sphMin"] ?? "") ?? -double.infinity;
+    final sMax = double.tryParse(filters["sphMax"] ?? "") ?? double.infinity;
+    if (sph < sMin || sph > sMax) return false;
+
+    final cMin = double.tryParse(filters["cylMin"] ?? "") ?? -double.infinity;
+    final cMax = double.tryParse(filters["cylMax"] ?? "") ?? double.infinity;
+    if (cyl < cMin || cyl > cMax) return false;
+
+    final aMin = double.tryParse(filters["addMin"] ?? "") ?? -double.infinity;
+    final aMax = double.tryParse(filters["addMax"] ?? "") ?? double.infinity;
+    if (addValue < aMin || addValue > aMax) return false;
+
+    return true;
+  }
+
+  int _calculateRowTotal(MatrixRow row, List<double> addValues) {
+    int total = 0;
+    for (var add in addValues) {
+      final key = "${row.sph.toStringAsFixed(2)}_${row.cyl.toStringAsFixed(2)}_${row.eye}_${add.toStringAsFixed(2)}";
+      total += (matrixData[key] ?? 0) as int;
+    }
+    return total;
+  }
+
+  int _calculateColTotal(MatrixData matrix, double add) {
+    int total = 0;
+    for (var row in matrix.rows) {
+      final key = "${row.sph.toStringAsFixed(2)}_${row.cyl.toStringAsFixed(2)}_${row.eye}_${add.toStringAsFixed(2)}";
+      total += (matrixData[key] ?? 0) as int;
+    }
+    return total;
+  }
+
+  int _calculateGrandTotal(MatrixData matrix) {
+    int total = 0;
+    for (var add in matrix.addValues) {
+      total += _calculateColTotal(matrix, add);
+    }
+    return total;
   }
 }
 
-extension IterableExtension<T> on Iterable<T> {
-  Iterable<R> flatMap<R>(Iterable<R> Function(T) f) => expand(f);
+class CombinationWithAdd {
+  final LensCombination comb;
+  final double addValue;
+  CombinationWithAdd({required this.comb, required this.addValue});
+}
+
+class MatrixRow {
+  final double sph;
+  final double cyl;
+  final String eye;
+  MatrixRow({required this.sph, required this.cyl, required this.eye});
+}
+
+class MatrixData {
+  final List<double> addValues;
+  final List<MatrixRow> rows;
+  MatrixData({required this.addValues, required this.rows});
 }

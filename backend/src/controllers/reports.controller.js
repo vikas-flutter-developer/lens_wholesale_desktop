@@ -3649,6 +3649,121 @@ export const getOrderToChallanTimeReport = async (req, res) => {
   }
 };
 
+// Purchase Order to Challan Time Report
+export const getPurchaseOrderToChallanTimeReport = async (req, res) => {
+  try {
+    const { dateFrom, dateTo, partyName, status } = req.body;
+    const companyId = req.user?.companyId;
+
+    const startDate = dateFrom ? new Date(dateFrom) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const endDate = dateTo ? new Date(dateTo) : new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    const companyFilter = { $or: [{ companyId }, { companyId: null }] };
+    const dateFilter = { 'billData.date': { $gte: startDate, $lte: endDate } };
+
+    const baseFilter = { ...companyFilter, ...dateFilter };
+    if (partyName) {
+      baseFilter['partyData.partyAccount'] = { $regex: partyName, $options: 'i' };
+    }
+
+    const orderModels = [
+      { m: LensPurchaseOrder, type: 'LENS' },
+      { m: RxPurchaseOrder, type: 'RX' },
+      { m: ContactLensPurchaseOrder, type: 'CONTACT' }
+    ];
+
+    const results = [];
+
+    // Fetch all purchase challans and map by sourcePurchaseId
+    const challans = await LensPurchaseChallan.find({ ...companyFilter })
+      .select('sourcePurchaseId orderType billData.date billNo createdAt')
+      .lean();
+
+    const challanMap = {};
+    challans.forEach(c => {
+      if (c.sourcePurchaseId) {
+        const key = c.sourcePurchaseId.toString();
+        // Keep the earliest challan per order
+        if (!challanMap[key] || new Date(c.createdAt) < new Date(challanMap[key].createdAt)) {
+          challanMap[key] = c;
+        }
+      }
+    });
+
+    for (const config of orderModels) {
+      const orders = await config.m.find(baseFilter).lean();
+
+      orders.forEach(order => {
+        const id = order._id.toString();
+        const challan = challanMap[id];
+
+        let diffMinutes = null;
+        let orderStatus = 'Pending';
+
+        if (challan) {
+          orderStatus = 'Completed';
+          const orderTime = new Date(order.createdAt);
+          const challanTime = new Date(challan.createdAt);
+          diffMinutes = Math.floor((challanTime - orderTime) / (1000 * 60));
+        }
+
+        results.push({
+          orderId: id,
+          orderNo: order.billData?.billNo || 'N/A',
+          orderDate: order.billData?.date,
+          orderCreatedAt: order.createdAt,
+          challanNo: challan?.billNo || 'N/A',
+          challanDate: challan?.billData?.date || null,
+          challanCreatedAt: challan?.createdAt || null,
+          partyName: order.partyData?.partyAccount || 'Unknown',
+          timeDifference: diffMinutes,
+          status: orderStatus
+        });
+      });
+    }
+
+    // Filter by status if requested
+    let filteredResults = results;
+    if (status && status !== 'All') {
+      filteredResults = results.filter(r => r.status === status);
+    }
+
+    // Summary
+    const totalOrders = results.length;
+    const completedOrders = results.filter(r => r.status === 'Completed').length;
+    const pendingOrders = totalOrders - completedOrders;
+
+    const totalDiff = results.filter(r => r.timeDifference !== null).reduce((s, r) => s + r.timeDifference, 0);
+    const avgTime = completedOrders > 0 ? parseFloat((totalDiff / completedOrders).toFixed(2)) : 0;
+
+    // Trend Data (Monthly Average)
+    const trends = {};
+    results.filter(r => r.timeDifference !== null).forEach(r => {
+      const date = new Date(r.orderDate || r.orderCreatedAt);
+      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      if (!trends[monthKey]) trends[monthKey] = { period: monthKey, totalTime: 0, count: 0 };
+      trends[monthKey].totalTime += r.timeDifference;
+      trends[monthKey].count++;
+    });
+
+    const formattedTrend = Object.values(trends)
+      .sort((a, b) => a.period.localeCompare(b.period))
+      .map(t => ({ period: t.period, avgTime: parseFloat((t.totalTime / t.count).toFixed(2)) }));
+
+    res.status(200).json({
+      success: true,
+      summary: { totalOrders, completedOrders, pendingOrders, avgTime },
+      details: filteredResults,
+      trend: formattedTrend
+    });
+
+  } catch (error) {
+    console.error('Error generating Purchase Order to Challan Time Report:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
 // ─── Customer/Vendor Collection Target ─────────────────────────────────────
 
 export const saveCollectionTarget = async (req, res) => {

@@ -10,6 +10,7 @@ class OrderToChallanReport with _$OrderToChallanReport {
     required bool success,
     required OrderToChallanSummary summary,
     required List<OrderToChallanDetail> details,
+    @Default([]) List<OrderToChallanTrend> trend,
   }) = _OrderToChallanReport;
 
   factory OrderToChallanReport.fromJson(Map<String, dynamic> json) => _$OrderToChallanReportFromJson(json);
@@ -30,18 +31,28 @@ class OrderToChallanSummary with _$OrderToChallanSummary {
 @freezed
 class OrderToChallanDetail with _$OrderToChallanDetail {
   const factory OrderToChallanDetail({
-    required String orderNo,
-    required String orderDate,
-    required String orderCreatedAt,
+    @Default('') String orderNo,
+    @Default('') String orderDate,
+    @Default('') String orderCreatedAt,
     String? challanNo,
     String? challanDate,
     String? challanCreatedAt,
-    required String partyName,
-    required double timeDifference,
-    required String status,
+    @Default('') String partyName,
+    double? timeDifference,
+    @Default('') String status,
   }) = _OrderToChallanDetail;
 
   factory OrderToChallanDetail.fromJson(Map<String, dynamic> json) => _$OrderToChallanDetailFromJson(json);
+}
+
+@freezed
+class OrderToChallanTrend with _$OrderToChallanTrend {
+  const factory OrderToChallanTrend({
+    required String period,
+    required double avgTime,
+  }) = _OrderToChallanTrend;
+
+  factory OrderToChallanTrend.fromJson(Map<String, dynamic> json) => _$OrderToChallanTrendFromJson(json);
 }
 
 // Cancelled Order Ratio Report Models
@@ -81,7 +92,7 @@ class CancelledOrderRatioDetail with _$CancelledOrderRatioDetail {
     required String partyName,
     required String status,
     required double netAmount,
-    required bool cancelledOrders,
+    required int cancelledOrders,
   }) = _CancelledOrderRatioDetail;
 
   factory CancelledOrderRatioDetail.fromJson(Map<String, dynamic> json) => _$CancelledOrderRatioDetailFromJson(json);
@@ -145,4 +156,51 @@ class PartyWiseReturnRatio with _$PartyWiseReturnRatio {
   }) = _PartyWiseReturnRatio;
 
   factory PartyWiseReturnRatio.fromJson(Map<String, dynamic> json) => _$PartyWiseReturnRatioFromJson(json);
+}
+
+// Sales Growth Comparison Report Models
+@freezed
+class SalesGrowthReport with _$SalesGrowthReport {
+  const factory SalesGrowthReport({
+    required bool success,
+    required SalesGrowthSummary summary,
+    required List<SalesGrowthDetail> data,
+  }) = _SalesGrowthReport;
+
+  factory SalesGrowthReport.fromJson(Map<String, dynamic> json) => _$SalesGrowthReportFromJson(json);
+}
+
+@freezed
+class SalesGrowthSummary with _$SalesGrowthSummary {
+  const factory SalesGrowthSummary({
+    required String currLabel,
+    required String prevLabel,
+    required String lyLabel,
+    required double currTotal,
+    required double prevTotal,
+    required double lyTotal,
+    required double momGrowthPct,
+    required double yoyGrowthPct,
+    required int growingParties,
+    required int degrowingParties,
+  }) = _SalesGrowthSummary;
+
+  factory SalesGrowthSummary.fromJson(Map<String, dynamic> json) => _$SalesGrowthSummaryFromJson(json);
+}
+
+@freezed
+class SalesGrowthDetail with _$SalesGrowthDetail {
+  const factory SalesGrowthDetail({
+    required String partyName,
+    required double currSales,
+    required double prevSales,
+    required double lySales,
+    double? momGrowth,
+    double? yoyGrowth,
+    required String momStatus,
+    required String yoyStatus,
+    required int currInvoices,
+  }) = _SalesGrowthDetail;
+
+  factory SalesGrowthDetail.fromJson(Map<String, dynamic> json) => _$SalesGrowthDetailFromJson(json);
 }

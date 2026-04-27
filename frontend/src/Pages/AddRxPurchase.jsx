@@ -780,6 +780,7 @@ function AddRxPurchase() {
         ...copy[index],
         itemId: lens._id,
         itemName: lens.productName || "",
+        billItemName: lens.billItemName || "",
         salePrice: prices.sale,
         purchasePrice: prices.purchase,
         eye: lens.eye ?? copy[index].eye ?? "",
@@ -980,6 +981,7 @@ function AddRxPurchase() {
         const selectedItem = allLens.find((lens) => lens.productName === value);
         if (selectedItem) {
           copy[index].itemId = selectedItem._id;
+          copy[index].billItemName = selectedItem.billItemName || "";
           const prices = getPriceForItem(selectedItem);
           copy[index].salePrice = prices.sale;
           copy[index].purchasePrice = prices.purchase;
@@ -1193,6 +1195,7 @@ function AddRxPurchase() {
           const c = [...prev];
           const row = c[rowIndex];
           row.itemName = barcodeData.itemName || row.itemName;
+          row.billItemName = barcodeData.billItemName || "";
           row.eye = barcodeData.eye || row.eye;
           row.sph = barcodeData.sph !== "" ? barcodeData.sph : row.sph;
           row.cyl = barcodeData.cyl !== "" ? barcodeData.cyl : row.cyl;
@@ -1281,6 +1284,10 @@ function AddRxPurchase() {
   };
 
   const handleSave = async () => {
+    if (!partyData?.partyAccount) {
+      toast.error("Please select vendor name");
+      return;
+    }
     const { ok, newItems } = validateAllRows();
 
     if (!ok) {

@@ -38,6 +38,7 @@ const ProductSchema = new Schema({
   minStock: { type: Number, default: 0 },
   maxStock: { type: Number, default: 0 },
   minReorderQty: { type: Number, default: 0 },
+  gst: { type: Number, default: 0 },
   companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', default: null },
 }, { timestamps: true });
 

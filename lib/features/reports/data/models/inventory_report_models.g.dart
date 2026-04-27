@@ -245,7 +245,9 @@ _$PartyWiseItemImpl _$$PartyWiseItemImplFromJson(Map<String, dynamic> json) =>
       totalPrice: (json['totalPrice'] as num?)?.toDouble() ?? 0,
       purchasePrice: (json['purchasePrice'] as num?)?.toDouble(),
       combinationId: json['combinationId'] as String?,
-      docId: json['docId'] as String?,
+      dcId: json['dcId'] as String?,
+      vendorName: json['vendorName'] as String?,
+      dc_id: json['dc_id'] as String?,
       remark: json['remark'] as String?,
     );
 
@@ -272,7 +274,9 @@ Map<String, dynamic> _$$PartyWiseItemImplToJson(_$PartyWiseItemImpl instance) =>
       'totalPrice': instance.totalPrice,
       'purchasePrice': instance.purchasePrice,
       'combinationId': instance.combinationId,
-      'docId': instance.docId,
+      'dcId': instance.dcId,
+      'vendorName': instance.vendorName,
+      'dc_id': instance.dc_id,
       'remark': instance.remark,
     };
 
@@ -412,4 +416,117 @@ Map<String, dynamic> _$$BookedByReportItemImplToJson(
   'partyName': instance.partyName,
   'remark': instance.remark,
   'orderType': instance.orderType,
+};
+
+_$CustomerItemSalesResponseImpl _$$CustomerItemSalesResponseImplFromJson(
+  Map<String, dynamic> json,
+) => _$CustomerItemSalesResponseImpl(
+  success: json['success'] as bool,
+  summary: CustomerItemSalesSummary.fromJson(
+    json['summary'] as Map<String, dynamic>,
+  ),
+  data: (json['data'] as List<dynamic>)
+      .map((e) => CustomerItemSalesItem.fromJson(e as Map<String, dynamic>))
+      .toList(),
+);
+
+Map<String, dynamic> _$$CustomerItemSalesResponseImplToJson(
+  _$CustomerItemSalesResponseImpl instance,
+) => <String, dynamic>{
+  'success': instance.success,
+  'summary': instance.summary,
+  'data': instance.data,
+};
+
+_$CustomerItemSalesSummaryImpl _$$CustomerItemSalesSummaryImplFromJson(
+  Map<String, dynamic> json,
+) => _$CustomerItemSalesSummaryImpl(
+  totalItems: (json['totalItems'] as num).toInt(),
+  totalQty: (json['totalQty'] as num).toDouble(),
+  totalRevenue: (json['totalRevenue'] as num).toDouble(),
+  totalOrders: (json['totalOrders'] as num?)?.toInt(),
+);
+
+Map<String, dynamic> _$$CustomerItemSalesSummaryImplToJson(
+  _$CustomerItemSalesSummaryImpl instance,
+) => <String, dynamic>{
+  'totalItems': instance.totalItems,
+  'totalQty': instance.totalQty,
+  'totalRevenue': instance.totalRevenue,
+  'totalOrders': instance.totalOrders,
+};
+
+_$CustomerItemSalesItemImpl _$$CustomerItemSalesItemImplFromJson(
+  Map<String, dynamic> json,
+) => _$CustomerItemSalesItemImpl(
+  itemName: json['itemName'] as String,
+  eye: json['eye'] as String?,
+  sph: json['sph'],
+  cyl: json['cyl'],
+  axis: json['axis'],
+  add: json['add'],
+  totalQty: (json['totalQty'] as num).toDouble(),
+  totalRevenue: (json['totalRevenue'] as num).toDouble(),
+  lastSoldDate: json['lastSoldDate'] as String?,
+  orderCount: (json['orderCount'] as num).toInt(),
+);
+
+Map<String, dynamic> _$$CustomerItemSalesItemImplToJson(
+  _$CustomerItemSalesItemImpl instance,
+) => <String, dynamic>{
+  'itemName': instance.itemName,
+  'eye': instance.eye,
+  'sph': instance.sph,
+  'cyl': instance.cyl,
+  'axis': instance.axis,
+  'add': instance.add,
+  'totalQty': instance.totalQty,
+  'totalRevenue': instance.totalRevenue,
+  'lastSoldDate': instance.lastSoldDate,
+  'orderCount': instance.orderCount,
+};
+
+_$ItemStockSummaryResponseImpl _$$ItemStockSummaryResponseImplFromJson(
+  Map<String, dynamic> json,
+) => _$ItemStockSummaryResponseImpl(
+  success: json['success'] as bool,
+  data: (json['data'] as List<dynamic>)
+      .map((e) => ItemStockSummaryItem.fromJson(e as Map<String, dynamic>))
+      .toList(),
+);
+
+Map<String, dynamic> _$$ItemStockSummaryResponseImplToJson(
+  _$ItemStockSummaryResponseImpl instance,
+) => <String, dynamic>{'success': instance.success, 'data': instance.data};
+
+_$ItemStockSummaryItemImpl _$$ItemStockSummaryItemImplFromJson(
+  Map<String, dynamic> json,
+) => _$ItemStockSummaryItemImpl(
+  productName: json['productName'] as String,
+  groupName: json['groupName'] as String,
+  totalStockQty: (json['totalStockQty'] as num?)?.toDouble() ?? 0,
+  avgPurchasePrice: (json['avgPurchasePrice'] as num?)?.toDouble() ?? 0,
+  avgSellingPrice: (json['avgSellingPrice'] as num?)?.toDouble() ?? 0,
+  totalPurchaseValue: (json['totalPurchaseValue'] as num?)?.toDouble() ?? 0,
+  totalSellingValue: (json['totalSellingValue'] as num?)?.toDouble() ?? 0,
+  expectedProfit: (json['expectedProfit'] as num?)?.toDouble() ?? 0,
+  liveProfit: (json['liveProfit'] as num?)?.toDouble() ?? 0.0,
+  turnover: (json['turnover'] as num?)?.toDouble() ?? 0,
+  combinationCount: (json['combinationCount'] as num?)?.toInt() ?? 0,
+);
+
+Map<String, dynamic> _$$ItemStockSummaryItemImplToJson(
+  _$ItemStockSummaryItemImpl instance,
+) => <String, dynamic>{
+  'productName': instance.productName,
+  'groupName': instance.groupName,
+  'totalStockQty': instance.totalStockQty,
+  'avgPurchasePrice': instance.avgPurchasePrice,
+  'avgSellingPrice': instance.avgSellingPrice,
+  'totalPurchaseValue': instance.totalPurchaseValue,
+  'totalSellingValue': instance.totalSellingValue,
+  'expectedProfit': instance.expectedProfit,
+  'liveProfit': instance.liveProfit,
+  'turnover': instance.turnover,
+  'combinationCount': instance.combinationCount,
 };

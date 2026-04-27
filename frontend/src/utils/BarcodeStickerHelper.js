@@ -54,9 +54,9 @@ export const generateStandardBarcodeStickerHTML = (transaction, allLenses = [], 
       const partyNameHTML = isPurchase ? "" : `<div class="party-name">${partyName}</div>`;
       
       const purchaseFooter = `
-        <div class="footer-row" style="justify-content: center; gap: 8mm;">
-          <div>${orderNo}</div>
+        <div class="footer-row" style="justify-content: center; gap: 0.5mm;">
           <div>${formatDateDDMMYY(transaction?.billData?.date || transaction?.createdAt)}</div>
+          <div>${orderNo}</div>
         </div>
       `;
 
@@ -117,6 +117,9 @@ export const generateStandardBarcodeStickerHTML = (transaction, allLenses = [], 
             size: 70mm 35mm;
             margin: 0;
           }
+          * {
+            box-sizing: border-box;
+          }
           body {
             margin: 0;
             padding: 0;
@@ -126,7 +129,9 @@ export const generateStandardBarcodeStickerHTML = (transaction, allLenses = [], 
           .sticker-container {
             width: 70mm;
             height: 35mm;
-            padding: 2.5mm 3.5mm; /* Increased padding */
+            max-width: 70mm;
+            max-height: 35mm;
+            padding: 1mm 2.5mm;
             box-sizing: border-box;
             display: flex;
             page-break-after: always;
@@ -134,95 +139,121 @@ export const generateStandardBarcodeStickerHTML = (transaction, allLenses = [], 
             overflow: hidden;
           }
           .left-section {
-            width: 20mm;
+            width: 18mm;
+            min-width: 18mm;
+            max-width: 18mm;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            padding-right: 2mm;
+            padding-right: 1.5mm;
             border-right: 0.1mm solid #ddd;
+            overflow: hidden;
           }
           .qr-container {
-            width: 17mm;
-            height: 17mm;
+            width: 15mm;
+            height: 15mm;
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
           }
           .qr-container img {
-            width: 16mm;
-            height: 16mm;
+            width: 14mm;
+            height: 14mm;
+            display: block;
           }
           .barcode-no {
-            font-size: 7.5pt;
+            font-size: 6pt;
             font-weight: 800;
             text-align: center;
             overflow: hidden;
             white-space: nowrap;
-            margin-bottom: 2mm;
+            text-overflow: ellipsis;
+            width: 100%;
+            margin-bottom: 1mm;
           }
           .right-section {
             flex: 1;
-            padding-left: 3.5mm;
+            min-width: 0;
+            padding-left: 2.5mm;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start; /* Start from top to avoid clipping */
-            gap: 1.5mm; /* Consistent spacing */
+            justify-content: flex-start;
+            gap: 0.5mm;
+            overflow: hidden;
           }
           .party-name {
-            font-size: 9.5pt;
+            font-size: 8.5pt;
             font-weight: 900;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             color: #000;
-            line-height: 1.3;
+            line-height: 1.1;
+            max-width: 100%;
           }
           .item-name {
-            font-size: 10pt;
+            font-size: 8.5pt;
             font-weight: 700;
-            line-height: 1.2;
+            line-height: 1.1;
             color: #222;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            max-width: 100%;
           }
           .power-table {
             width: 100%;
+            max-width: 100%;
             border-collapse: collapse;
-            margin-top: 1mm;
+            margin-top: 0.3mm;
+            table-layout: fixed;
           }
           .power-table th {
             background: #000;
             color: white;
             font-weight: 900;
-            padding: 0.8mm 0.5mm;
+            padding: 0.5mm 0.2mm;
             text-align: center;
             font-size: 6.5pt;
             border: 0.2mm solid #000;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
           }
           .power-table td {
             border: 0.2mm solid #000;
             text-align: center;
-            font-weight: 950;
-            padding: 1.2mm 0.5mm;
+            font-weight: 900;
+            padding: 0.8mm 0.2mm;
             color: #000;
-            font-size: 8.5pt;
+            font-size: 9pt;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
           }
           .footer-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 8pt;
+            font-size: 7pt;
             font-weight: 800;
-            margin-top: auto; /* Push to bottom */
+            margin-top: auto;
             border-top: 0.2mm solid #ccc;
-            padding-top: 1.5mm;
+            padding-top: 0.5mm;
+            overflow: hidden;
+            white-space: nowrap;
           }
-          
+          .footer-row div {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
           /* Purchase Mode Adjustments */
           .purchase-mode {
-            padding-top: 0.5mm;
+            padding-top: 0mm;
           }
         </style>
       </head>

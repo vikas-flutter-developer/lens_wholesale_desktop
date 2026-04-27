@@ -96,7 +96,7 @@ const RxSaleSchema = new mongoose.Schema(
       default: "Pending"
     },
     sourceSaleId: { type: mongoose.Schema.Types.ObjectId, default: null },
-    sourceChallanId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    sourceChallanId: { type: mongoose.Schema.Types.ObjectId, ref: "SaleChallan", default: null },
     deliveryPerson: { type: String, default: "" },
     // Delivery tracking fields
     outForDeliveryTime: { type: Date, default: null },

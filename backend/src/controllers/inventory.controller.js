@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import Item from "../models/Item.js";
 import LensGroup from "../models/LensGroup.js";
 // Note: We'll add logic to include other items if needed, but for now
@@ -6,13 +5,11 @@ import LensGroup from "../models/LensGroup.js";
 
 export const getReorderReport = async (req, res) => {
     try {
-        const { groupName, itemName, barcode, vendorName, searchType, setValue } = req.body;
+        const { groupName, itemName, barcode, vendorName } = req.body;
         const companyId = req.user?.companyId;
-        
-        // Fix: Use ObjectId for aggregate pipeline compatibility
         const companyFilter = {
             $or: [
-                { companyId: companyId ? new mongoose.Types.ObjectId(companyId) : undefined },
+                { companyId },
                 { companyId: null }
             ]
         };
@@ -66,18 +63,7 @@ export const getReorderReport = async (req, res) => {
         let allData = [...lensData, ...regularItemsData];
 
         // Apply "Under Alert" filter
-        const val = parseFloat(setValue) || 0;
-        
-        if (searchType === "Min") {
-            // Under (Alert + SetValue)
-            allData = allData.filter(item => item.stock <= (item.alertQty + val));
-        } else if (searchType === "Max") {
-            // Under (Max + SetValue) - Assuming maxStock if available
-            allData = allData.filter(item => item.stock <= ((item.maxStock || 0) + val));
-        } else {
-            // Default "None/All" logic
-            allData = allData.filter(item => item.stock <= item.alertQty);
-        }
+        allData = allData.filter(item => item.stock <= item.alertQty);
 
         // Apply Request Filters
         if (groupName) {

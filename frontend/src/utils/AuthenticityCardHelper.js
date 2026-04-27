@@ -8,36 +8,40 @@ export const printAuthenticityCard = (transaction, allLenses = [], allItems = []
   const orderDate = new Date(transaction.billData?.date || transaction.createdAt || Date.now()).toLocaleDateString("en-GB");
   const orderNo = transaction.billData?.billNo || transaction.billNo || "-";
 
-  // Group items by Customer Name to create pairs (Right/Left)
-  const items = transaction.items || [];
-  const groups = {};
+  // Resolve bill item name from item itself, then lenses master, then items master
+  const getPrintItemName = (item) => {
+    if (item.billItemName && item.billItemName.trim() !== "") return item.billItemName;
+    const target = (item.itemName || "").trim().toLowerCase();
+    if (!target) return item.itemName || "-";
+    const foundLens = (allLenses || []).find(l =>
+      (l.productName || "").trim().toLowerCase() === target
+    );
+    if (foundLens?.billItemName) return foundLens.billItemName;
+    const foundItem = (allItems || []).find(i =>
+      (i.itemName || "").trim().toLowerCase() === target
+    );
+    if (foundItem?.billItemName) return foundItem.billItemName;
+    return item.itemName || "-";
+  };
 
-  items.forEach((item) => {
-    // Some modules use 'customer', 'customerName', 'partyName', or 'Name' field inside item
+  // Each item should be its own card (one per row)
+  const participantGroups = (transaction.items || []).map((item) => {
     const cName = item.customer || item.customerName || item.patientName || item.PatientName || item.partyName || item.PartyName || item.Name || "Customer";
-    if (!groups[cName]) {
-      groups[cName] = {
-        customerName: cName,
-        right: null,
-        left: null,
-        itemName: item.itemName || item.productName || "-",
-      };
-    }
-    
-    // Assign to Right or Left based on 'eye' field
     const eye = (item.eye || "").toLowerCase();
-    if (eye === "right" || eye === "re" || eye === "r") {
-      groups[cName].right = item;
-    } else if (eye === "left" || eye === "le" || eye === "l") {
-      groups[cName].left = item;
-    } else {
-      // If eye is not specified, try to fill logically or just put in one
-      if (!groups[cName].right) groups[cName].right = item;
-      else if (!groups[cName].left) groups[cName].left = item;
-    }
-  });
+    
+    // Check if it's a combined/both eye item
+    const isCombined = eye.includes("both") || eye.includes("r/l") || eye.includes("rl") || eye.includes("combined");
+    const isRight = eye === "right" || eye === "re" || eye === "r";
+    const isLeft = eye === "left" || eye === "le" || eye === "l";
 
-  const participantGroups = Object.values(groups);
+    return {
+      customerName: cName,
+      itemName: getPrintItemName(item),
+      // If combined, fill both; otherwise fill the specific eye
+      right: (isCombined || isRight) ? item : null,
+      left: (isCombined || isLeft) ? item : null
+    };
+  });
 
   const printWindow = window.open("", "_blank");
   printWindow.document.write(`
@@ -48,22 +52,25 @@ export const printAuthenticityCard = (transaction, allLenses = [], allItems = []
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
           
           @page {
-            size: 85.60mm 53.98mm;
+            size: 85.6mm 54mm;
             margin: 0;
           }
           body {
             margin: 0;
             padding: 0;
             font-family: 'Inter', sans-serif;
-            background-color: #f0f0f0;
+            background-color: white;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .card-wrapper {
-            width: 85.60mm;
-            height: 53.98mm;
+            width: 85.6mm;
+            height: 54mm;
             background: white;
             position: relative;
             overflow: hidden;
             page-break-after: always;
+            break-after: page;
             box-sizing: border-box;
           }
           

@@ -265,6 +265,7 @@ const getBarcodeData = async (req, res) => {
                     axis: data.axis,
                     add: data.add,
                     productName: data.productId?.productName,
+                    billItemName: data.productId?.billItemName || "",
                     purchasePrice: data.metadata?.purchasePrice || 0,
                     salePrice: data.metadata?.salePrice || 0,
                     hasPowerRange: true,
@@ -305,6 +306,7 @@ const getBarcodeData = async (req, res) => {
                         axis: foundComb.axis,
                         add: addVal || 0,
                         productName: lensGroupWithComb.productName,
+                        billItemName: lensGroupWithComb.billItemName || "",
                         purchasePrice: foundComb.pPrice || lensGroupWithComb.purchasePrice || 0,
                         salePrice: foundComb.sPrice || lensGroupWithComb.salePrice?.default || 0,
                         stock: foundComb.initStock,
@@ -328,6 +330,7 @@ const getBarcodeData = async (req, res) => {
                 productId: standaloneItem._id,
                 lensData: {
                     productName: standaloneItem.itemName,
+                    billItemName: standaloneItem.billItemName || "",
                     purchasePrice: standaloneItem.purchasePrice || 0,
                     salePrice: standaloneItem.salePrice || 0,
                     stock: standaloneItem.openingStockQty || 0,

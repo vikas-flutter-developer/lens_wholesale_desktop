@@ -218,7 +218,7 @@ const Sidebar = () => {
               key: "sale-order",
               label: "Sale Order",
               icon: ShoppingCart,
-              link: "/lenstransaction/sale/saleorder",
+              link: "/sale-orders",
             },
             {
               key: "sale-challan",
@@ -559,6 +559,12 @@ const Sidebar = () => {
               label: "Order to Challan Time Report",
               icon: Clock,
               link: "/reports/otherreports/ordertochallantimereport",
+            },
+            {
+              key: "purchase-order-to-challan-time-report",
+              label: "Purchase Order to Challan Time Report",
+              icon: Clock,
+              link: "/reports/otherreports/purchaseordertochallantimereport",
             },
             {
               key: "sales-growth-comparison-report",

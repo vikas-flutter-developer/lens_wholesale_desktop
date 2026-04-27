@@ -401,6 +401,32 @@ function AddItemMaster({ hideHeader = false, onSaveSuccess }) {
     })
   }
 
+  const getGroupColor = (groupName) => {
+    if (!groupName) return { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-100' };
+    
+    const colors = [
+      { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-100' },
+      { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-100' },
+      { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-100' },
+      { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100' },
+      { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-100' },
+      { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-100' },
+      { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-100' },
+      { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-100' },
+      { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-100' },
+      { bg: 'bg-fuchsia-50', text: 'text-fuchsia-700', border: 'border-fuchsia-100' },
+    ];
+
+    let hash = 0;
+    const str = groupName.toString().toUpperCase();
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
+
   return (
     <div className={hideHeader ? "" : "min-h-screen bg-slate-50 p-6"}>
       <div className={hideHeader ? "" : "max-w-7xl mx-auto"}>
@@ -791,9 +817,14 @@ function AddItemMaster({ hideHeader = false, onSaveSuccess }) {
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                          <span className="text-xs font-black px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">
-                            {item.groupName}
-                          </span>
+                          {(() => {
+                            const { bg, text, border } = getGroupColor(item.groupName);
+                            return (
+                              <span className={`text-xs font-black px-3 py-1 ${bg} ${text} rounded-full border ${border} shadow-sm`}>
+                                {item.groupName}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-5">
                           <div className="flex flex-col">

@@ -24,6 +24,8 @@ import {
   Filter,
   Lock,
 } from "lucide-react";
+import * as XLSX from "xlsx";
+import { generateBulkPrint, handleExportToExcel } from "../utils/PrintUtils";
 import ItemsMatrixViewModal from "../Components/ItemsMatrixViewModal"; // Added import
 import { FaWhatsapp } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -90,6 +92,93 @@ function PurchaseOrder() {
   // Cancel Reason Modal State
   const [cancelModal, setCancelModal] = useState({ isOpen: false, orderId: null, reason: "", status: "" });
   const [cancelReasonValues, setCancelReasonValues] = useState({});
+
+  // Selection state
+  const [selectedOrders, setSelectedOrders] = useState([]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedOrders(filteredOrders.map(o => String(o._id)));
+    } else {
+      setSelectedOrders([]);
+    }
+  };
+
+  const handleSelectOrder = (id) => {
+    const idStr = String(id);
+    setSelectedOrders(prev => 
+      prev.includes(idStr) ? prev.filter(i => i !== idStr) : [...prev, idStr]
+    );
+  };
+
+  const handlePrintClick = () => {
+    const dataToPrint = selectedOrders.length > 0 
+      ? filteredOrders.filter(o => selectedOrders.includes(String(o._id)))
+      : filteredOrders;
+    
+    let title = "Purchase Order List";
+    if (viewType === "lens") title = "Lens Purchase Order";
+    else if (viewType === "rx") title = "Rx Purchase Order";
+    else if (viewType === "contact") title = "Contact Lens Purchase Order";
+
+    const printItems = dataToPrint.map((o, i) => {
+      const qv = quantitiesValues[o._id] || {};
+      return {
+        ...o,
+        srNo: i + 1,
+        date: o.billData?.date,
+        time: o.time || (o.createdAt ? new Date(o.createdAt).toLocaleTimeString() : "-"),
+        series: o.billData?.billSeries || o.series || "-",
+        billNo: o.billData?.billNo || o.billNo || "-",
+        partyName: o.partyData?.partyAccount || "-",
+        ordQty: qv.ordQty ?? o.orderQty ?? (o.items?.reduce((s, it) => s + (Number(it.qty) || 0), 0) || 0),
+        usedQty: qv.usedQty ?? o.usedQty ?? 0,
+        balQty: qv.balQty ?? o.balQty ?? 0,
+        netAmt: o.netAmount || 0,
+        usedIn: Array.isArray(o.usedIn) && o.usedIn.length > 0
+          ? o.usedIn.map(u => `${u.type}(${u.number})`).join(", ")
+          : (Array.isArray(o?.usageHistory) && o.usageHistory.length > 0 ? `PI(${o.usageHistory[0].billNo})` : "-"),
+        reason: o.cancelReason || "-"
+      };
+    });
+
+    const printVisibleColumns = { srNo: true, ...visibleColumns };
+    const printAllColumns = [{ id: "srNo", label: "Sr No." }, ...ALL_COLUMNS];
+
+    generateBulkPrint(title, printItems, printVisibleColumns, printAllColumns);
+  };
+
+  const handleExportToExcelClick = () => {
+    const dataToExport = selectedOrders.length > 0 
+      ? filteredOrders.filter(o => selectedOrders.includes(String(o._id)))
+      : filteredOrders;
+
+    const exportItems = dataToExport.map((o, i) => {
+      const qv = quantitiesValues[o._id] || {};
+      return {
+        ...o,
+        srNo: i + 1,
+        date: o.billData?.date,
+        time: o.time || (o.createdAt ? new Date(o.createdAt).toLocaleTimeString() : "-"),
+        series: o.billData?.billSeries || o.series || "-",
+        billNo: o.billData?.billNo || o.billNo || "-",
+        partyName: o.partyData?.partyAccount || "-",
+        ordQty: qv.ordQty ?? o.orderQty ?? (o.items?.reduce((s, it) => s + (Number(it.qty) || 0), 0) || 0),
+        usedQty: qv.usedQty ?? o.usedQty ?? 0,
+        balQty: qv.balQty ?? o.balQty ?? 0,
+        netAmt: o.netAmount || 0,
+        usedIn: Array.isArray(o.usedIn) && o.usedIn.length > 0
+          ? o.usedIn.map(u => `${u.type}(${u.number})`).join(", ")
+          : (Array.isArray(o?.usageHistory) && o.usageHistory.length > 0 ? `PI(${o.usageHistory[0].billNo})` : "-"),
+        reason: o.cancelReason || "-"
+      };
+    });
+
+    const exportVisibleColumns = { srNo: true, ...visibleColumns };
+    const exportAllColumns = [{ id: "srNo", label: "Sr No." }, ...ALL_COLUMNS];
+
+    handleExportToExcel(XLSX, "PurchaseOrders", exportItems, exportVisibleColumns, exportAllColumns);
+  };
 
   const handleCancelReasonChange = (orderId, value) => {
     setCancelReasonValues(prev => ({ ...prev, [orderId]: value }));
@@ -345,6 +434,7 @@ function PurchaseOrder() {
   useEffect(() => {
     fetchdata();
     fetchMasterData();
+    setSelectedOrders([]); // Reset selection when viewType changes
   }, [viewType]);
 
   const [quantitiesValues, setQuantitiesValues] = useState({});
@@ -699,6 +789,24 @@ function PurchaseOrder() {
     return item.itemName || "-";
   };
 
+  const getPrintItemName = (item) => {
+    if (item.billItemName && item.billItemName.trim() !== "") return item.billItemName;
+    const target = (item.itemName || "").trim().toLowerCase();
+    if (!target) return item.itemName || "-";
+
+    const foundLens = (allLenses || []).find(l => 
+      (l.productName || "").trim().toLowerCase() === target
+    );
+    if (foundLens?.billItemName) return foundLens.billItemName;
+
+    const foundItem = (allItems || []).find(i => 
+      (i.itemName || "").trim().toLowerCase() === target
+    );
+    if (foundItem?.billItemName) return foundItem.billItemName;
+
+    return item.itemName || "-";
+  };
+
   const handleShareWhatsApp = (order) => {
     const mobile = order.partyData?.contactNumber || "";
     if (!mobile) {
@@ -751,7 +859,7 @@ function PurchaseOrder() {
       .map(
         (it, idx) => `<tr>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${idx + 1}</td>
-          <td style="border:1px solid #94a3b8;padding:4px;font-weight:bold">${it.itemName || "-"}</td>
+          <td style="border:1px solid #94a3b8;padding:4px;font-weight:bold">${getPrintItemName(it)}</td>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.orderNo || order.billData?.billNo || order.billNo || "-"}</td>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.eye || "-"}</td>
           <td style="border:1px solid #94a3b8;padding:4px;text-align:center">${it.sph ?? "-"}</td>
@@ -913,7 +1021,7 @@ function PurchaseOrder() {
 
   // Card Print
   const generateCardPrint = (order) => {
-    printAuthenticityCard(order);
+    printAuthenticityCard(order, allLenses, allItems);
   };
 
   // Print ALL orders from the table
@@ -1468,6 +1576,20 @@ function PurchaseOrder() {
                 </div>
               )}
             </div>
+            <button
+                onClick={handleExportToExcelClick}
+                className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors duration-200 hover:shadow-sm flex items-center"
+                title="Export to Excel"
+            >
+                <FileSpreadsheet className="w-4 h-4" />
+            </button>
+            <button
+                onClick={handlePrintClick}
+                className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 hover:shadow-sm flex items-center"
+                title="Print Report"
+            >
+                <Printer className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Table */}
@@ -1475,8 +1597,18 @@ function PurchaseOrder() {
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200">
                 <thead className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="w-16 text-center py-4 px-2 text-slate-700 font-bold text-sm">Sr</th>
+                <tr>
+                  <th className="w-20 text-center py-4 px-2 text-slate-700 font-bold text-sm">
+                    <div className="flex items-center justify-center gap-2">
+                       <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
+                        onChange={handleSelectAll}
+                      />
+                      <span>Sr</span>
+                    </div>
+                  </th>
                     {visibleColumns.date && <th className="w-28 text-center py-4 px-2 text-slate-700 font-bold text-sm">Date</th>}
                     {visibleColumns.time && <th className="w-32 text-center py-4 px-2 text-slate-700 font-bold text-sm">Time</th>}
                     {visibleColumns.series && <th className="w-32 text-center py-4 px-2 text-slate-700 font-bold text-sm">Series</th>}
@@ -1518,14 +1650,22 @@ function PurchaseOrder() {
                       const billNo = o?.billData?.billNo || o?.billNo || "-";
                       const partyName = o?.partyData?.partyAccount || "-";
                       const netAmt = Number(o?.netAmount ?? o?.netAmt ?? 0);
-                      const paidAmt = Number(o?.paidAmount ?? 0);
-                      const dueAmt = Number(o?.dueAmount ?? 0);
                       const isDone = (o.status || "").toLowerCase() === "done";
 
                       return (
                         <React.Fragment key={idStr}>
-                          <tr className="hover:bg-slate-50 transition-colors duration-150 group text-sm">
-                            <td className="py-4 px-2 text-center text-slate-600">{i + 1}</td>
+                          <tr className={`hover:bg-slate-50 transition-colors duration-150 group text-sm ${selectedOrders.includes(idStr) ? "bg-blue-50" : ""}`}>
+                            <td className="text-center text-slate-600 font-medium py-4 px-2">
+                              <div className="flex items-center justify-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                  checked={selectedOrders.includes(idStr)}
+                                  onChange={() => handleSelectOrder(o._id)}
+                                />
+                                {i + 1}
+                              </div>
+                            </td>
                             {visibleColumns.date && <td className="py-4 px-2 text-center text-slate-800">{formatToDDMMYYYY(billDate)}</td>}
                             {visibleColumns.time && <td className="py-4 px-2 text-center text-slate-800 font-medium">{formatTimeTo12h(orderTime, billDate)}</td>}
                             {visibleColumns.series && <td className="py-4 px-2 text-center text-slate-800"><span className="bg-slate-100 px-2 py-1 rounded text-xs font-semibold">{series}</span></td>}

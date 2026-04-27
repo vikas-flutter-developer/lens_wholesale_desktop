@@ -42,6 +42,7 @@ mixin _$ItemMasterModel {
   double? get saleProfit => throw _privateConstructorUsedError;
   double? get salePrice => throw _privateConstructorUsedError;
   double? get mrpPrice => throw _privateConstructorUsedError;
+  double? get gst => throw _privateConstructorUsedError;
   double? get saleDiscount => throw _privateConstructorUsedError;
   double? get purchaseDiscount => throw _privateConstructorUsedError;
   double? get minSalePrice => throw _privateConstructorUsedError;
@@ -102,6 +103,7 @@ abstract class $ItemMasterModelCopyWith<$Res> {
     double? saleProfit,
     double? salePrice,
     double? mrpPrice,
+    double? gst,
     double? saleDiscount,
     double? purchaseDiscount,
     double? minSalePrice,
@@ -153,6 +155,7 @@ class _$ItemMasterModelCopyWithImpl<$Res, $Val extends ItemMasterModel>
     Object? saleProfit = freezed,
     Object? salePrice = freezed,
     Object? mrpPrice = freezed,
+    Object? gst = freezed,
     Object? saleDiscount = freezed,
     Object? purchaseDiscount = freezed,
     Object? minSalePrice = freezed,
@@ -239,6 +242,10 @@ class _$ItemMasterModelCopyWithImpl<$Res, $Val extends ItemMasterModel>
             mrpPrice: freezed == mrpPrice
                 ? _value.mrpPrice
                 : mrpPrice // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            gst: freezed == gst
+                ? _value.gst
+                : gst // ignore: cast_nullable_to_non_nullable
                       as double?,
             saleDiscount: freezed == saleDiscount
                 ? _value.saleDiscount
@@ -337,6 +344,7 @@ abstract class _$$ItemMasterModelImplCopyWith<$Res>
     double? saleProfit,
     double? salePrice,
     double? mrpPrice,
+    double? gst,
     double? saleDiscount,
     double? purchaseDiscount,
     double? minSalePrice,
@@ -387,6 +395,7 @@ class __$$ItemMasterModelImplCopyWithImpl<$Res>
     Object? saleProfit = freezed,
     Object? salePrice = freezed,
     Object? mrpPrice = freezed,
+    Object? gst = freezed,
     Object? saleDiscount = freezed,
     Object? purchaseDiscount = freezed,
     Object? minSalePrice = freezed,
@@ -473,6 +482,10 @@ class __$$ItemMasterModelImplCopyWithImpl<$Res>
         mrpPrice: freezed == mrpPrice
             ? _value.mrpPrice
             : mrpPrice // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        gst: freezed == gst
+            ? _value.gst
+            : gst // ignore: cast_nullable_to_non_nullable
                   as double?,
         saleDiscount: freezed == saleDiscount
             ? _value.saleDiscount
@@ -564,6 +577,7 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
     this.saleProfit,
     this.salePrice,
     this.mrpPrice,
+    this.gst,
     this.saleDiscount,
     this.purchaseDiscount,
     this.minSalePrice,
@@ -635,6 +649,8 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
   @override
   final double? mrpPrice;
   @override
+  final double? gst;
+  @override
   final double? saleDiscount;
   @override
   final double? purchaseDiscount;
@@ -683,7 +699,7 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
 
   @override
   String toString() {
-    return 'ItemMasterModel(id: $id, itemName: $itemName, vendorItemName: $vendorItemName, billItemName: $billItemName, alias: $alias, printName: $printName, groupName: $groupName, unit: $unit, allUnit: $allUnit, description: $description, taxSetting: $taxSetting, openingStock: $openingStock, openingStockValue: $openingStockValue, purchasePrice: $purchasePrice, saleProfit: $saleProfit, salePrice: $salePrice, mrpPrice: $mrpPrice, saleDiscount: $saleDiscount, purchaseDiscount: $purchaseDiscount, minSalePrice: $minSalePrice, hsnCode: $hsnCode, barcode: $barcode, stockable: $stockable, godown: $godown, loyaltyPoints: $loyaltyPoints, refAmn: $refAmn, refAmntIndia: $refAmntIndia, forLensProduct: $forLensProduct, sellStockLevel: $sellStockLevel, batchWiseDetails: $batchWiseDetails, taxCategory: $taxCategory, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'ItemMasterModel(id: $id, itemName: $itemName, vendorItemName: $vendorItemName, billItemName: $billItemName, alias: $alias, printName: $printName, groupName: $groupName, unit: $unit, allUnit: $allUnit, description: $description, taxSetting: $taxSetting, openingStock: $openingStock, openingStockValue: $openingStockValue, purchasePrice: $purchasePrice, saleProfit: $saleProfit, salePrice: $salePrice, mrpPrice: $mrpPrice, gst: $gst, saleDiscount: $saleDiscount, purchaseDiscount: $purchaseDiscount, minSalePrice: $minSalePrice, hsnCode: $hsnCode, barcode: $barcode, stockable: $stockable, godown: $godown, loyaltyPoints: $loyaltyPoints, refAmn: $refAmn, refAmntIndia: $refAmntIndia, forLensProduct: $forLensProduct, sellStockLevel: $sellStockLevel, batchWiseDetails: $batchWiseDetails, taxCategory: $taxCategory, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -721,6 +737,7 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
                 other.salePrice == salePrice) &&
             (identical(other.mrpPrice, mrpPrice) ||
                 other.mrpPrice == mrpPrice) &&
+            (identical(other.gst, gst) || other.gst == gst) &&
             (identical(other.saleDiscount, saleDiscount) ||
                 other.saleDiscount == saleDiscount) &&
             (identical(other.purchaseDiscount, purchaseDiscount) ||
@@ -772,6 +789,7 @@ class _$ItemMasterModelImpl implements _ItemMasterModel {
     saleProfit,
     salePrice,
     mrpPrice,
+    gst,
     saleDiscount,
     purchaseDiscount,
     minSalePrice,
@@ -826,6 +844,7 @@ abstract class _ItemMasterModel implements ItemMasterModel {
     final double? saleProfit,
     final double? salePrice,
     final double? mrpPrice,
+    final double? gst,
     final double? saleDiscount,
     final double? purchaseDiscount,
     final double? minSalePrice,
@@ -884,6 +903,8 @@ abstract class _ItemMasterModel implements ItemMasterModel {
   double? get salePrice;
   @override
   double? get mrpPrice;
+  @override
+  double? get gst;
   @override
   double? get saleDiscount;
   @override

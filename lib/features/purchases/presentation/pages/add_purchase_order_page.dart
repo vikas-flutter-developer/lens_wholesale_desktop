@@ -11,8 +11,9 @@ import 'package:lens_wholesale_desktop/features/purchases/presentation/widgets/p
 
 class AddPurchaseOrderPage extends StatefulWidget {
   final String? orderId;
+  final List<PurchaseItem>? initialItems;
 
-  const AddPurchaseOrderPage({super.key, this.orderId});
+  const AddPurchaseOrderPage({super.key, this.orderId, this.initialItems});
 
   @override
   State<AddPurchaseOrderPage> createState() => _AddPurchaseOrderPageState();
@@ -37,6 +38,9 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
   void initState() {
     super.initState();
     _billData = _billData.copyWith(date: DateFormat('yyyy-MM-dd').format(DateTime.now()));
+    if (widget.initialItems != null) {
+      _items = widget.initialItems!;
+    }
     if (widget.orderId != null) _loadOrder();
   }
 

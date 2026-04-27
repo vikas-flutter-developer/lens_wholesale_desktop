@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/item_group_model.dart';
 import '../../data/providers/inventory_providers.dart';
+import '../../../../core/utils/color_utils.dart';
 
 class AddItemGroupPage extends StatefulWidget {
   final bool hideHeader;
@@ -309,7 +310,28 @@ class _AddItemGroupPageState extends State<AddItemGroupPage> {
                         centered: true,
                       ),
                       _buildCell(child: Text(formattedDate, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF475569))), width: widths['date']!),
-                      _buildCell(child: Text(g.groupName, style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1E293B), fontSize: 13.5)), width: widths['name']!),
+                      _buildCell(
+                        child: () {
+                          final gColor = getGroupColor(g.groupName);
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: gColor.background,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: gColor.border),
+                            ),
+                            child: Text(
+                              g.groupName,
+                              style: TextStyle(
+                                color: gColor.text,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          );
+                        }(),
+                        width: widths['name']!,
+                      ),
                       _buildCell(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
